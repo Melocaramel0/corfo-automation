@@ -1,0 +1,191 @@
+{
+  "titulo": "Formulario de Postulación",
+  "url": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfenBIc/sgDMg3GlErjtPXzipaNobRyY90FqznyFbMpi/e1bfpURpN/eUL97b2YX8ZWiuMg4oMTOScWttUjszZQ=#boton",
+  "descripcion": "Formulario multi-fase con 2 fases",
+  "campos": [
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.9346875920350516",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.9246862801767872",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.9229971094575471",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.6171768443000034",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.06968979555276777",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.6485263305620047",
+      "requerido": false
+    },
+    {
+      "tipo": "text",
+      "label": "Campo sin etiqueta (INPUT)",
+      "nombre": "campo_1751345498288_0.014289105534389779",
+      "requerido": false
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "gpara_que_puedas_enviar_tu_postulacion_te_recomendamos_usar_las_ultimas_versiones_de_google_chrome_fi_10605140_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "gpresiona_el_boton_guardar_ubicado_al_final_de_cada_seccion_cuando_incorpores_informacion_adicional_a_10605141_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "gcuando_adjuntes_un_archivo_al_sistema_asegura_utilizar_los_formatos_establecidos_en_la_presente_conv_10605142_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "gpresiona_el_boton_guardar_y_siguiente_ubicado_al_final_de_cada_seccion_cuando_incorpores_toda_la_inf_10605143_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "guna_vez_completadas_las_secciones_del_formulario_debes_ir_a_la_seccion_confirmacion_para_activar_el__10605144_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, entiendo esta recomendación.",
+      "nombre": "gno_olvides_que_el_concurso_cierra_el_24_de_agosto_a_las_1600_horas_y_no_podras_enviar_tu_postulacion_10605145_0_0",
+      "requerido": true
+    },
+    {
+      "tipo": "radio",
+      "label": "Sí, autorizo",
+      "nombre": "gde_conformidad_al_numero_11_de_las_bases_de_viraliza_el_beneficiario_autoriza_a_corfo_y_a_sus_comite_10605148_0_0",
+      "requerido": true
+    }
+  ],
+  "fases": [
+    {
+      "numero": 1,
+      "titulo": "Fase https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfenBIc/sgDMg3GlErjtPXzipaNobRyY90FqznyFbMpi/e1bfpURpN/eUL97b2YX8ZWiuMg4oMTOScWttUjszZQ=",
+      "campos": [],
+      "esUltimaFase": false
+    },
+    {
+      "numero": 2,
+      "titulo": "Guía de Postulación",
+      "campos": [
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.9346875920350516",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.9246862801767872",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.9229971094575471",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.6171768443000034",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.06968979555276777",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.6485263305620047",
+          "requerido": false
+        },
+        {
+          "tipo": "text",
+          "label": "Campo sin etiqueta (INPUT)",
+          "nombre": "campo_1751345498288_0.014289105534389779",
+          "requerido": false
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "gpara_que_puedas_enviar_tu_postulacion_te_recomendamos_usar_las_ultimas_versiones_de_google_chrome_fi_10605140_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "gpresiona_el_boton_guardar_ubicado_al_final_de_cada_seccion_cuando_incorpores_informacion_adicional_a_10605141_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "gcuando_adjuntes_un_archivo_al_sistema_asegura_utilizar_los_formatos_establecidos_en_la_presente_conv_10605142_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "gpresiona_el_boton_guardar_y_siguiente_ubicado_al_final_de_cada_seccion_cuando_incorpores_toda_la_inf_10605143_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "guna_vez_completadas_las_secciones_del_formulario_debes_ir_a_la_seccion_confirmacion_para_activar_el__10605144_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, entiendo esta recomendación.",
+          "nombre": "gno_olvides_que_el_concurso_cierra_el_24_de_agosto_a_las_1600_horas_y_no_podras_enviar_tu_postulacion_10605145_0_0",
+          "requerido": true
+        },
+        {
+          "tipo": "radio",
+          "label": "Sí, autorizo",
+          "nombre": "gde_conformidad_al_numero_11_de_las_bases_de_viraliza_el_beneficiario_autoriza_a_corfo_y_a_sus_comite_10605148_0_0",
+          "requerido": true
+        }
+      ],
+      "esUltimaFase": false
+    }
+  ],
+  "totalFases": 2
+}

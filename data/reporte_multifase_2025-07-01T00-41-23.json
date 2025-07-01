@@ -1,0 +1,52 @@
+{
+  "formulario": {
+    "titulo": "Borradores de Postulación",
+    "url": "https://postulador.corfo.cl/GOS/Plataformapostulacionfront/Modules/Postulador/PostuladorBorradores.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVY07qDFNjrdxuNn3rsPqDV4=",
+    "totalFases": 1,
+    "totalCampos": 1,
+    "totalCamposObligatorios": 0
+  },
+  "fases": [
+    {
+      "numeroFase": 1,
+      "titulo": "Postulaciones'' Viraliza Formación Crisis Climática''",
+      "camposTotal": 1,
+      "camposObligatorios": 0,
+      "camposOpcionales": 1,
+      "tiempoAutocompletado": 802,
+      "tiempoValidacion": 4,
+      "resultado": {
+        "esValido": true,
+        "errores": [],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 1,
+          "camposValidados": 1,
+          "camposConErrores": 0,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 100
+        }
+      }
+    }
+  ],
+  "tiempos": {
+    "tiempoTotalAutocompletado": 802,
+    "tiempoTotalValidacion": 4,
+    "tiempoTotalProcesamiento": 809,
+    "tiempoPromedioPorCampo": 809,
+    "tiempoPromedioPorFase": 809
+  },
+  "resumenGeneral": {
+    "fasesValidas": 1,
+    "fasesConErrores": 0,
+    "porcentajeExito": 100,
+    "totalErrores": 0,
+    "totalAdvertencias": 0
+  },
+  "recomendaciones": [],
+  "metadatos": {
+    "fechaGeneracion": "2025-07-01T00:41:23.436Z",
+    "version": "1.0.0",
+    "tipoAnalisis": "formulario-multifase"
+  }
+}

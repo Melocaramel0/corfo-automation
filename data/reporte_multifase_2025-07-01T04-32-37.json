@@ -1,0 +1,168 @@
+{
+  "formulario": {
+    "titulo": "Formulario de Postulación",
+    "url": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfenBIc/sgDMg3GlErjtPXzipaNobRyY90FqznyFbMpiZL20kB5WC3Spvs00dpFpiefz/djf8E/5PMuEdY8RAa0=#boton",
+    "totalFases": 3,
+    "totalCampos": 28,
+    "totalCamposObligatorios": 14
+  },
+  "fases": [
+    {
+      "numeroFase": 1,
+      "titulo": "Fase https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfenBIc/sgDMg3GlErjtPXzipaNobRyY90FqznyFbMpiZL20kB5WC3Spvs00dpFpiefz/djf8E/5PMuEdY8RAa0=",
+      "camposTotal": 0,
+      "camposObligatorios": 0,
+      "camposOpcionales": 0,
+      "tiempoAutocompletado": 0,
+      "tiempoValidacion": 1,
+      "resultado": {
+        "esValido": true,
+        "errores": [],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 0,
+          "camposValidados": 0,
+          "camposConErrores": 0,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 0
+        }
+      }
+    },
+    {
+      "numeroFase": 2,
+      "titulo": "Guía de Postulación",
+      "camposTotal": 14,
+      "camposObligatorios": 7,
+      "camposOpcionales": 7,
+      "tiempoAutocompletado": 11310,
+      "tiempoValidacion": 4,
+      "resultado": {
+        "esValido": false,
+        "errores": [
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, autorizo",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          }
+        ],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 14,
+          "camposValidados": 7,
+          "camposConErrores": 7,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 50
+        }
+      }
+    },
+    {
+      "numeroFase": 3,
+      "titulo": "Guía de Postulación",
+      "camposTotal": 14,
+      "camposObligatorios": 7,
+      "camposOpcionales": 7,
+      "tiempoAutocompletado": 11287,
+      "tiempoValidacion": 3,
+      "resultado": {
+        "esValido": false,
+        "errores": [
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, entiendo esta recomendación.",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Sí, autorizo",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          }
+        ],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 14,
+          "camposValidados": 7,
+          "camposConErrores": 7,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 50
+        }
+      }
+    }
+  ],
+  "tiempos": {
+    "tiempoTotalAutocompletado": 22597,
+    "tiempoTotalValidacion": 8,
+    "tiempoTotalProcesamiento": 22613,
+    "tiempoPromedioPorCampo": 807.6071428571429,
+    "tiempoPromedioPorFase": 7537.666666666667
+  },
+  "resumenGeneral": {
+    "fasesValidas": 1,
+    "fasesConErrores": 2,
+    "porcentajeExito": 33,
+    "totalErrores": 14,
+    "totalAdvertencias": 0
+  },
+  "recomendaciones": [
+    "🔧 Revisar validación en 2 fase(s) con muchos errores"
+  ],
+  "metadatos": {
+    "fechaGeneracion": "2025-07-01T04:32:37.360Z",
+    "version": "1.0.0",
+    "tipoAnalisis": "formulario-multifase"
+  }
+}

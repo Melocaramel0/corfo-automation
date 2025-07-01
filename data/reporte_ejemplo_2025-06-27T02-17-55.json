@@ -1,0 +1,160 @@
+{
+  "formulario": {
+    "titulo": "Formulario de Ejemplo Multi-Fase",
+    "url": "https://ejemplo.cl/formulario",
+    "totalFases": 3,
+    "totalCampos": 12,
+    "totalCamposObligatorios": 11
+  },
+  "fases": [
+    {
+      "numeroFase": 1,
+      "titulo": "Información Básica de la Empresa",
+      "camposTotal": 4,
+      "camposObligatorios": 4,
+      "camposOpcionales": 0,
+      "tiempoAutocompletado": 3227,
+      "tiempoValidacion": 3,
+      "resultado": {
+        "esValido": false,
+        "errores": [
+          {
+            "campo": "Nombre de la empresa",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "RUT empresa",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Email contacto",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Teléfono",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          }
+        ],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 4,
+          "camposValidados": 0,
+          "camposConErrores": 4,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 0
+        }
+      }
+    },
+    {
+      "numeroFase": 2,
+      "titulo": "Información del Proyecto",
+      "camposTotal": 4,
+      "camposObligatorios": 4,
+      "camposOpcionales": 0,
+      "tiempoAutocompletado": 3220,
+      "tiempoValidacion": 3,
+      "resultado": {
+        "esValido": false,
+        "errores": [
+          {
+            "campo": "Nombre del proyecto",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Descripción del proyecto",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Monto solicitado",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Fecha inicio",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          }
+        ],
+        "advertencias": [
+          {
+            "campo": "Descripción del proyecto",
+            "tipo": "longitud_recomendada",
+            "mensaje": "Se recomienda una descripción detallada de al menos 100 caracteres"
+          }
+        ],
+        "resumen": {
+          "totalCampos": 4,
+          "camposValidados": 0,
+          "camposConErrores": 4,
+          "camposConAdvertencias": 1,
+          "porcentajeExito": 0
+        }
+      }
+    },
+    {
+      "numeroFase": 3,
+      "titulo": "Documentación y Finalización",
+      "camposTotal": 4,
+      "camposObligatorios": 3,
+      "camposOpcionales": 1,
+      "tiempoAutocompletado": 3237,
+      "tiempoValidacion": 3,
+      "resultado": {
+        "esValido": false,
+        "errores": [
+          {
+            "campo": "Proyecto detallado",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Acepto términos",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          },
+          {
+            "campo": "Región",
+            "tipo": "campo_obligatorio",
+            "mensaje": "Este campo es obligatorio y debe ser completado"
+          }
+        ],
+        "advertencias": [],
+        "resumen": {
+          "totalCampos": 4,
+          "camposValidados": 1,
+          "camposConErrores": 3,
+          "camposConAdvertencias": 0,
+          "porcentajeExito": 25
+        }
+      }
+    }
+  ],
+  "tiempos": {
+    "tiempoTotalAutocompletado": 9684,
+    "tiempoTotalValidacion": 9,
+    "tiempoTotalProcesamiento": 9701,
+    "tiempoPromedioPorCampo": 808.4166666666666,
+    "tiempoPromedioPorFase": 3233.6666666666665
+  },
+  "resumenGeneral": {
+    "fasesValidas": 0,
+    "fasesConErrores": 3,
+    "porcentajeExito": 0,
+    "totalErrores": 11,
+    "totalAdvertencias": 1
+  },
+  "recomendaciones": [
+    "📝 Alto porcentaje de campos obligatorios (>80%) - Verificar si es necesario"
+  ],
+  "metadatos": {
+    "fechaGeneracion": "2025-06-27T02:17:55.940Z",
+    "version": "1.0.0",
+    "tipoAnalisis": "formulario-multifase"
+  }
+}
