@@ -1,0 +1,42 @@
+{
+  "name": "corfo-automation",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "scraping": "npx ts-node scraping/extraerFormularios.ts",
+    "scraping-multifase": "npx ts-node scraping/extraerFormularios.ts",
+    "analisis-profundo": "npx ts-node scraping/extraerFormularios.ts --analisis-profundo",
+    "demo": "npx ts-node ai/demoMultiFase.ts",
+    "demo-simple": "npx ts-node ai/demoMultiFase.ts simple",
+    "test-agente": "npx ts-node ai/test-simple.ts",
+    "agente-demo": "npx ts-node ai/demo.ts",
+    "mvp-hibrido": "npx ts-node ai/mvpHibrido.ts",
+    "mvp-hibrido-velocidad": "npx ts-node ai/mvpHibrido.ts velocidad",
+    "mvp-hibrido-produccion": "npx ts-node ai/mvpHibrido.ts produccion",
+    "demo-mvp": "npx ts-node ai/demoMVP.ts",
+    "demo-mvp-help": "npx ts-node ai/demoMVP.ts --help",
+    "mvp-simple": "npx ts-node ai/mvpSimplificado.ts",
+    "analisis-profundo": "npx ts-node scraping/extraerFormularios.ts -- --analisis-profundo"
+  },
+  "keywords": [
+    "corfo",
+    "automation",
+    "web-scraping",
+    "ai",
+    "forms",
+    "typescript",
+    "playwright"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Sistema automatizado para procesamiento de formularios CORFO con análisis multi-fase",
+  "dependencies": {
+    "@types/node": "^22.15.21",
+    "dotenv": "^16.5.0",
+    "playwright": "^1.52.0",
+    "typescript": "^5.8.3"
+  }
+}

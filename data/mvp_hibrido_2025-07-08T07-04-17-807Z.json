@@ -1,0 +1,216 @@
+{
+  "exito": false,
+  "mensaje": "",
+  "tiempoEjecucion": 0,
+  "estadisticas": {
+    "totalPasos": 0,
+    "totalCampos": 0,
+    "camposCompletados": 0,
+    "porcentajeExito": 0,
+    "velocidadCamposPorSegundo": 0,
+    "tiempoPromedioPorPaso": 0
+  },
+  "pasos": [],
+  "titulo": "Formulario de Postulación",
+  "urlInicial": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVbrxua2lVANcLwdNjq+z0z+SIQ728UH7tu8CxgZUD7b/CsG/dsr0Hv84W65ZRVNoVcYsCm4tbkYQVfILzunhPRA=",
+  "fechaEjecucion": "2025-07-08T07:02:16.079Z",
+  "tiempoTotal": 0,
+  "pasosCompletados": [
+    {
+      "numero": 1,
+      "titulo": "Datos Generales Proyecto",
+      "url": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVbrxua2lVANcLwdNjq+z0z+SIQ728UH7tu8CxgZUD7b/CsG/dsr0Hv84W65ZRVNoVcYsCm4tbkYQVfILzunhPRA=",
+      "camposEncontrados": 24,
+      "camposCompletados": 8,
+      "tiempoTranscurrido": 54438,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "_rootApp",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "__EVENTTARGET",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "__EVENTARGUMENT",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "__VIEWSTATE",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "__VIEWSTATEGENERATOR",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "__EVENTVALIDATION",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "//<![CDATA[\nSys.WebForms.PageRequestManager._initialize('ctl00$AjaxScript', 'Form1', [], [], [], 1200, 'ctl00');\n//]]>",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "//<![CDATA[\nSys.WebForms.PageRequestManager._initialize('ctl00$AjaxScript', 'Form1', [], [], [], 1200, 'ctl00');\n//]]>",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": ".alert-minimalist {",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Previous",
+          "tipo": "hidden",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Título del Proyecto",
+          "tipo": "textarea",
+          "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Sector de aplicación del proyecto",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Sector Económico de impacto",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "9999",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Resumen del Proyecto",
+          "tipo": "textarea",
+          "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Objetivo General del Proyecto",
+          "tipo": "textarea",
+          "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Localización Proyecto",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Región",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Provincia",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Comuna",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Calle",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "99999",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "99999",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "999999999",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    }
+  ],
+  "errores": []
+}
