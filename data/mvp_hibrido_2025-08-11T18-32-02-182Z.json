@@ -12,17 +12,17 @@
   },
   "pasos": [],
   "titulo": "Formulario de Postulación",
-  "urlInicial": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVbrxua2lVANcLwdNjq+z0z+SIQ728UH7tu8CxgZUD7b/CsG/dsr0Hv84W65ZRVNoVcYsCm4tbkYQVfILzunhPRA=",
-  "fechaEjecucion": "2025-07-08T07:02:16.079Z",
+  "urlInicial": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfF0jiliHlXEtOejga64FvUjcSnRxmv+t5LlLqFF6Wl4kwI5MvWhNrKsIsWSRpX8Gk43l0dfr1ltlIamYidH4kA=",
+  "fechaEjecucion": "2025-08-11T18:29:18.017Z",
   "tiempoTotal": 0,
   "pasosCompletados": [
     {
       "numero": 1,
       "titulo": "Datos Generales Proyecto",
-      "url": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVbrxua2lVANcLwdNjq+z0z+SIQ728UH7tu8CxgZUD7b/CsG/dsr0Hv84W65ZRVNoVcYsCm4tbkYQVfILzunhPRA=",
-      "camposEncontrados": 24,
-      "camposCompletados": 8,
-      "tiempoTranscurrido": 54438,
+      "url": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVfF0jiliHlXEtOejga64FvUjcSnRxmv+t5LlLqFF6Wl4kwI5MvWhNrKsIsWSRpX8Gk43l0dfr1ltlIamYidH4kA=",
+      "camposEncontrados": 18,
+      "camposCompletados": 4,
+      "tiempoTranscurrido": 79161,
       "exito": true,
       "detalles": [
         {
@@ -106,32 +106,17 @@
           "razonFallo": "No se pudo determinar valor apropiado"
         },
         {
+          "etiqueta": "¿El Proyecto postula a Etapa de Diagnóstico?",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
           "etiqueta": "Título del Proyecto",
           "tipo": "textarea",
           "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
-          "completado": true,
-          "esObligatorio": true
-        },
-        {
-          "etiqueta": "Sector de aplicación del proyecto",
-          "tipo": "select-one",
-          "valorAsignado": "",
-          "completado": false,
-          "esObligatorio": true,
-          "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "Sector Económico de impacto",
-          "tipo": "select-one",
-          "valorAsignado": "",
-          "completado": false,
-          "esObligatorio": true,
-          "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "9999",
-          "tipo": "text",
-          "valorAsignado": "Texto de prueba",
           "completado": true,
           "esObligatorio": true
         },
@@ -143,69 +128,40 @@
           "esObligatorio": true
         },
         {
-          "etiqueta": "Objetivo General del Proyecto",
-          "tipo": "textarea",
-          "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
-          "completado": true,
-          "esObligatorio": true
-        },
-        {
-          "etiqueta": "Localización Proyecto",
+          "etiqueta": "Sector de Aplicación",
           "tipo": "select-one",
           "valorAsignado": "",
           "completado": false,
           "esObligatorio": true,
           "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "Región",
-          "tipo": "select-one",
-          "valorAsignado": "",
-          "completado": false,
-          "esObligatorio": true,
-          "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "Provincia",
-          "tipo": "select-one",
-          "valorAsignado": "",
-          "completado": false,
-          "esObligatorio": true,
-          "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "Comuna",
-          "tipo": "select-one",
-          "valorAsignado": "",
-          "completado": false,
-          "esObligatorio": true,
-          "razonFallo": "No se pudo determinar valor apropiado"
-        },
-        {
-          "etiqueta": "Calle",
-          "tipo": "text",
-          "valorAsignado": "Texto de prueba",
-          "completado": true,
-          "esObligatorio": true
-        },
-        {
-          "etiqueta": "99999",
-          "tipo": "text",
-          "valorAsignado": "Texto de prueba",
-          "completado": true,
-          "esObligatorio": true
-        },
-        {
-          "etiqueta": "99999",
-          "tipo": "text",
-          "valorAsignado": "Texto de prueba",
-          "completado": true,
-          "esObligatorio": true
         },
         {
           "etiqueta": "999999999",
           "tipo": "text",
           "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Sector de Impacto",
+          "tipo": "select-one",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": true,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Subir Archivo",
+          "tipo": "text",
+          "valorAsignado": "",
+          "completado": false,
+          "esObligatorio": false,
+          "razonFallo": "No se pudo determinar valor apropiado"
+        },
+        {
+          "etiqueta": "Objetivo General del Proyecto",
+          "tipo": "textarea",
+          "valorAsignado": "Desarrollo de Sistema de Monitoreo Ambiental Inteligente",
           "completado": true,
           "esObligatorio": true
         }

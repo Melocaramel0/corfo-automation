@@ -230,11 +230,65 @@ async function realizarLogin(page: Page): Promise<void> {
         // No hay aviso inicial
     }
 
-    // Hacer click en "Ingreso usuario"
-    const loginButton = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
-        timeout: 10000,
-        state: 'visible'
-    });
+    // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
+    let loginButton = null;
+    
+    try {
+        // Intentar encontrar el enlace específico para clave Corfo por ID
+        loginButton = await page.waitForSelector('#mostrarCorfoLoginLink', { 
+            timeout: 8000,
+            state: 'visible'
+        });
+        
+        if (loginButton) {
+            console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
+            
+            // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
+            await loginButton.click();
+            
+            // Esperar a que aparezca el formulario de login (el div se hace visible)
+            console.log('Esperando a que aparezca el formulario de Clave Corfo...');
+            await page.waitForSelector('#bloqueCorfoLogin', { 
+                state: 'visible',
+                timeout: 10000
+            });
+            
+            console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
+            
+            // Llenar los campos directamente en la página actual (no hay iframe)
+            const user = process.env.CORFO_USER!;
+            const pass = process.env.CORFO_PASS!;
+
+            await page.waitForSelector('#rut', { state: 'visible' });
+            await page.waitForSelector('#pass', { state: 'visible' });
+
+            // Llenar los campos
+            await page.fill('#rut', user);
+            await page.fill('#pass', pass);
+
+            // Hacer clic en el botón de enviar
+            await page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
+            await page.click('#ingresa_');
+            
+            // Esperar a que el login se procese
+            await page.waitForTimeout(3000);
+            
+            console.log('Login con Clave Corfo completado');
+            return; // Salir de la función porque ya hicimos login
+        }
+    } catch (error) {
+        console.log('No se encontró el enlace de Clave Corfo, buscando "Ingreso usuario" directamente...');
+        
+        // Fallback: buscar directamente "Ingreso usuario" (compatibilidad con interfaz antigua)
+        loginButton = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
+            timeout: 10000,
+            state: 'visible'
+        });
+    }
+
+    if (!loginButton) {
+        throw new Error('No se pudo encontrar el enlace de ingreso');
+    }
 
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'networkidle' }),

@@ -161,15 +161,82 @@ async function login(page: Page): Promise<void> {
         console.log('No se encontró aviso inicial o ya está cerrado');
     }
 
-    console.log('Buscando enlace de ingreso...');
-    // Esperar y hacer click en el enlace de ingreso
-    const loginButton = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
-        timeout: 10000,
-        state: 'visible'
-    });
+    console.log('Buscando enlace de ingreso con Clave Corfo...');
+    
+    // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
+    let loginButton = null;
+    
+    try {
+        // Intentar encontrar el enlace específico para clave Corfo por ID
+        loginButton = await page.waitForSelector('#mostrarCorfoLoginLink', { 
+            timeout: 8000,
+            state: 'visible'
+        });
+        
+        if (loginButton) {
+            console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
+            
+            // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
+            await loginButton.click();
+            
+            // Esperar a que aparezca el formulario de login (el div se hace visible)
+            console.log('Esperando a que aparezca el formulario de Clave Corfo...');
+            await page.waitForSelector('#bloqueCorfoLogin', { 
+                state: 'visible',
+                timeout: 10000
+            });
+            
+            console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
+            
+            // Llenar los campos directamente en la página actual (no hay iframe)
+            const user = process.env.CORFO_USER!;
+            const pass = process.env.CORFO_PASS!;
+
+            // Esperar a que los campos estén disponibles
+            await page.waitForSelector('#rut', { state: 'visible' });
+            await page.waitForSelector('#pass', { state: 'visible' });
+
+            // Llenar los campos
+            await page.fill('#rut', user);
+            await page.fill('#pass', pass);
+
+            // Verificar que los campos estén llenos
+            const values = await page.evaluate(() => {
+                return {
+                    rut: (document.getElementById('rut') as HTMLInputElement)?.value,
+                    pass: (document.getElementById('pass') as HTMLInputElement)?.value
+                };
+            });
+            if (!values.rut || !values.pass) {
+                throw new Error('Los campos de login no se llenaron correctamente');
+            }
+
+            // Hacer clic en el botón de enviar
+            await page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
+            await page.click('#ingresa_');
+            
+            // Esperar a que desaparezca el formulario o cambie la página
+            await page.waitForTimeout(3000);
+            
+            console.log('Login con Clave Corfo completado');
+            return; // Salir de la función porque ya hicimos login
+        }
+    } catch (error) {
+        console.log('No se encontró el enlace de Clave Corfo, buscando "Ingreso usuario" directamente...');
+        
+        // Fallback: buscar directamente "Ingreso usuario" (compatibilidad con interfaz antigua)
+        try {
+            loginButton = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
+                timeout: 10000,
+                state: 'visible'
+            });
+        } catch (fallbackError) {
+            throw new Error('No se pudo encontrar ningún enlace de ingreso válido');
+        }
+    }
 
     if (!loginButton) {
-        throw new Error('No se pudo encontrar el enlace de "Ingreso usuario"');
+        throw new Error('No se pudo encontrar el enlace de ingreso');
     }
 
     // Intentar remover el overlay si existe
@@ -185,7 +252,9 @@ async function login(page: Page): Promise<void> {
         console.log('No se pudo remover el overlay o no existe');
     }
 
-    console.log('Haciendo click en el enlace de ingreso...');
+    // Si llegamos aquí, significa que no se encontró el enlace de Clave Corfo y 
+    // se está usando la interfaz antigua con "Ingreso usuario"
+    console.log('Haciendo click en el enlace de "Ingreso usuario"...');
     // Hacer click usando Promise.all para esperar la navegación
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'networkidle' }),
@@ -196,40 +265,27 @@ async function login(page: Page): Promise<void> {
         })
     ]);
 
-    // Listar todos los iframes disponibles
-    console.log('Listando todos los iframes disponibles:');
+    // Resto del código para iframe (interfaz antigua)
     const frames = await page.frames();
-    frames.forEach((frame, index) => {
-        console.log(`Frame ${index + 1}:`, frame.url());
-    });
-
-    // Esperar a que el iframe de login esté completamente cargado
-    console.log('Esperando a que el iframe de login esté completamente cargado...');
     const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
     
     if (!loginFrame) {
         throw new Error('No se pudo encontrar el iframe de login');
     }
 
-    // Esperar a que el iframe esté completamente cargado
     await loginFrame.waitForLoadState('networkidle');
     await page.waitForTimeout(5000);
 
-    // Intentar llenar los campos directamente
-    console.log('Intentando llenar los campos de login...');
     try {
         const user = process.env.CORFO_USER!;
         const pass = process.env.CORFO_PASS!;
 
-        // Esperar a que los campos estén disponibles
         await loginFrame.waitForSelector('#rut', { state: 'visible' });
         await loginFrame.waitForSelector('#pass', { state: 'visible' });
 
-        // Llenar los campos
         await loginFrame.fill('#rut', user);
         await loginFrame.fill('#pass', pass);
 
-        // Verificar que los campos estén llenos
         const values = await loginFrame.evaluate(() => {
             return {
                 rut: (document.getElementById('rut') as HTMLInputElement)?.value,
@@ -240,22 +296,15 @@ async function login(page: Page): Promise<void> {
             throw new Error('Los campos de login no se llenaron correctamente');
         }
 
-        // Esperar a que el botón de submit esté disponible (input con id 'ingresa_')
         await loginFrame.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
-
-        // Forzar el click en el botón de submit (id #ingresa_)
         await loginFrame.evaluate(() => {
             const btn = document.getElementById('ingresa_') as HTMLElement;
             if (btn) btn.click();
         });
 
-        // Esperar a que desaparezca el campo #rut (indicando que el login avanzó)
         await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
-
-        // Esperar a que la página se estabilice
         await page.waitForTimeout(2000);
 
-        // Verificar si el login fue exitoso
         const errorMessage = await page.locator('.error-message, .alert-danger').count();
         if (errorMessage > 0) {
             throw new Error('Error en el login: Credenciales inválidas');
@@ -263,8 +312,6 @@ async function login(page: Page): Promise<void> {
 
         console.log('Login exitoso');
 
-        // Esperar a que el botón "Volver al sitio Público" esté disponible
-        console.log('Buscando botón "Volver al sitio Público"...');
         const volverButton = await page.waitForSelector('a:has-text("Volver al sitio Público")', { 
             state: 'visible',
             timeout: 10000
@@ -274,17 +321,13 @@ async function login(page: Page): Promise<void> {
             throw new Error('No se pudo encontrar el botón "Volver al sitio Público"');
         }
 
-        // Click en "Volver al sitio Público" y esperar la navegación
         await Promise.all([
             page.waitForNavigation({ waitUntil: 'networkidle' }),
             volverButton.click()
         ]);
 
-        // Esperar a que la página se estabilice
         await page.waitForTimeout(2000);
 
-        // Cerrar el aviso que aparece al volver
-        console.log('Verificando si hay aviso al volver...');
         try {
             const avisoBtn = await page.waitForSelector('button:has-text("Cerrar mensaje e ingresar al sitio de CORFO")', {
                 timeout: 7000,

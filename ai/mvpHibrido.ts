@@ -1070,6 +1070,7 @@ export class MVPHibrido {
 
     private async realizarLogin(): Promise<void> {
         // Login simplificado pero completo
+        // Navegar primero a la página de inicio para manejar avisos
         await this.page!.goto('https://www.corfo.cl/sites/cpp/homecorfo#', {
             waitUntil: 'domcontentloaded'
         });
@@ -1087,39 +1088,124 @@ export class MVPHibrido {
             // No hay aviso
         }
 
-        const loginButton = await this.page!.waitForSelector('a:has-text("Ingreso usuario")', { 
+        // Navegar al enlace de "Ingreso usuario" donde debe estar la nueva interfaz
+        console.log('🔍 Navegando a la página de login...');
+        
+        // Buscar y hacer clic en "Ingreso usuario"
+        const ingresoUsuarioLink = await this.page!.waitForSelector('a:has-text("Ingreso usuario")', { 
             timeout: 10000,
             state: 'visible'
         });
-
+        
+        if (!ingresoUsuarioLink) {
+            throw new Error('No se pudo encontrar el enlace "Ingreso usuario"');
+        }
+        
+        // Navegar al login
         await Promise.all([
             this.page!.waitForNavigation({ waitUntil: 'networkidle' }),
-            loginButton.click()
+            ingresoUsuarioLink.click()
         ]);
-
-        const frames = this.page!.frames();
-        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
         
-        if (loginFrame) {
-            await loginFrame.waitForLoadState('networkidle');
-            await this.page!.waitForTimeout(3000);
+        console.log('🔍 URL después de navegar al login:', this.page!.url());
 
-            await loginFrame.fill('#rut', process.env.CORFO_USER!);
-            await loginFrame.fill('#pass', process.env.CORFO_PASS!);
+        // DEBUG: Buscar la nueva interfaz en la página de login
+        const corfoLoginExists = await this.page!.evaluate(() => {
+            const element = document.getElementById('mostrarCorfoLoginLink');
+            if (element) {
+                const styles = window.getComputedStyle(element);
+                return {
+                    exists: true,
+                    display: styles.display,
+                    visibility: styles.visibility,
+                    text: element.textContent?.trim(),
+                    href: element.getAttribute('href')
+                };
+            }
+            return { exists: false };
+        });
+        console.log('🎯 Estado del enlace Corfo en página de login:', corfoLoginExists);
 
-            await loginFrame.click('#ingresa_');
-            await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
-
-            const volverButton = await this.page!.waitForSelector('a:has-text("Volver al sitio Público")', { 
-                state: 'visible',
-                timeout: 10000
+        // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
+        let loginButton = null;
+        
+        try {
+            // Intentar encontrar el enlace específico para clave Corfo por ID
+            loginButton = await this.page!.waitForSelector('#mostrarCorfoLoginLink', { 
+                timeout: 8000,
+                state: 'visible'
             });
+            
+            if (loginButton) {
+                console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
+                
+                // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
+                await loginButton.click();
+                
+                // Esperar a que aparezca el formulario de login (el div se hace visible)
+                console.log('Esperando a que aparezca el formulario de Clave Corfo...');
+                await this.page!.waitForSelector('#bloqueCorfoLogin', { 
+                    state: 'visible',
+                    timeout: 10000
+                });
+                
+                console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
+                
+                // Llenar los campos directamente en la página actual (no hay iframe)
+                await this.page!.waitForSelector('#rut', { state: 'visible' });
+                await this.page!.waitForSelector('#pass', { state: 'visible' });
 
-            await Promise.all([
-                this.page!.waitForNavigation({ waitUntil: 'networkidle' }),
-                volverButton.click()
-            ]);
+                // Llenar los campos
+                await this.page!.fill('#rut', process.env.CORFO_USER!);
+                await this.page!.fill('#pass', process.env.CORFO_PASS!);
+
+                // Hacer clic en el botón de enviar
+                await this.page!.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
+                await this.page!.click('#ingresa_');
+                
+                // Esperar a que el login se procese
+                await this.page!.waitForTimeout(3000);
+                
+                console.log('Login con Clave Corfo completado');
+                return; // Salir de la función porque ya hicimos login
+            }
+        } catch (error) {
+            console.log('No se encontró el enlace de Clave Corfo, usando interfaz tradicional con iframe...');
+            
+            // Si no está la nueva interfaz, debe ser la interfaz antigua con iframe
+            // Los campos están en un iframe, procedemos con la lógica antigua
+            const frames = this.page!.frames();
+            const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
+            
+            if (loginFrame) {
+                await loginFrame.waitForLoadState('networkidle');
+                await this.page!.waitForTimeout(3000);
+
+                await loginFrame.fill('#rut', process.env.CORFO_USER!);
+                await loginFrame.fill('#pass', process.env.CORFO_PASS!);
+
+                await loginFrame.click('#ingresa_');
+                await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
+
+                const volverButton = await this.page!.waitForSelector('a:has-text("Volver al sitio Público")', { 
+                    state: 'visible',
+                    timeout: 10000
+                });
+
+                await Promise.all([
+                    this.page!.waitForNavigation({ waitUntil: 'networkidle' }),
+                    volverButton.click()
+                ]);
+                
+                console.log('Login con iframe completado');
+                return;
+            } else {
+                throw new Error('No se encontró ni la nueva interfaz ni el iframe de login');
+            }
         }
+
+        // Si llegamos aquí, significa que hubo un error inesperado
+        throw new Error('Error inesperado en el proceso de login');
     }
 
     private async navegarAFormulario(): Promise<void> {
@@ -1465,6 +1551,7 @@ export class MVPHibrido {
 async function realizarLogin(page: Page): Promise<void> {
     console.log('🔐 Iniciando login en CORFO...');
     
+    // Navegar primero a la página de inicio para manejar avisos
     await page.goto('https://www.corfo.cl/sites/cpp/homecorfo#', {
         waitUntil: 'networkidle',
         timeout: 30000
@@ -1484,50 +1571,110 @@ async function realizarLogin(page: Page): Promise<void> {
         // No hay aviso inicial
     }
 
-    // Hacer click en "Ingreso usuario"
-    const loginButton = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
+    // Navegar al enlace de "Ingreso usuario" donde debe estar la nueva interfaz
+    console.log('🔍 Navegando a la página de login...');
+    
+    // Buscar y hacer clic en "Ingreso usuario"
+    const ingresoUsuarioLink = await page.waitForSelector('a:has-text("Ingreso usuario")', { 
         timeout: 10000,
         state: 'visible'
     });
-
+    
+    if (!ingresoUsuarioLink) {
+        throw new Error('No se pudo encontrar el enlace "Ingreso usuario"');
+    }
+    
+    // Navegar al login
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'networkidle' }),
-        loginButton.click()
+        ingresoUsuarioLink.click()
     ]);
-
-    // Esperar iframe de login
-    const frames = await page.frames();
-    const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
     
-    if (!loginFrame) {
-        throw new Error('No se pudo encontrar el iframe de login');
+    console.log('🔍 URL después de navegar al login:', page.url());
+
+    // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
+    let loginButton = null;
+    
+    try {
+        // Intentar encontrar el enlace específico para clave Corfo por ID
+        loginButton = await page.waitForSelector('#mostrarCorfoLoginLink', { 
+            timeout: 8000,
+            state: 'visible'
+        });
+        
+        if (loginButton) {
+            console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
+            
+            // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
+            await loginButton.click();
+            
+            // Esperar a que aparezca el formulario de login (el div se hace visible)
+            console.log('Esperando a que aparezca el formulario de Clave Corfo...');
+            await page.waitForSelector('#bloqueCorfoLogin', { 
+                state: 'visible',
+                timeout: 10000
+            });
+            
+            console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
+            
+            // Llenar los campos directamente en la página actual (no hay iframe)
+            const user = process.env.CORFO_USER!;
+            const pass = process.env.CORFO_PASS!;
+
+            await page.waitForSelector('#rut', { state: 'visible' });
+            await page.waitForSelector('#pass', { state: 'visible' });
+
+            // Llenar los campos
+            await page.fill('#rut', user);
+            await page.fill('#pass', pass);
+
+            // Hacer clic en el botón de enviar
+            await page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
+            await page.click('#ingresa_');
+            
+            // Esperar a que el login se procese
+            await page.waitForTimeout(3000);
+            
+            console.log('Login con Clave Corfo completado');
+            return; // Salir de la función porque ya hicimos login
+        }
+    } catch (error) {
+        console.log('No se encontró el enlace de Clave Corfo, usando interfaz tradicional con iframe...');
+        
+        // Si no está la nueva interfaz, debe ser la interfaz antigua con iframe
+        // Los campos están en un iframe, procedemos con la lógica antigua
+        const frames = await page.frames();
+        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
+        
+        if (loginFrame) {
+            await loginFrame.waitForLoadState('networkidle');
+            await page.waitForTimeout(3000);
+
+            await loginFrame.fill('#rut', process.env.CORFO_USER!);
+            await loginFrame.fill('#pass', process.env.CORFO_PASS!);
+
+            await loginFrame.click('#ingresa_');
+            await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
+
+            const volverButton = await page.waitForSelector('a:has-text("Volver al sitio Público")', { 
+                state: 'visible',
+                timeout: 10000
+            });
+
+            await Promise.all([
+                page.waitForNavigation({ waitUntil: 'networkidle' }),
+                volverButton.click()
+            ]);
+            
+            console.log('Login con iframe completado');
+            return;
+        } else {
+            throw new Error('No se encontró ni la nueva interfaz ni el iframe de login');
+        }
     }
 
-    await loginFrame.waitForLoadState('networkidle');
-
-    // Llenar credenciales
-    const user = process.env.CORFO_USER!;
-    const pass = process.env.CORFO_PASS!;
-
-    await loginFrame.fill('#rut', user);
-    await loginFrame.fill('#pass', pass);
-
-    // Hacer clic en submit
-    await loginFrame.click('#ingresa_');
-    await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
-
-    // Volver al sitio público
-    const volverButton = await page.waitForSelector('a:has-text("Volver al sitio Público")', { 
-        state: 'visible',
-        timeout: 10000
-    });
-
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle' }),
-        volverButton.click()
-    ]);
-
-    console.log('✅ Login completado exitosamente');
+    // Si llegamos aquí, significa que hubo un error inesperado
+    throw new Error('Error inesperado en el proceso de login');
 }
 
 /**
