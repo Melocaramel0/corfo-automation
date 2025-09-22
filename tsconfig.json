@@ -9,7 +9,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node", "request", "multer"]
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]

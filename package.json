@@ -33,10 +33,14 @@
   "license": "ISC",
   "description": "Sistema automatizado para procesamiento de formularios CORFO con análisis multi-fase",
   "dependencies": {
-    "@types/node": "^22.15.21",
+    "@playwright/test": "^1.55.0",
     "dotenv": "^16.5.0",
     "n8n": "^1.104.2",
-    "playwright": "^1.52.0",
     "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.5.2",
+    "@types/request": "^2.48.13"
   }
 }

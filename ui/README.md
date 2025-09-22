@@ -1,0 +1,184 @@
+# CORFO Automation - Interfaz de Usuario
+
+Sistema de validación automática de formularios CORFO con interfaz web moderna.
+
+## 🚀 Características
+
+- **Autenticación por roles**: Admin, QA User, User
+- **Gestión de procesos**: Crear, editar, ejecutar y monitorear validaciones
+- **Validación con IA**: Reglas personalizadas con prompts de IA
+- **Dashboard intuitivo**: Estadísticas y actividad en tiempo real
+- **Responsive**: Funciona en desktop, tablet y móvil
+- **Exportación**: Resultados en CSV y JSON
+
+## 📋 Requisitos
+
+- Node.js 18+
+- npm o yarn
+
+## 🛠️ Instalación
+
+```bash
+# Navegar al directorio UI
+cd ui
+
+# Instalar dependencias
+npm install
+
+# Copiar variables de entorno (opcional)
+cp .env.example .env
+```
+
+## 🚀 Desarrollo
+
+```bash
+# Iniciar servidor de desarrollo
+npm run dev
+
+# El servidor estará disponible en http://localhost:3000
+```
+
+## 🏗️ Construcción
+
+```bash
+# Construir para producción
+npm run build
+
+# Vista previa de la construcción
+npm run preview
+```
+
+## 👥 Credenciales de Prueba
+
+### Administrador
+- **RUT**: 15124928-0
+- **Contraseña**: Admin#2025
+- **Permisos**: Acceso completo, incluyendo administración
+
+### Usuario QA
+- **RUT**: 11111111-1
+- **Contraseña**: Qa#2025
+- **Permisos**: Todo excepto administración
+
+### Usuario Final
+- **RUT**: 22222222-2
+- **Contraseña**: User#2025
+- **Permisos**: Solo ver y ejecutar procesos disponibles
+
+## 🏗️ Arquitectura
+
+```
+ui/
+├── src/
+│   ├── components/          # Componentes reutilizables
+│   │   ├── auth/           # Autenticación
+│   │   ├── layout/         # Layout principal
+│   │   └── ui/             # Componentes UI base
+│   ├── contexts/           # Contextos React
+│   ├── pages/              # Páginas principales
+│   ├── services/           # Servicios API
+│   ├── types/              # Tipos TypeScript
+│   └── utils/              # Utilidades
+├── public/                 # Archivos estáticos
+└── dist/                   # Build de producción
+```
+
+## 🔧 Tecnologías
+
+- **React 18** - Framework frontend
+- **TypeScript** - Tipado estático
+- **Vite** - Build tool
+- **Tailwind CSS** - Framework CSS
+- **React Router** - Enrutamiento
+- **React Query** - Estado del servidor
+- **React Hook Form** - Formularios
+- **Zod** - Validación de esquemas
+- **Headless UI** - Componentes accesibles
+
+## 🌐 Integración con Backend
+
+La aplicación está configurada para integrarse con el backend existente:
+
+```typescript
+// Proxy configurado en vite.config.ts
+'/api' -> 'http://localhost:8000'
+```
+
+Para conectar con el MVP híbrido existente:
+
+1. El backend debe exponer endpoints REST en puerto 8000
+2. Los servicios en `src/services/` están preparados para la integración
+3. Actualmente usa datos mock para desarrollo
+
+## 📱 Funcionalidades
+
+### Dashboard
+- Estadísticas generales
+- Actividad reciente
+- Acceso rápido a módulos
+
+### Procesos de Validación
+- ✅ Lista de procesos con filtros y búsqueda
+- ✅ Crear/editar procesos con builder de reglas
+- ✅ Ejecutar validaciones
+- ✅ Ver resultados con filtros
+- ✅ Exportar resultados (CSV/JSON)
+- ✅ Eliminar procesos
+
+### Administración (Solo Admin)
+- ✅ Consumo de recursos
+- ✅ Parámetros del sistema
+- ✅ Logs globales
+
+## 🔒 Seguridad
+
+- Autenticación basada en JWT (simulada)
+- Control de acceso por roles
+- Validación de RUT chileno
+- Rutas protegidas
+- Sesión persistente
+
+## 🚧 Estado Actual
+
+### ✅ Completado
+- [x] Configuración base del proyecto
+- [x] Sistema de autenticación
+- [x] Layout principal (sidebar, topbar)
+- [x] Dashboard con estadísticas
+- [x] Servicios y tipos TypeScript
+- [x] Componentes UI base
+
+### 🔄 En Desarrollo
+- [ ] Módulo completo de Procesos
+- [ ] Builder de reglas de validación
+- [ ] Módulo de Administración
+- [ ] Integración con backend real
+
+### 📅 Próximas Funcionalidades
+- [ ] Notificaciones en tiempo real
+- [ ] Historial de ejecuciones
+- [ ] Métricas avanzadas
+- [ ] Exportación de configuraciones
+- [ ] Temas personalizables
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+
+## 📞 Soporte
+
+Para soporte y preguntas:
+- Crear un issue en GitHub
+- Contactar al equipo de desarrollo
+
+---
+
+**CORFO Automation** - Sistema de Validación Automática de Formularios

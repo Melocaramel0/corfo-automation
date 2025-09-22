@@ -877,6 +877,4 @@ if (require.main === module) {
     }
     
     main();
-}
-
-export { ejecutarMVPSimplificado }; 
+} 

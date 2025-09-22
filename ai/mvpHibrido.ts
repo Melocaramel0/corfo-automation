@@ -479,7 +479,17 @@ export class MVPHibrido {
         console.log('🔑 Realizando login a CORFO...');
         
         await this.realizarLogin();
-        await this.navegarAFormulario();
+        
+        // Verificar si se proporcionó una URL específica via variable de entorno
+        const urlEspecifica = process.env.CORFO_URL;
+        
+        if (urlEspecifica && urlEspecifica !== 'https://ejemplo.corfo.cl/concurso/abc') {
+            console.log(`🎯 Navegando a URL específica: ${urlEspecifica}`);
+            await this.navegarAURLEspecifica(urlEspecifica);
+        } else {
+            // Flujo original: mostrar convocatorias y solicitar selección
+            await this.mostrarConvocatoriasYSolicitar();
+        }
         
         this.resultado.urlInicial = this.page?.url() || '';
         this.resultado.titulo = await this.page?.title() || '';
@@ -1265,6 +1275,78 @@ export class MVPHibrido {
                 }
             }
         }
+    }
+
+    private async navegarAURLEspecifica(url: string): Promise<void> {
+        console.log(`🎯 Navegando directamente a la URL: ${url}`);
+        
+        try {
+            await this.page!.goto(url, {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000
+            });
+            
+            await this.page!.waitForTimeout(3000);
+            
+            // Verificar si necesitamos hacer clic en "Inicia tu postulación"
+            const botonIniciar = await this.page!.$('a:has-text("Inicia tu postulación"), button:has-text("Inicia tu postulación")');
+            if (botonIniciar) {
+                console.log('🚀 Haciendo clic en "Inicia tu postulación"...');
+                await Promise.all([
+                    this.page!.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+                    botonIniciar.click()
+                ]);
+                await this.page!.waitForTimeout(5000);
+                
+                // Verificar si estamos en la página de borradores
+                const urlActual = this.page!.url();
+                console.log(`📍 URL después del clic: ${urlActual}`);
+                
+                if (urlActual.includes('PostuladorBorradores.aspx')) {
+                    console.log('📋 Estamos en página de borradores, navegando al formulario real...');
+                    await this.navegarDeBorradoresAFormulario();
+                } else {
+                    console.log('✅ Ya estamos en el formulario real');
+                }
+            } else {
+                console.log('✅ Ya estamos en el formulario (no se encontró botón de inicio)');
+            }
+        } catch (error) {
+            console.error(`❌ Error navegando a URL específica: ${error}`);
+            throw error;
+        }
+    }
+
+    private async mostrarConvocatoriasYSolicitar(): Promise<void> {
+        console.log('🔍 Esperando URL del formulario...');
+        
+        // Solicitar URL directamente por consola
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        return new Promise((resolve, reject) => {
+            rl.question('\n🎯 Ingresa la URL del formulario CORFO que deseas validar: ', async (respuesta: string) => {
+                rl.close();
+                
+                try {
+                    const url = respuesta.trim();
+                    
+                    if (url.startsWith('http')) {
+                        console.log(`✅ URL ingresada: ${url}`);
+                        await this.navegarAURLEspecifica(url);
+                        resolve();
+                    } else {
+                        console.log('❌ URL inválida. Debe comenzar con http o https');
+                        reject(new Error('URL inválida'));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
     }
 
     private async navegarDeBorradoresAFormulario(): Promise<void> {
