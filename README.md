@@ -151,8 +151,8 @@ El sistema detecta campos obligatorios mediante:
 ### Variables de Entorno
 
 ```env
-CORFO_USERNAME=tu_usuario
-CORFO_PASSWORD=tu_password
+CORFO_USER=tu_usuario
+CORFO_PASS=tu_password
 ```
 
 ### Instalación

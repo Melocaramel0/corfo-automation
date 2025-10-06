@@ -1,0 +1,658 @@
+{
+    "metadatos": {
+      "version": "1.0",
+      "ultimaModificacion": "2024-09-29T15:04:00Z",
+      "usuario": "Sistema",
+      "totalCamposFundamentales": 68,
+      "descripcion": "Lista completa de campos fundamentales CORFO basada en campos_corfo.txt",
+      "fuente": "campos_corfo.txt - Lista oficial de campos requeridos en formularios CORFO"
+    },
+    "categorias": {
+      "personaJuridica": {
+        "nombre": "Datos de Persona Jurídica",
+        "descripcion": "Información básica de la empresa postulante",
+        "activo": true,
+        "campos": {
+          "TIPO_PERSONA": {
+            "valor": "Persona Jurídica",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Tipo de persona (Jurídica/Natural)",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "17"
+          },
+          "RUT_PERSONA_JURIDICA": {
+            "valor": "12345678-9",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "RUT de la persona jurídica",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "18"
+          },
+          "RAZON_SOCIAL": {
+            "valor": "Empresa de Prueba SpA",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Razón social de la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "20"
+          },
+          "OBJETO_SOCIAL": {
+            "valor": "Desarrollo de tecnologías innovadoras para el sector agrícola",
+            "tipo": "textarea",
+            "obligatorio": false,
+            "descripcion": "Descripción del objeto social de la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "21"
+          },
+          "NUMERO_TELEFONO": {
+            "valor": "+56912345678",
+            "tipo": "tel",
+            "obligatorio": true,
+            "descripcion": "Número de teléfono de la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "22"
+          },
+          "SECTOR_ECONOMICO": {
+            "valor": "Tecnología",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Sector económico al que pertenece la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "23"
+          },
+          "DIRECCION_CALLE": {
+            "valor": "Av. Providencia",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección - Calle",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "24"
+          },
+          "DIRECCION_NUMERO": {
+            "valor": "1234",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección - Número",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "25"
+          },
+          "DIRECCION_DEPTO_OFICINA": {
+            "valor": "Of. 567",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Dirección - Número Depto/Oficina",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "26"
+          },
+          "DIRECCION_CODIGO_POSTAL": {
+            "valor": "7500000",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección - Código Postal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "27"
+          },
+          "COMUNA": {
+            "valor": "Providencia",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Comuna donde se ubica la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "28"
+          },
+          "PROVINCIA": {
+            "valor": "Santiago",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Provincia donde se ubica la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "29"
+          },
+          "REGION": {
+            "valor": "Región Metropolitana",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Región donde se ubica la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "30"
+          },
+          "FECHA_INICIO_ACTIVIDADES": {
+            "valor": "2020-01-15",
+            "tipo": "date",
+            "obligatorio": true,
+            "descripcion": "Fecha de inicio de actividades de la empresa",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "31"
+          },
+          "TAMANO_EMPRESA": {
+            "valor": "Mediana",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Tamaño de la empresa (Micro/Pequeña/Mediana/Grande)",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "32"
+          },
+          "MONTO_VENTAS_ANO_ANTERIOR": {
+            "valor": "500000000",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Monto total de ventas del año anterior, acumuladas al 31 de diciembre",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "33"
+          }
+        }
+      },
+      "representanteLegal": {
+        "nombre": "Representante Legal",
+        "descripcion": "Información del representante legal de la empresa",
+        "activo": true,
+        "campos": {
+          "RUT_REPRESENTANTE_LEGAL": {
+            "valor": "11111111-1",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "RUT del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "34"
+          },
+          "NOMBRE_REPRESENTANTE_LEGAL": {
+            "valor": "Juan Carlos",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Nombre(s) del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "35"
+          },
+          "APELLIDO_PATERNO_REPRESENTANTE_LEGAL": {
+            "valor": "González",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Apellido paterno del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "36"
+          },
+          "APELLIDO_MATERNO_REPRESENTANTE_LEGAL": {
+            "valor": "López",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Apellido materno del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "37"
+          },
+          "GENERO_REPRESENTANTE_LEGAL": {
+            "valor": "Masculino",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Género del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "38"
+          },
+          "CORREO_REPRESENTANTE_LEGAL": {
+            "valor": "representante@empresa.cl",
+            "tipo": "email",
+            "obligatorio": true,
+            "descripcion": "Correo electrónico del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "39"
+          },
+          "TELEFONO_REPRESENTANTE_LEGAL": {
+            "valor": "+56987654321",
+            "tipo": "tel",
+            "obligatorio": true,
+            "descripcion": "Número teléfono del representante legal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "40"
+          }
+        }
+      },
+      "directorProyecto": {
+        "nombre": "Director/Encargado del Proyecto",
+        "descripcion": "Información del director o encargado del proyecto",
+        "activo": true,
+        "campos": {
+          "RUT_DIRECTOR_PROYECTO": {
+            "valor": "22222222-2",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "RUT del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "41"
+          },
+          "NOMBRE_DIRECTOR_PROYECTO": {
+            "valor": "María Elena",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Nombre(s) del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "42"
+          },
+          "PRIMER_APELLIDO_DIRECTOR_PROYECTO": {
+            "valor": "Rodríguez",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Primer apellido del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "43"
+          },
+          "SEGUNDO_APELLIDO_DIRECTOR_PROYECTO": {
+            "valor": "Silva",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Segundo apellido del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "44"
+          },
+          "GENERO_DIRECTOR_PROYECTO": {
+            "valor": "Femenino",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Género del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "45"
+          },
+          "CORREO_DIRECTOR_PROYECTO": {
+            "valor": "director@empresa.cl",
+            "tipo": "email",
+            "obligatorio": true,
+            "descripcion": "Correo electrónico del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "46"
+          },
+          "TELEFONO_DIRECTOR_PROYECTO": {
+            "valor": "+56976543210",
+            "tipo": "tel",
+            "obligatorio": true,
+            "descripcion": "Número teléfono del director/encargado del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "47"
+          }
+        }
+      },
+      "personaNatural": {
+        "nombre": "Datos de Persona Natural",
+        "descripcion": "Información de persona natural (cuando aplique)",
+        "activo": true,
+        "campos": {
+          "TIPO_PERSONA_NATURAL": {
+            "valor": "Persona Natural",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Tipo de persona",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "48"
+          },
+          "RUT_PERSONA_NATURAL": {
+            "valor": "33333333-3",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "RUT de la persona natural",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "49"
+          },
+          "NOMBRE_PERSONA_NATURAL": {
+            "valor": "Carlos",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Nombre de la persona natural",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "50"
+          },
+          "APELLIDO_PATERNO_PERSONA_NATURAL": {
+            "valor": "Mendoza",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Apellido paterno",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "51"
+          },
+          "APELLIDO_MATERNO_PERSONA_NATURAL": {
+            "valor": "Torres",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Apellido materno",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "52"
+          },
+          "NACIONALIDAD": {
+            "valor": "Chilena",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Nacionalidad",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "53"
+          },
+          "GENERO_PERSONA_NATURAL": {
+            "valor": "Masculino",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Género",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "54"
+          },
+          "PUEBLO_INDIGENA": {
+            "valor": "No pertenece",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Pertenencia a pueblo indígena",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "55"
+          },
+          "TELEFONO_PERSONA_NATURAL": {
+            "valor": "+56965432109",
+            "tipo": "tel",
+            "obligatorio": false,
+            "descripcion": "Número teléfono",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "56"
+          },
+          "CORREO_PERSONA_NATURAL": {
+            "valor": "persona@email.cl",
+            "tipo": "email",
+            "obligatorio": false,
+            "descripcion": "Correo electrónico",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "57"
+          },
+          "COMUNA_PERSONA_NATURAL": {
+            "valor": "Santiago",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Comuna de residencia",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "58"
+          },
+          "PROVINCIA_PERSONA_NATURAL": {
+            "valor": "Santiago",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Provincia de residencia",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "59"
+          }
+        }
+      },
+      "datosProyecto": {
+        "nombre": "Información del Proyecto",
+        "descripcion": "Datos específicos del proyecto a postular",
+        "activo": true,
+        "campos": {
+          "CODIGO_PROYECTO": {
+            "valor": "PROJ-2024-001",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Código del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "60"
+          },
+          "TITULO_PROYECTO": {
+            "valor": "Sistema de Monitoreo Ambiental Inteligente",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Título del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "61"
+          },
+          "OBJETIVO_GENERAL_PROYECTO": {
+            "valor": "Desarrollar una solución tecnológica innovadora para el monitoreo ambiental en tiempo real",
+            "tipo": "textarea",
+            "obligatorio": true,
+            "descripcion": "Objetivo general del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "62"
+          },
+          "RESUMEN_PROYECTO": {
+            "valor": "Este proyecto busca crear una plataforma integral de monitoreo ambiental que utilice sensores IoT y algoritmos de machine learning para proporcionar datos precisos sobre la calidad del aire, agua y suelo.",
+            "tipo": "textarea",
+            "obligatorio": true,
+            "descripcion": "Resumen del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "63"
+          },
+          "DURACION_PROYECTO": {
+            "valor": "24",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Duración del proyecto en meses",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "64"
+          },
+          "COSTO_TOTAL_PROYECTO": {
+            "valor": "50000000",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Costo total del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "65"
+          },
+          "MONTO_SOLICITADO": {
+            "valor": "30000000",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Monto solicitado a CORFO",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "66"
+          },
+          "MONTO_APORTE_CORFO": {
+            "valor": "30000000",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Monto solicitado (Aporte CORFO)",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "67"
+          },
+          "APORTE_BENEFICIARIO_PECUNIARIO": {
+            "valor": "15000000",
+            "tipo": "number",
+            "obligatorio": true,
+            "descripcion": "Aporte beneficiario pecuniario",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "68"
+          },
+          "APORTE_BENEFICIARIO_NO_PECUNIARIO": {
+            "valor": "5000000",
+            "tipo": "number",
+            "obligatorio": false,
+            "descripcion": "Aporte beneficiario no pecuniario",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "69"
+          },
+          "MONTO_PECUNIARIO_OTROS": {
+            "valor": "0",
+            "tipo": "number",
+            "obligatorio": false,
+            "descripcion": "Monto pecuniario otros",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "70"
+          },
+          "MONTO_NO_PECUNIARIO_OTROS": {
+            "valor": "0",
+            "tipo": "number",
+            "obligatorio": false,
+            "descripcion": "Monto no pecuniario otros",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "71"
+          },
+          "MONTO_OVERHEAD": {
+            "valor": "2000000",
+            "tipo": "number",
+            "obligatorio": false,
+            "descripcion": "Monto overhead postulado",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "72"
+          }
+        }
+      },
+      "ubicacionProyecto": {
+        "nombre": "Ubicación del Proyecto",
+        "descripcion": "Información geográfica del proyecto",
+        "activo": true,
+        "campos": {
+          "DIRECCION_PROYECTO_CALLE": {
+            "valor": "Av. Innovación",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección proyecto - Calle",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "73"
+          },
+          "DIRECCION_PROYECTO_NUMERO": {
+            "valor": "500",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección proyecto - Número",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "74"
+          },
+          "DIRECCION_PROYECTO_DEPTO": {
+            "valor": "Lab. 101",
+            "tipo": "text",
+            "obligatorio": false,
+            "descripcion": "Dirección proyecto - Número Depto/Oficina",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "75"
+          },
+          "DIRECCION_PROYECTO_CODIGO_POSTAL": {
+            "valor": "8320000",
+            "tipo": "text",
+            "obligatorio": true,
+            "descripcion": "Dirección proyecto - Código Postal",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "76"
+          },
+          "REGION_EJECUCION_PROYECTO": {
+            "valor": "Región Metropolitana",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Región de ejecución del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "77"
+          },
+          "PROVINCIA_EJECUCION_PROYECTO": {
+            "valor": "Santiago",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Provincia ejecución del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "78"
+          },
+          "COMUNA_EJECUCION_PROYECTO": {
+            "valor": "Santiago",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Comuna ejecución del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "79"
+          },
+          "REGION_IMPACTO_PROYECTO": {
+            "valor": "Región Metropolitana",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Región de impacto del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "80"
+          },
+          "SECTOR_IMPACTO_PROYECTO": {
+            "valor": "Medio Ambiente",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Sector impacto del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "81"
+          },
+          "SECTOR_ECONOMICO_PERSONA_NATURAL": {
+            "valor": "Tecnología",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Sector económico persona natural con ventas",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "82"
+          },
+          "SECTOR_APLICACION_PROYECTO": {
+            "valor": "Tecnologías Ambientales",
+            "tipo": "select",
+            "obligatorio": true,
+            "descripcion": "Sector aplicación del proyecto",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "83"
+          },
+          "EMPRESA_LIDERADA_MUJER": {
+            "valor": "No",
+            "tipo": "select",
+            "obligatorio": false,
+            "descripcion": "Empresa/emprendimiento liderado por mujer",
+            "activo": true,
+            "esFundamental": true,
+            "numeroReferencia": "84"
+          }
+        }
+      }
+    }
+  }
+  

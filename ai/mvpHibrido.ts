@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+﻿import { chromium, Browser, Page } from 'playwright';
 import { ConfiguracionAgente } from './tipos';
 import { obtenerConfiguracion } from './configuraciones';
 import { CAMPOS_CORFO_MAPPING, CampoFormulario } from '../scraping/extraerFormularios';
@@ -401,6 +401,7 @@ export class MVPHibrido {
     private resultado: ResultadoMVP;
     private cache: CacheInteligente;
     private formularioCache: FormularioCache | null = null;
+    private formUrl: string = '';
 
     constructor(configuracion: ConfiguracionAgente) {
         this.configuracion = configuracion;
@@ -438,6 +439,7 @@ export class MVPHibrido {
         this.tiempoInicio = Date.now();
 
         try {
+            this.formUrl = await this.solicitarUrlPorConsola();
             await this.inicializar();
             await this.loginYNavegacion();
             await this.procesarFormularioHibrido();
@@ -475,22 +477,48 @@ export class MVPHibrido {
         console.log('✅ Navegador inicializado');
     }
 
+    private async solicitarUrlPorConsola(): Promise<string> {
+        const readline = require('readline');
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        return new Promise((resolve, reject) => {
+            rl.question('\n🎯 Ingresa la URL del formulario CORFO que deseas validar: ', (respuesta: string) => {
+                rl.close();
+                const url = (respuesta || '').trim();
+                if (url.startsWith('http')) return resolve(url);
+                reject(new Error('URL inválida. Debe comenzar con http o https'));
+            });
+        });
+    }
+
     private async loginYNavegacion(): Promise<void> {
         console.log('🔑 Realizando login a CORFO...');
-        
-        await this.realizarLogin();
-        
-        // Verificar si se proporcionó una URL específica via variable de entorno
-        const urlEspecifica = process.env.CORFO_URL;
-        
+
+        // Prioridad: ir primero a la URL objetivo antes del login
+        const urlEspecifica = this.formUrl || process.env.CORFO_URL;
         if (urlEspecifica && urlEspecifica !== 'https://ejemplo.corfo.cl/concurso/abc') {
-            console.log(`🎯 Navegando a URL específica: ${urlEspecifica}`);
+            console.log(`🎯 Navegando primero a la URL objetivo: ${urlEspecifica}`);
             await this.navegarAURLEspecifica(urlEspecifica);
         } else {
-            // Flujo original: mostrar convocatorias y solicitar selección
+            // Si no hay URL, pedirla
             await this.mostrarConvocatoriasYSolicitar();
         }
+
+        // Ahora realizar login desde el contexto actual (sin ir al home por defecto)
+        await this.realizarLogin();
+
+        // Asegurar que estemos en la URL objetivo autenticados (si la navegación de login nos movió)
+        if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
+            console.log(`🎯 Reafirmando URL objetivo autenticado: ${this.formUrl}`);
+            await this.navegarAURLEspecifica(this.formUrl);
+        }
         
+        // Esperar estado estable antes de leer título/URL para evitar "Execution context was destroyed"
+        await this.page!.waitForLoadState('domcontentloaded').catch(() => {});
+        await this.page!.waitForLoadState('networkidle').catch(() => {});
+
         this.resultado.urlInicial = this.page?.url() || '';
         this.resultado.titulo = await this.page?.title() || '';
         
@@ -1079,143 +1107,98 @@ export class MVPHibrido {
     }
 
     private async realizarLogin(): Promise<void> {
-        // Login simplificado pero completo
-        // Navegar primero a la página de inicio para manejar avisos
-        await this.page!.goto('https://www.corfo.cl/sites/cpp/homecorfo#', {
-            waitUntil: 'domcontentloaded'
-        });
-
+        // 1) Intentar interfaz nueva en la página actual
         try {
-            const avisoBtn = await this.page!.waitForSelector('button:has-text("Cerrar mensaje e ingresar al sitio de CORFO")', {
-                timeout: 7000,
-                state: 'visible'
-            });
-            if (avisoBtn) {
-                await avisoBtn.click();
-                await this.page!.waitForTimeout(1000);
+            const mostrarLink = await this.page!.$('#mostrarCorfoLoginLink');
+            const bloqueVisible = await this.page!.$('#bloqueCorfoLogin');
+
+            if (mostrarLink) {
+                await mostrarLink.click();
+                await this.page!.waitForSelector('#bloqueCorfoLogin', { state: 'visible', timeout: 10000 });
+            } else if (!bloqueVisible) {
+                // nada visible aún, continuar a verificar iframe
             }
-        } catch (error) {
-            // No hay aviso
-        }
 
-        // Navegar al enlace de "Ingreso usuario" donde debe estar la nueva interfaz
-        console.log('🔍 Navegando a la página de login...');
-        
-        // Buscar y hacer clic en "Ingreso usuario"
-        const ingresoUsuarioLink = await this.page!.waitForSelector('a:has-text("Ingreso usuario")', { 
-            timeout: 10000,
-            state: 'visible'
-        });
-        
-        if (!ingresoUsuarioLink) {
-            throw new Error('No se pudo encontrar el enlace "Ingreso usuario"');
-        }
-        
-        // Navegar al login
-        await Promise.all([
-            this.page!.waitForNavigation({ waitUntil: 'networkidle' }),
-            ingresoUsuarioLink.click()
-        ]);
-        
-        console.log('🔍 URL después de navegar al login:', this.page!.url());
-
-        // DEBUG: Buscar la nueva interfaz en la página de login
-        const corfoLoginExists = await this.page!.evaluate(() => {
-            const element = document.getElementById('mostrarCorfoLoginLink');
-            if (element) {
-                const styles = window.getComputedStyle(element);
-                return {
-                    exists: true,
-                    display: styles.display,
-                    visibility: styles.visibility,
-                    text: element.textContent?.trim(),
-                    href: element.getAttribute('href')
-                };
-            }
-            return { exists: false };
-        });
-        console.log('🎯 Estado del enlace Corfo en página de login:', corfoLoginExists);
-
-        // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
-        let loginButton = null;
-        
-        try {
-            // Intentar encontrar el enlace específico para clave Corfo por ID
-            loginButton = await this.page!.waitForSelector('#mostrarCorfoLoginLink', { 
-                timeout: 8000,
-                state: 'visible'
-            });
-            
-            if (loginButton) {
-                console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
-                
-                // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
-                await loginButton.click();
-                
-                // Esperar a que aparezca el formulario de login (el div se hace visible)
-                console.log('Esperando a que aparezca el formulario de Clave Corfo...');
-                await this.page!.waitForSelector('#bloqueCorfoLogin', { 
-                    state: 'visible',
-                    timeout: 10000
-                });
-                
-                console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
-                
-                // Llenar los campos directamente en la página actual (no hay iframe)
+            const hayBloque = await this.page!.$('#bloqueCorfoLogin');
+            if (hayBloque) {
                 await this.page!.waitForSelector('#rut', { state: 'visible' });
                 await this.page!.waitForSelector('#pass', { state: 'visible' });
-
-                // Llenar los campos
                 await this.page!.fill('#rut', process.env.CORFO_USER!);
                 await this.page!.fill('#pass', process.env.CORFO_PASS!);
-
-                // Hacer clic en el botón de enviar
                 await this.page!.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
-                await this.page!.click('#ingresa_');
-                
-                // Esperar a que el login se procese
-                await this.page!.waitForTimeout(3000);
-                
-                console.log('Login con Clave Corfo completado');
-                return; // Salir de la función porque ya hicimos login
-            }
-        } catch (error) {
-            console.log('No se encontró el enlace de Clave Corfo, usando interfaz tradicional con iframe...');
-            
-            // Si no está la nueva interfaz, debe ser la interfaz antigua con iframe
-            // Los campos están en un iframe, procedemos con la lógica antigua
-            const frames = this.page!.frames();
-            const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
-            
-            if (loginFrame) {
-                await loginFrame.waitForLoadState('networkidle');
-                await this.page!.waitForTimeout(3000);
-
-                await loginFrame.fill('#rut', process.env.CORFO_USER!);
-                await loginFrame.fill('#pass', process.env.CORFO_PASS!);
-
-                await loginFrame.click('#ingresa_');
-                await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
-
-                const volverButton = await this.page!.waitForSelector('a:has-text("Volver al sitio Público")', { 
-                    state: 'visible',
-                    timeout: 10000
-                });
-
                 await Promise.all([
-                    this.page!.waitForNavigation({ waitUntil: 'networkidle' }),
-                    volverButton.click()
+                    this.page!.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+                    this.page!.click('#ingresa_')
                 ]);
-                
-                console.log('Login con iframe completado');
+                // Esperar a que se estabilice la red
+                await this.page!.waitForLoadState('networkidle').catch(() => {});
+                console.log('Login con interfaz nueva completado');
                 return;
-            } else {
-                throw new Error('No se encontró ni la nueva interfaz ni el iframe de login');
             }
+        } catch {}
+
+        // 2) Intentar interfaz antigua via iframe en la página actual
+        const frames = this.page!.frames();
+        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
+        if (loginFrame) {
+            await loginFrame.waitForLoadState('networkidle');
+            await this.page!.waitForTimeout(2000);
+            await loginFrame.fill('#rut', process.env.CORFO_USER!);
+            await loginFrame.fill('#pass', process.env.CORFO_PASS!);
+            await Promise.all([
+                this.page!.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+                loginFrame.click('#ingresa_')
+            ]);
+            await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 }).catch(() => {});
+            await this.page!.waitForLoadState('networkidle').catch(() => {});
+            console.log('Login con iframe completado');
+            return;
         }
 
-        // Si llegamos aquí, significa que hubo un error inesperado
-        throw new Error('Error inesperado en el proceso de login');
+        // 3) Si existe un enlace textual a login en la misma página, usarlo (sin ir al home)
+        try {
+            const enlaceLogin = await this.page!.$('a:has-text("¿Tienes clave Corfo?"), a:has-text("Inicia sesión"), a:has-text("Ingreso usuario")');
+            if (enlaceLogin) {
+                await Promise.all([
+                    this.page!.waitForNavigation({ waitUntil: 'networkidle' }).catch(() => {}),
+                    enlaceLogin.click()
+                ]);
+
+                // Reintentar interfaz nueva o iframe tras navegar
+                const mostrarLink2 = await this.page!.$('#mostrarCorfoLoginLink');
+                if (mostrarLink2) {
+                    await mostrarLink2.click();
+                    await this.page!.waitForSelector('#bloqueCorfoLogin', { state: 'visible', timeout: 10000 });
+                    await this.page!.fill('#rut', process.env.CORFO_USER!);
+                    await this.page!.fill('#pass', process.env.CORFO_PASS!);
+                    await Promise.all([
+                        this.page!.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+                        this.page!.click('#ingresa_')
+                    ]);
+                    await this.page!.waitForLoadState('networkidle').catch(() => {});
+                    console.log('Login completado tras navegar al enlace de login');
+                    return;
+                }
+
+                const frames2 = this.page!.frames();
+                const loginFrame2 = frames2.find(frame => frame.url().includes('login.corfo.cl'));
+                if (loginFrame2) {
+                    await loginFrame2.waitForLoadState('networkidle');
+                    await loginFrame2.fill('#rut', process.env.CORFO_USER!);
+                    await loginFrame2.fill('#pass', process.env.CORFO_PASS!);
+                    await Promise.all([
+                        this.page!.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+                        loginFrame2.click('#ingresa_')
+                    ]);
+                    await loginFrame2.waitForSelector('#rut', { state: 'detached', timeout: 15000 }).catch(() => {});
+                    await this.page!.waitForLoadState('networkidle').catch(() => {});
+                    console.log('Login con iframe tras navegar al enlace de login');
+                    return;
+                }
+            }
+        } catch {}
+
+        throw new Error('No se encontró interfaz de login en la página actual');
     }
 
     private async navegarAFormulario(): Promise<void> {
@@ -1320,40 +1303,13 @@ export class MVPHibrido {
     private async mostrarConvocatoriasYSolicitar(): Promise<void> {
         console.log('🔍 Esperando URL del formulario...');
         
-        // Solicitar URL directamente por consola
-        const readline = require('readline');
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-
-        return new Promise((resolve, reject) => {
-            rl.question('\n🎯 Ingresa la URL del formulario CORFO que deseas validar: ', async (respuesta: string) => {
-                rl.close();
-                
-                try {
-                    const url = respuesta.trim();
-                    
-                    if (url.startsWith('http')) {
-                        console.log(`✅ URL ingresada: ${url}`);
-                        await this.navegarAURLEspecifica(url);
-                        resolve();
-                    } else {
-                        console.log('❌ URL inválida. Debe comenzar con http o https');
-                        reject(new Error('URL inválida'));
-                    }
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
+        const url = await this.solicitarUrlPorConsola();
+        console.log(`✅ URL ingresada: ${url}`);
+        await this.navegarAURLEspecifica(url);
     }
 
     private async navegarDeBorradoresAFormulario(): Promise<void> {
         console.log('🔄 Navegando desde borradores al formulario real...');
-        
-        // Eliminar postulaciones existentes primero
-        await this.eliminarPostulacionesExistentes();
         
         // Buscar botón "Nueva Postulación"
         const selectoresNuevaPostulacion = [
@@ -1399,48 +1355,7 @@ export class MVPHibrido {
         }
     }
 
-    private async eliminarPostulacionesExistentes(): Promise<void> {
-        console.log('🗑️ Verificando postulaciones existentes para eliminar...');
-        
-        try {
-            // Buscar iconos de papelera
-            const selectoresPapelera = [
-                '.ico_sm_papelera',
-                '.delPostulacion',
-                'span.ico_sm_papelera',
-                'a[data-original-title*="Desistir"]',
-                'span.delPostulacion'
-            ];
-            
-            let iconoPapelera = null;
-            for (const selector of selectoresPapelera) {
-                iconoPapelera = await this.page!.$(selector);
-                if (iconoPapelera) {
-                    console.log(`🗑️ Postulación previa encontrada, eliminando...`);
-                    
-                    await iconoPapelera.scrollIntoViewIfNeeded();
-                    await this.page!.waitForTimeout(500);
-                    await iconoPapelera.click();
-                    await this.page!.waitForTimeout(2000);
-                    
-                    // Confirmar eliminación
-                    const botonConfirmar = await this.page!.$('button:has-text("Sí, estoy seguro"), button:has-text("Sí")');
-                    if (botonConfirmar) {
-                        await botonConfirmar.click();
-                        await this.page!.waitForTimeout(3000);
-                        console.log('✅ Postulación eliminada exitosamente');
-                    }
-                    break;
-                }
-            }
-            
-            if (!iconoPapelera) {
-                console.log('ℹ️ No hay postulaciones previas para eliminar');
-            }
-        } catch (error) {
-            console.log('⚠️ Error al eliminar postulaciones:', (error as Error).message);
-        }
-    }
+    // Eliminado: ya no se eliminan postulaciones existentes
 
     private async navegarAlPrimerPasoReal(): Promise<void> {
         console.log('🎯 Navegando al primer paso real del formulario...');
@@ -2058,9 +1973,6 @@ async function crearNuevaPostulacion(page: Page): Promise<boolean> {
         // Verificar si estamos en la página de borradores
         if (page.url().includes('PostuladorBorradores.aspx')) {
             console.log('   📋 En página de borradores, buscando postulaciones previas...');
-            
-            // Buscar y eliminar postulaciones previas si existen
-            await eliminarPostulacionesExistentes(page);
             
             // Buscar el botón "Nueva Postulación"
             console.log('   ➕ Buscando botón "Nueva Postulación"...');
