@@ -1759,7 +1759,7 @@ export class MVPHibrido {
         console.log('🔄 Navegando desde borradores al formulario real...');
         
         // Eliminar postulaciones existentes primero
-        await this.eliminarPostulacionesExistentes();
+        //await this.eliminarPostulacionesExistentes();
         
         // Buscar botón "Nueva Postulación" con más selectores
         const selectoresNuevaPostulacion = [
