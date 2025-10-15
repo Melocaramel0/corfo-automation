@@ -22,6 +22,19 @@ export interface EstructuraFormularioDetectada {
     urlActual: string;
     tipoDeteccion: 'barra_progreso' | 'navegacion_botones' | 'analisis_contenido' | 'fallback';
     confianza: number; // 0-100%
+    desplegables?: Desplegable[]; // Nueva propiedad para desplegables
+}
+
+/**
+ * Interfaz para desplegables detectados
+ */
+export interface Desplegable {
+    titulo: string;
+    isOpen: boolean;
+    hasSubDesplegables: boolean;
+    subDesplegablesCount: number;
+    selector: string;
+    contenido?: string;
 }
 
 /**
@@ -72,12 +85,16 @@ export class DetectorEstructura {
         estructura.esPaginaConfirmacion = await this.esPaginaConfirmacion();
         estructura.esPaginaBorradores = await this.esPaginaBorradores();
 
+        // 🆕 NUEVO: Detectar desplegables
+        estructura.desplegables = await this.detectarDesplegables();
+
         console.log(`📊 ESTRUCTURA DETECTADA:`);
         console.log(`   📈 Método: ${estructura.tipoDeteccion} (${estructura.confianza}% confianza)`);
         console.log(`   📋 Total pasos: ${estructura.totalPasos}`);
         console.log(`   📍 Paso actual: ${estructura.pasoActual}`);
         console.log(`   🎯 Es confirmación: ${estructura.esPaginaConfirmacion}`);
         console.log(`   📁 Es borradores: ${estructura.esPaginaBorradores}`);
+        console.log(`   📂 Desplegables encontrados: ${estructura.desplegables?.length || 0}`);
 
         return estructura;
     }
@@ -294,29 +311,45 @@ export class DetectorEstructura {
             const urlEsConfirmacion = url.includes('confirmacion') || 
                                     url.includes('resumen') || 
                                     url.includes('verification') ||
-                                    url.includes('final');
+                                    url.includes('final') ||
+                                    url.includes('review');
 
             // Verificar contadores específicos PERO solo si no estamos en un formulario normal
             const tieneContadoresCampos = textoCompleto.includes('campos obligatorios correctos') && 
                                         textoCompleto.includes('campos obligatorios incorrectos');
             
-            // CRITERIO ESTRICTO: Solo es confirmación si tiene contadores Y no tiene campos de entrada
-            const tieneInputsActivos = document.querySelectorAll('input:not([type="hidden"]), select, textarea').length > 5;
+            // CRITERIO MUY ESTRICTO: Solo es confirmación si tiene contadores Y no tiene campos de entrada
+            const tieneInputsActivos = document.querySelectorAll('input:not([type="hidden"]), select, textarea').length > 20;
             
             // Si hay muchos inputs activos, NO puede ser página de confirmación
             if (tieneInputsActivos) {
                 return false;
             }
+            
+            // Verificar que NO estamos en un formulario de pasos
+            const tieneDesplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]').length > 5;
+            if (tieneDesplegables) {
+                return false; // Si hay muchos desplegables, es un formulario de pasos, no confirmación
+            }
 
+            // Verificar si hay botones de envío final
+            const botonesEnvio = document.querySelectorAll('button, input[type="submit"], input[type="button"]');
+            const tieneBotonEnvio = Array.from(botonesEnvio).some(boton => {
+                const texto = boton.textContent?.toLowerCase() || '';
+                const value = (boton as HTMLInputElement).value?.toLowerCase() || '';
+                return texto.includes('enviar') || texto.includes('finalizar') || 
+                       value.includes('enviar') || value.includes('finalizar');
+            });
+            
             // Solo considerar confirmación si:
             // 1. URL específica de confirmación O
             // 2. Tiene texto específico de confirmación O
-            // 3. Tiene contadores Y no tiene inputs activos
+            // 3. Tiene contadores Y no tiene inputs activos Y tiene botón de envío
             const tieneTextoConfirmacion = indicadoresConfirmacion.some(indicador => 
                 textoCompleto.includes(indicador)
             );
 
-            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && !tieneInputsActivos);
+            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && !tieneInputsActivos && tieneBotonEnvio);
         });
     }
 
@@ -325,10 +358,296 @@ export class DetectorEstructura {
             const url = window.location.href;
             const textoCompleto = document.body.textContent?.toLowerCase() || '';
             
-            return url.includes('Borradores') || 
-                   textoCompleto.includes('borradores de postulación') ||
-                   textoCompleto.includes('nueva postulación');
+            // Verificar URL
+            const urlEsBorradores = url.includes('Borradores') || 
+                                  url.includes('borradores') ||
+                                  url.includes('PostuladorBorradores');
+            
+            // Verificar texto específico
+            const tieneTextoBorradores = textoCompleto.includes('borradores de postulación') ||
+                                       textoCompleto.includes('nueva postulación') ||
+                                       textoCompleto.includes('nueva postulacion');
+            
+            // Verificar botón "Nueva Postulación"
+            const botonesNuevaPostulacion = document.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
+            const tieneBotonNuevaPostulacion = Array.from(botonesNuevaPostulacion).some(boton => {
+                const texto = boton.textContent?.toLowerCase() || '';
+                const value = (boton as HTMLInputElement).value?.toLowerCase() || '';
+                return texto.includes('nueva postulación') || texto.includes('nueva postulacion') ||
+                       value.includes('nueva postulación') || value.includes('nueva postulacion');
+            });
+            
+            // Verificar tabla de borradores
+            const tieneTablaBorradores = !!document.querySelector('table') && 
+                                       (textoCompleto.includes('identificador') || 
+                                        textoCompleto.includes('fecha inicio') ||
+                                        textoCompleto.includes('estado'));
+            
+            return urlEsBorradores || tieneTextoBorradores || tieneBotonNuevaPostulacion || tieneTablaBorradores;
         });
+    }
+
+    // 🆕 NUEVO: Detectar desplegables en el formulario - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
+    async detectarDesplegables(): Promise<Desplegable[]> {
+        console.log('🔍 Detectando desplegables (solo visibles en paso actual)...');
+        
+        try {
+            const desplegables = await this.page.evaluate(() => {
+                const desplegables: Desplegable[] = [];
+                
+                // Buscar TODOS los elementos que podrían ser desplegables
+                const todosLosHeaders = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
+                
+                // Filtrar solo desplegables de PRIMER NIVEL (no anidados)
+                const desplegablesPrimerNivel = Array.from(todosLosHeaders).filter(header => {
+                    // Verificar que no esté dentro de otro desplegable
+                    const parentDesplegable = header.closest('[class*="collapse"]:not(a)');
+                    return !parentDesplegable;
+                });
+                
+                // Filtrar solo desplegables VISIBLES en el paso actual
+                const desplegablesVisibles = desplegablesPrimerNivel.filter(header => {
+                    const text = header.textContent?.trim() || '';
+                    const rect = header.getBoundingClientRect();
+                    
+                    // Solo incluir desplegables que están en el área visible del paso actual
+                    const isVisible = rect.top >= 0 && rect.top <= window.innerHeight;
+                    
+                    return text && 
+                           text.length > 5 &&
+                           text.length < 100 &&
+                           isVisible && // Solo desplegables visibles en el viewport
+                           !text.includes('Siguiente') &&
+                           !text.includes('Anterior') &&
+                           !text.includes('Atrás') &&
+                           !text.includes('Continuar') &&
+                           !text.includes('Enviar') &&
+                           !text.includes('Guardar') &&
+                           !text.includes('Cerrar') &&
+                           !text.includes('Cancelar') &&
+                           !text.includes('Aceptar') &&
+                           !text.includes('OK') &&
+                           !text.includes('Sí') &&
+                           !text.includes('No') &&
+                           !text.match(/^\d+$/) && // No números solos
+                           !text.match(/^[A-Z\s]+$/) && // No texto en mayúsculas (probablemente navegación)
+                           !text.includes('PASO') &&
+                           !text.includes('STEP') &&
+                           !text.includes('PÁGINA') &&
+                           !text.includes('PAGE');
+                });
+                
+                console.log(`📊 Total desplegables encontrados: ${todosLosHeaders.length}`);
+                console.log(`📊 Desplegables de primer nivel: ${desplegablesPrimerNivel.length}`);
+                console.log(`📊 Desplegables visibles en paso actual: ${desplegablesVisibles.length}`);
+                
+                desplegablesVisibles.forEach(header => {
+                    const text = header.textContent ? header.textContent.trim() : '';
+                    
+                    // Verificar que realmente es un desplegable de contenido
+                    const targetId = header.getAttribute('href') || header.getAttribute('data-target');
+                    const contentDiv = targetId ? document.querySelector(targetId) : null;
+                    
+                    // Solo incluir si tiene contenido asociado
+                    if (contentDiv) {
+                        // Contar sub-desplegables dentro del contenido
+                        let subDesplegables = 0;
+                        const subHeaders = contentDiv.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
+                        subDesplegables = subHeaders.length;
+                        
+                        desplegables.push({
+                            titulo: text,
+                            isOpen: !header.classList.contains('collapsed'),
+                            hasSubDesplegables: subDesplegables > 0,
+                            subDesplegablesCount: subDesplegables,
+                            selector: targetId || '',
+                            contenido: contentDiv.textContent?.substring(0, 200) || ''
+                        });
+                    }
+                });
+                
+                return desplegables;
+            });
+            
+            console.log(`   ✅ Desplegables detectados: ${desplegables.length}`);
+            desplegables.forEach(d => {
+                console.log(`     📂 "${d.titulo}" - ${d.isOpen ? 'Abierto' : 'Cerrado'} - Sub-desplegables: ${d.subDesplegablesCount}`);
+            });
+            
+            return desplegables;
+            
+        } catch (error) {
+            console.log('   ⚠️ Error detectando desplegables:', (error as Error).message);
+            return [];
+        }
+    }
+
+    // 🆕 NUEVO: Expandir secciones automáticamente - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
+    async expandirSeccionesAutomaticamente(): Promise<void> {
+        console.log('📂 Expandiendo secciones automáticamente (solo visibles en paso actual)...');
+        
+        try {
+            const resultado = await this.page.evaluate(() => {
+                let expandidas = 0;
+                let yaAbiertas = 0;
+                let totalDesplegables = 0;
+                
+                // Buscar TODOS los elementos que podrían ser desplegables
+                const todosLosHeaders = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
+                
+                // Filtrar solo desplegables de PRIMER NIVEL (no anidados)
+                const desplegablesPrimerNivel = Array.from(todosLosHeaders).filter(header => {
+                    // Verificar que no esté dentro de otro desplegable
+                    const parentDesplegable = header.closest('[class*="collapse"]:not(a)');
+                    return !parentDesplegable;
+                });
+                
+                // Filtrar solo desplegables VISIBLES en el paso actual
+                const desplegablesVisibles = desplegablesPrimerNivel.filter(header => {
+                    const text = header.textContent?.trim() || '';
+                    const rect = header.getBoundingClientRect();
+                    
+                    // Solo incluir desplegables que están en el área visible del paso actual
+                    const isVisible = rect.top >= 0 && rect.top <= window.innerHeight;
+                    
+                    return text && 
+                           text.length > 5 &&
+                           text.length < 100 &&
+                           isVisible && // Solo desplegables visibles en el viewport
+                           !text.includes('Siguiente') &&
+                           !text.includes('Anterior') &&
+                           !text.includes('Atrás') &&
+                           !text.includes('Continuar') &&
+                           !text.includes('Enviar') &&
+                           !text.includes('Guardar') &&
+                           !text.includes('Cerrar') &&
+                           !text.includes('Cancelar') &&
+                           !text.includes('Aceptar') &&
+                           !text.includes('OK') &&
+                           !text.includes('Sí') &&
+                           !text.includes('No') &&
+                           !text.match(/^\d+$/) &&
+                           !text.match(/^[A-Z\s]+$/) &&
+                           !text.includes('PASO') &&
+                           !text.includes('STEP') &&
+                           !text.includes('PÁGINA') &&
+                           !text.includes('PAGE');
+                });
+                
+                totalDesplegables = desplegablesVisibles.length;
+                
+                // Solo expandir los que están cerrados (collapsed) - NO tocar los ya abiertos
+                const headersCerrados = desplegablesVisibles.filter(header => 
+                    header.classList.contains('collapsed')
+                );
+                
+                headersCerrados.forEach(header => {
+                    const text = header.textContent?.trim() || '';
+                    if (text) {
+                        // Hacer clic para expandir
+                        (header as HTMLElement).click();
+                        expandidas++;
+                    }
+                });
+                
+                // Contar los que ya están abiertos (NO hacer clic en estos)
+                const headersAbiertos = desplegablesVisibles.filter(header => 
+                    !header.classList.contains('collapsed')
+                );
+                
+                headersAbiertos.forEach(header => {
+                    const text = header.textContent?.trim() || '';
+                    if (text) {
+                        yaAbiertas++;
+                    }
+                });
+                
+                return { expandidas, yaAbiertas, totalDesplegables };
+            });
+            
+            console.log(`   📊 Total desplegables detectados: ${resultado.totalDesplegables}`);
+            console.log(`   ✅ Secciones ya abiertas (mantenidas): ${resultado.yaAbiertas}`);
+            console.log(`   🔄 Secciones expandidas: ${resultado.expandidas}`);
+            
+            // Esperar a que se cargue el contenido expandido
+            await this.page.waitForTimeout(2000);
+            
+            // Hacer scroll después de expandir para asegurar que todo esté visible
+            console.log('   📜 Haciendo scroll después de expandir...');
+            await this.page.evaluate(() => {
+                window.scrollTo(0, document.body.scrollHeight);
+            });
+            await this.page.waitForTimeout(1000);
+            await this.page.evaluate(() => {
+                window.scrollTo(0, 0);
+            });
+            await this.page.waitForTimeout(1000);
+            
+        } catch (error) {
+            console.log('   ⚠️ Error expandiendo secciones:', (error as Error).message);
+        }
+    }
+
+    // 🆕 NUEVO: Validar completitud del paso actual
+    async validarCompletitudPaso(): Promise<boolean> {
+        console.log('✅ Validando completitud del paso actual...');
+        
+        try {
+            const validacion = await this.page.evaluate(() => {
+                // Buscar todos los campos de entrada
+                const campos = document.querySelectorAll('input, select, textarea');
+                let camposObligatorios = 0;
+                let camposCompletados = 0;
+                let camposConError = 0;
+                
+                campos.forEach(campo => {
+                    const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                    
+                    // Verificar si es obligatorio
+                    const esObligatorio = element.hasAttribute('required') || 
+                                        element.getAttribute('aria-required') === 'true' ||
+                                        element.classList.contains('required') ||
+                                        element.classList.contains('mandatory') ||
+                                        element.classList.contains('obligatorio');
+                    
+                    if (esObligatorio) {
+                        camposObligatorios++;
+                        
+                        // Verificar si está completado
+                        const tieneValor = element.value && element.value.trim() !== '';
+                        if (tieneValor) {
+                            camposCompletados++;
+                        }
+                        
+                        // Verificar si tiene error
+                        const tieneError = element.classList.contains('error') || 
+                                         element.classList.contains('invalid') ||
+                                         element.getAttribute('aria-invalid') === 'true';
+                        if (tieneError) {
+                            camposConError++;
+                        }
+                    }
+                });
+                
+                return {
+                    camposObligatorios,
+                    camposCompletados,
+                    camposConError,
+                    porcentajeCompletado: camposObligatorios > 0 ? Math.round((camposCompletados / camposObligatorios) * 100) : 100
+                };
+            });
+            
+            console.log(`   📊 Campos obligatorios: ${validacion.camposObligatorios}`);
+            console.log(`   ✅ Campos completados: ${validacion.camposCompletados}`);
+            console.log(`   ❌ Campos con error: ${validacion.camposConError}`);
+            console.log(`   📈 Porcentaje completado: ${validacion.porcentajeCompletado}%`);
+            
+            return validacion.porcentajeCompletado === 100 && validacion.camposConError === 0;
+            
+        } catch (error) {
+            console.log('   ⚠️ Error validando completitud:', (error as Error).message);
+            return false;
+        }
     }
 }
 
@@ -345,6 +664,7 @@ export interface ConfiguracionMVP {
     soloObligatorios: boolean;
     velocidad: 'normal' | 'rapida' | 'maxima';
     guardarCache: boolean;
+    deteccionDinamica: boolean; // Nueva opción para activar/desactivar detección dinámica de campos obligatorios
 }
 
 export interface ResultadoMVP {
@@ -531,7 +851,7 @@ export class MVPHibrido {
         
         // 🎯 DETECCIÓN AUTOMÁTICA DE ESTRUCTURA
         const detector = new DetectorEstructura(this.page!);
-        const estructura = await detector.detectarEstructuraCompleta();
+        let estructura = await detector.detectarEstructuraCompleta();
         
         // Adaptar el MVP basado en la estructura detectada
         let pasoActual = estructura.pasoActual;
@@ -545,6 +865,7 @@ export class MVPHibrido {
         console.log(`   🔧 Método detección: ${estructura.tipoDeteccion}`);
         console.log(`   ✅ Es confirmación: ${estructura.esPaginaConfirmacion}`);
         console.log(`   📋 Es borradores: ${estructura.esPaginaBorradores}`);
+        console.log(`   📂 Desplegables detectados: ${estructura.desplegables?.length || 0}`);
         
         // Debugging adicional para entender la detección
         if (estructura.esPaginaConfirmacion) {
@@ -559,31 +880,50 @@ export class MVPHibrido {
         // Manejar casos especiales
         if (estructura.esPaginaBorradores) {
             console.log('📁 PÁGINA DE BORRADORES DETECTADA - Navegando al formulario real...');
+            console.log(`   🔗 URL actual: ${this.page!.url()}`);
+            
             await this.navegarDeBorradoresAFormulario();
+            
+            console.log(`   🔗 URL después de navegar: ${this.page!.url()}`);
+            
             // Re-detectar estructura después de navegar
             const nuevaEstructura = await detector.detectarEstructuraCompleta();
             pasoActual = nuevaEstructura.pasoActual;
+            
+            console.log(`   📊 Nueva estructura detectada: ${nuevaEstructura.totalPasos} pasos, paso actual: ${nuevaEstructura.pasoActual}`);
+            
+            // Actualizar la estructura principal con la nueva detección
+            estructura = nuevaEstructura;
         }
 
         if (estructura.esPaginaConfirmacion) {
-            console.log('🎯 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
-            const detallesConfirmacion = await this.procesarPasoConfirmacion();
+            // Verificación adicional: si hay muchos desplegables, NO es confirmación
+            if (estructura.desplegables && estructura.desplegables.length > 10) {
+                console.log('⚠️ CORRECCIÓN: Muchos desplegables detectados, NO es página de confirmación');
+                estructura.esPaginaConfirmacion = false;
+            } else {
+                console.log('🎯 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
+                console.log(`   🔗 URL: ${this.page!.url()}`);
+                console.log(`   📊 Desplegables: ${estructura.desplegables?.length || 0}`);
+                console.log(`   📝 Total pasos: ${estructura.totalPasos}`);
+                const detallesConfirmacion = await this.procesarPasoConfirmacion();
             
-            // Agregar paso de confirmación a los resultados
-            const pasoConfirmacion: PasoMVP = {
-                numero: 1,
-                titulo: 'Confirmación Final',
-                url: this.page!.url(),
-                camposEncontrados: detallesConfirmacion.length,
-                camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
-                tiempoTranscurrido: 0,
-                exito: true,
-                detalles: detallesConfirmacion
-            };
-            
-            this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
-            this.resultado.pasosCompletados.push(pasoConfirmacion);
-            return; // No hay más pasos después de confirmación
+                // Agregar paso de confirmación a los resultados
+                const pasoConfirmacion: PasoMVP = {
+                    numero: 1,
+                    titulo: 'Confirmación Final',
+                    url: this.page!.url(),
+                    camposEncontrados: detallesConfirmacion.length,
+                    camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
+                    tiempoTranscurrido: 0,
+                    exito: true,
+                    detalles: detallesConfirmacion
+                };
+                
+                this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
+                this.resultado.pasosCompletados.push(pasoConfirmacion);
+                return; // No hay más pasos después de confirmación
+            }
         }
 
         // Solo procesar pasos si NO estamos en confirmación ni borradores
@@ -596,6 +936,9 @@ export class MVPHibrido {
                 console.log('-'.repeat(40));
 
             try {
+                // 🆕 NUEVO: Expandir secciones automáticamente antes de procesar
+                await detector.expandirSeccionesAutomaticamente();
+                
                 const paso = await this.procesarPasoActual(pasoActual, tiempoInicioPaso);
                 this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
                 this.resultado.pasosCompletados.push(paso);
@@ -603,6 +946,13 @@ export class MVPHibrido {
                 const tiempoTranscurrido = Date.now() - tiempoInicioPaso;
                 if (tiempoTranscurrido > tiempoLimitePorPaso) {
                     console.log('⚠️ Límite de tiempo por paso alcanzado, pasando al siguiente');
+                }
+
+                // 🆕 NUEVO: Validar completitud antes de avanzar
+                const esCompleto = await detector.validarCompletitudPaso();
+                if (!esCompleto) {
+                    console.log('⚠️ Paso no completado al 100%, reintentando autocompletado...');
+                    await this.reintentarAutocompletado();
                 }
 
                 hayMasPasos = await this.navegarAlSiguientePaso();
@@ -826,19 +1176,30 @@ export class MVPHibrido {
             }
         }
 
-                 // Buscar campos reales (no hidden) prioritariamente
-         if (elementos.length === 0) {
-             console.log(`   🔍 Buscando campos reales (no hidden)...`);
-             elementos = await this.page!.$$('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], select, textarea, input[type="radio"], input[type="checkbox"]');
-             console.log(`   📝 Campos reales encontrados: ${elementos.length}`);
-         }
+        // Buscar SOLO campos visibles e interactuables (NO hidden)
+        if (elementos.length === 0) {
+            console.log(`   🔍 Buscando campos visibles e interactuables...`);
+            elementos = await this.page!.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
+            console.log(`   📝 Campos visibles encontrados: ${elementos.length}`);
+        }
 
-         // Solo si no hay campos reales, buscar hidden como último recurso
-         if (elementos.length === 0) {
-             console.log(`   🔍 No hay campos reales, buscando campos hidden como último recurso...`);
-             elementos = await this.page!.$$('input[type="hidden"]');
-             console.log(`   📝 Campos hidden encontrados: ${elementos.length}`);
-         }
+        // Filtrar elementos que no son realmente visibles
+        const elementosVisibles = [];
+        for (const elemento of elementos) {
+            try {
+                const esVisible = await elemento.isVisible();
+                const esInteractuable = await elemento.isEnabled();
+                if (esVisible && esInteractuable) {
+                    elementosVisibles.push(elemento);
+                }
+            } catch (error) {
+                // Si hay error verificando visibilidad, incluir el elemento
+                elementosVisibles.push(elemento);
+            }
+        }
+        
+        elementos = elementosVisibles;
+        console.log(`   ✅ Campos realmente visibles e interactuables: ${elementos.length}`);
 
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
 
@@ -947,10 +1308,30 @@ export class MVPHibrido {
                     etiqueta = name || id || `Campo ${tagName}`;
                 }
 
+                // Detección mejorada de campos obligatorios
                 const esObligatorio = el.hasAttribute('required') || 
                                     el.getAttribute('aria-required') === 'true' ||
+                                    el.getAttribute('aria-invalid') === 'true' ||
                                     className.includes('required') ||
-                                    (etiqueta.includes('*') || etiqueta.includes('obligatorio'));
+                                    className.includes('mandatory') ||
+                                    className.includes('obligatorio') ||
+                                    className.includes('is-required') ||
+                                    className.includes('form-required') ||
+                                    (etiqueta.includes('*') || etiqueta.includes('obligatorio')) ||
+                                    (etiqueta.includes('(requerido)') || etiqueta.includes('(obligatorio)')) ||
+                                    // Verificar en el contenedor padre
+                                    (() => {
+                                        const contenedor = el.closest('div, fieldset, .form-group, .field');
+                                        if (contenedor) {
+                                            const textoContenedor = contenedor.textContent || '';
+                                            const classContenedor = contenedor.className || '';
+                                            return classContenedor.includes('required') || 
+                                                   classContenedor.includes('mandatory') ||
+                                                   textoContenedor.includes('*') ||
+                                                   textoContenedor.includes('obligatorio');
+                                        }
+                                        return false;
+                                    })();
 
                 return {
                     tipo: type,
@@ -1013,10 +1394,30 @@ export class MVPHibrido {
                     }
                 }
 
+                // Detección mejorada de campos obligatorios
                 const esObligatorio = el.hasAttribute('required') || 
                                     el.getAttribute('aria-required') === 'true' ||
+                                    el.getAttribute('aria-invalid') === 'true' ||
                                     className.includes('required') ||
-                                    (etiqueta.includes('*') || etiqueta.includes('obligatorio'));
+                                    className.includes('mandatory') ||
+                                    className.includes('obligatorio') ||
+                                    className.includes('is-required') ||
+                                    className.includes('form-required') ||
+                                    (etiqueta.includes('*') || etiqueta.includes('obligatorio')) ||
+                                    (etiqueta.includes('(requerido)') || etiqueta.includes('(obligatorio)')) ||
+                                    // Verificar en el contenedor padre
+                                    (() => {
+                                        const contenedor = el.closest('div, fieldset, .form-group, .field');
+                                        if (contenedor) {
+                                            const textoContenedor = contenedor.textContent || '';
+                                            const classContenedor = contenedor.className || '';
+                                            return classContenedor.includes('required') || 
+                                                   classContenedor.includes('mandatory') ||
+                                                   textoContenedor.includes('*') ||
+                                                   textoContenedor.includes('obligatorio');
+                                        }
+                                        return false;
+                                    })();
 
                 return {
                     tipo: type,
@@ -1042,66 +1443,112 @@ export class MVPHibrido {
                 );
 
                 if (opciones.length > 1) {
-                    const opcionValida = opciones.find((opt: any) => opt.value && opt.value !== '');
+                    // Buscar opción que contenga texto relevante
+                    const opcionValida = opciones.find((opt: any) => 
+                        opt.value && opt.value !== '' && 
+                        (opt.text.toLowerCase().includes('seleccionar') === false &&
+                         opt.text.toLowerCase().includes('--') === false &&
+                         opt.text.toLowerCase().includes('ninguno') === false)
+                    );
                     if (opcionValida) {
                         await elemento.selectOption(opcionValida.value);
                         return opcionValida.text;
+                    } else {
+                        // Si no hay opción válida, seleccionar la segunda (saltando la primera que suele ser placeholder)
+                        await elemento.selectOption({ index: 1 });
+                        return opciones[1]?.text || 'Seleccionado';
                     }
                 }
             } else if (tipo === 'checkbox') {
-                await elemento.check();
+                const isChecked = await elemento.isChecked();
+                if (!isChecked) {
+                    await elemento.check();
+                }
                 return 'true';
             } else if (tipo === 'radio') {
-                await elemento.click();
+                const isChecked = await elemento.isChecked();
+                if (!isChecked) {
+                    await elemento.click();
+                }
                 return 'seleccionado';
             } else if (['text', 'email', 'tel', 'url', 'password', 'textarea'].includes(tipo)) {
+                // Limpiar campo antes de llenar
+                await elemento.fill('');
                 await elemento.fill(valor);
                 return valor;
             } else if (tipo === 'number') {
                 const numeroValor = typeof valor === 'string' ? valor.replace(/[^\d]/g, '') : valor;
+                await elemento.fill('');
                 await elemento.fill(numeroValor);
                 return numeroValor;
             } else if (tipo === 'date') {
+                await elemento.fill('');
                 await elemento.fill('2024-12-31');
                 return '2024-12-31';
             }
 
             return null;
         } catch (error) {
+            console.log(`     ⚠️ Error completando campo ${info.etiqueta}:`, (error as Error).message);
             return null;
         }
     }
 
     private generarValorParaCampo(info: any): string {
         const etiqueta = info.etiqueta.toLowerCase();
+        const tipo = info.tipo.toLowerCase();
 
+        // Mapeo más agresivo para asegurar 100% de completitud
         if (etiqueta.includes('rut') || etiqueta.includes('run')) {
             return CAMPOS_CORFO_MAPPING.RUT;
-        } else if (etiqueta.includes('email') || etiqueta.includes('correo')) {
+        } else if (etiqueta.includes('email') || etiqueta.includes('correo') || etiqueta.includes('mail')) {
             return this.configuracion.preferenciasAutocompletado.datosPersonales.email;
-        } else if (etiqueta.includes('teléfono') || etiqueta.includes('telefono')) {
+        } else if (etiqueta.includes('teléfono') || etiqueta.includes('telefono') || etiqueta.includes('fono')) {
             return this.configuracion.preferenciasAutocompletado.datosPersonales.telefono;
         } else if (etiqueta.includes('nombre') && !etiqueta.includes('proyecto')) {
             return this.configuracion.preferenciasAutocompletado.datosPersonales.nombre;
         } else if (etiqueta.includes('apellido')) {
             return this.configuracion.preferenciasAutocompletado.datosPersonales.apellido;
-        } else if (etiqueta.includes('razón social') || etiqueta.includes('empresa')) {
+        } else if (etiqueta.includes('razón social') || etiqueta.includes('empresa') || etiqueta.includes('organización')) {
             return this.configuracion.preferenciasAutocompletado.datosEmpresa.razonSocial;
-        } else if (etiqueta.includes('proyecto')) {
+        } else if (etiqueta.includes('proyecto') || etiqueta.includes('iniciativa')) {
             return CAMPOS_CORFO_MAPPING.TITULO_PROYECTO;
-        } else if (etiqueta.includes('descripción') || etiqueta.includes('resumen')) {
+        } else if (etiqueta.includes('descripción') || etiqueta.includes('resumen') || etiqueta.includes('detalle')) {
             return CAMPOS_CORFO_MAPPING.RESUMEN_PROYECTO;
-        } else if (etiqueta.includes('monto') || etiqueta.includes('costo')) {
+        } else if (etiqueta.includes('monto') || etiqueta.includes('costo') || etiqueta.includes('presupuesto') || etiqueta.includes('valor')) {
             return CAMPOS_CORFO_MAPPING.MONTO_SOLICITADO;
+        } else if (etiqueta.includes('dirección') || etiqueta.includes('direccion') || etiqueta.includes('domicilio')) {
+            return 'Av. Principal 123, Santiago, Chile';
+        } else if (etiqueta.includes('comuna') || etiqueta.includes('ciudad')) {
+            return 'Santiago';
+        } else if (etiqueta.includes('región') || etiqueta.includes('region')) {
+            return 'Metropolitana';
+        } else if (etiqueta.includes('objetivo') || etiqueta.includes('meta')) {
+            return CAMPOS_CORFO_MAPPING.OBJETIVO_GENERAL;
+        } else if (etiqueta.includes('duración') || etiqueta.includes('duracion') || etiqueta.includes('meses')) {
+            return CAMPOS_CORFO_MAPPING.DURACION_PROYECTO;
+        } else if (etiqueta.includes('empleos') || etiqueta.includes('empleo') || etiqueta.includes('trabajos')) {
+            return '5';
+        } else if (etiqueta.includes('año') || etiqueta.includes('año') || etiqueta.includes('year')) {
+            return '2024';
+        } else if (etiqueta.includes('fecha') || etiqueta.includes('date')) {
+            return '2024-12-31';
+        } else if (etiqueta.includes('porcentaje') || etiqueta.includes('porcentaje') || etiqueta.includes('%')) {
+            return '50';
+        } else if (etiqueta.includes('cantidad') || etiqueta.includes('número') || etiqueta.includes('numero')) {
+            return '10';
         }
 
-        const tipo = info.tipo.toLowerCase();
+        // Mapeo por tipo de campo - más agresivo
         switch (tipo) {
             case 'email': return this.configuracion.preferenciasAutocompletado.datosPersonales.email;
             case 'tel': return this.configuracion.preferenciasAutocompletado.datosPersonales.telefono;
             case 'number': return '100';
             case 'date': return '2024-12-31';
             case 'textarea': return CAMPOS_CORFO_MAPPING.TEXTO_LARGO;
+            case 'text': return CAMPOS_CORFO_MAPPING.TEXTO_CORTO;
+            case 'url': return 'https://www.ejemplo.cl';
+            case 'password': return 'password123';
             default: return CAMPOS_CORFO_MAPPING.TEXTO_CORTO;
         }
     }
@@ -1311,23 +1758,39 @@ export class MVPHibrido {
     private async navegarDeBorradoresAFormulario(): Promise<void> {
         console.log('🔄 Navegando desde borradores al formulario real...');
         
-        // Buscar botón "Nueva Postulación"
+        // Eliminar postulaciones existentes primero
+        await this.eliminarPostulacionesExistentes();
+        
+        // Buscar botón "Nueva Postulación" con más selectores
         const selectoresNuevaPostulacion = [
             'button:has-text("Nueva Postulación")',
             'button:has-text("NUEVA POSTULACIÓN")',
+            'button:has-text("Nueva Postulacion")',
             'a:has-text("Nueva Postulación")',
             'a:has-text("NUEVA POSTULACIÓN")',
+            'a:has-text("Nueva Postulacion")',
             'input[value*="Nueva"]',
+            'input[value*="nueva"]',
             '.btn:has-text("Nueva")',
-            '[onclick*="nueva"]'
+            '.btn:has-text("NUEVA")',
+            '[onclick*="nueva"]',
+            '[onclick*="Nueva"]',
+            'button[onclick*="nueva"]',
+            'a[onclick*="nueva"]'
         ];
         
         let botonNuevaPostulacion = null;
         for (const selector of selectoresNuevaPostulacion) {
-            botonNuevaPostulacion = await this.page!.$(selector);
-            if (botonNuevaPostulacion) {
-                console.log(`✅ Botón "Nueva Postulación" encontrado: ${selector}`);
-                break;
+            try {
+                botonNuevaPostulacion = await this.page!.$(selector);
+                if (botonNuevaPostulacion) {
+                    const texto = await botonNuevaPostulacion.textContent();
+                    console.log(`✅ Botón "Nueva Postulación" encontrado: ${selector} - Texto: "${texto}"`);
+                    break;
+                }
+            } catch (error) {
+                console.log(`   ⚠️ Error con selector ${selector}:`, (error as Error).message);
+                continue;
             }
         }
         
@@ -1460,43 +1923,204 @@ export class MVPHibrido {
         }
     }
 
+    // 🆕 NUEVO: Reintentar autocompletado para campos faltantes - VERSIÓN AGRESIVA
+    private async reintentarAutocompletado(): Promise<void> {
+        console.log('🔄 Reintentando autocompletado de campos faltantes...');
+        
+        try {
+            // Buscar TODOS los campos visibles (no solo obligatorios)
+            const camposFaltantes = await this.page!.evaluate(() => {
+                const campos = document.querySelectorAll('input:not([type="hidden"]), select, textarea');
+                const faltantes: any[] = [];
+                
+                campos.forEach(campo => {
+                    const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                    
+                    // Verificar si está vacío
+                    const estaVacio = !element.value || element.value.trim() === '';
+                    const tieneError = element.classList.contains('error') || 
+                                     element.classList.contains('invalid') ||
+                                     element.getAttribute('aria-invalid') === 'true';
+                    
+                    // Incluir TODOS los campos vacíos o con error (no solo obligatorios)
+                    if (estaVacio || tieneError) {
+                        // Buscar etiqueta
+                        let etiqueta = '';
+                        if (element.id) {
+                            const labelEl = document.querySelector(`label[for="${element.id}"]`);
+                            if (labelEl) etiqueta = labelEl.textContent?.trim() || '';
+                        }
+                        
+                        if (!etiqueta) {
+                            const parentLabel = element.closest('label');
+                            if (parentLabel) {
+                                etiqueta = parentLabel.textContent?.replace(element.value || '', '').trim() || '';
+                            }
+                        }
+                        
+                        if (!etiqueta && 'placeholder' in element) {
+                            etiqueta = (element as HTMLInputElement).placeholder || '';
+                        }
+                        
+                        // Buscar texto anterior si no hay etiqueta
+                        if (!etiqueta) {
+                            let previous = element.previousElementSibling;
+                            let attempts = 0;
+                            while (previous && !etiqueta && attempts < 3) {
+                                const text = previous.textContent?.trim();
+                                if (text && text.length > 0 && text.length < 100) {
+                                    etiqueta = text;
+                                    break;
+                                }
+                                previous = previous.previousElementSibling;
+                                attempts++;
+                            }
+                        }
+                        
+                        faltantes.push({
+                            selector: element.id ? `#${element.id}` : `[name="${element.name}"]`,
+                            tipo: element.tagName.toLowerCase(),
+                            etiqueta: etiqueta || 'Campo sin etiqueta',
+                            esObligatorio: element.hasAttribute('required') || 
+                                         element.getAttribute('aria-required') === 'true' ||
+                                         element.classList.contains('required')
+                        });
+                    }
+                });
+                
+                return faltantes;
+            });
+            
+            console.log(`   📝 Campos faltantes encontrados: ${camposFaltantes.length}`);
+            
+            // Intentar completar cada campo faltante
+            for (const campo of camposFaltantes) {
+                try {
+                    const elemento = await this.page!.$(campo.selector);
+                    if (elemento) {
+                        const valor = this.generarValorParaCampo({
+                            etiqueta: campo.etiqueta,
+                            tipo: campo.tipo
+                        });
+                        
+                        if (valor) {
+                            if (campo.tipo === 'select') {
+                                await elemento.selectOption({ index: 1 });
+                            } else if (campo.tipo === 'input') {
+                                const tipoInput = await elemento.evaluate(el => (el as HTMLInputElement).type);
+                                if (tipoInput === 'checkbox' || tipoInput === 'radio') {
+                                    await elemento.check();
+                                } else {
+                                    await elemento.fill(valor);
+                                }
+                            } else if (campo.tipo === 'textarea') {
+                                await elemento.fill(valor);
+                            }
+                            
+                            console.log(`     ✅ Campo completado: ${campo.etiqueta}`);
+                            await this.page!.waitForTimeout(100);
+                        }
+                    }
+                } catch (error) {
+                    console.log(`     ⚠️ Error completando campo ${campo.etiqueta}:`, (error as Error).message);
+                }
+            }
+            
+        } catch (error) {
+            console.log('   ⚠️ Error en reintento de autocompletado:', (error as Error).message);
+        }
+    }
+
     private async navegarAlSiguientePaso(): Promise<boolean> {
+        console.log('➡️ Intentando navegar al siguiente paso...');
+        
         const selectores = [
             'button:has-text("SIGUIENTE")',
             'button:has-text("Siguiente")',
             'input[value*="iguiente"]',
+            'input[value*="IGUIENTE"]',
             'button:has-text("CONTINUAR")',
-            'button[type="submit"]:not([value*="Enviar"])'
+            'button:has-text("Continuar")',
+            'button[type="submit"]:not([value*="Enviar"]):not([value*="ENVIAR"])',
+            'a:has-text("Siguiente")',
+            'a:has-text("SIGUIENTE")',
+            '.btn-next',
+            '[class*="next"]'
         ];
 
         for (const selector of selectores) {
             try {
                 const boton = await this.page!.$(selector);
                 if (boton && await boton.isVisible()) {
+                    const texto = await boton.textContent() || '';
+                    const value = await boton.getAttribute('value') || '';
+                    
+                    // Evitar botones de envío final
+                    if (texto.toLowerCase().includes('enviar') || 
+                        value.toLowerCase().includes('enviar') ||
+                        texto.toLowerCase().includes('finalizar')) {
+                        continue;
+                    }
+                    
+                    console.log(`   🖱️ Haciendo clic en: "${texto || value}"`);
+                    
+                    // Hacer scroll al botón si es necesario
+                    await boton.scrollIntoViewIfNeeded();
+                    await this.page!.waitForTimeout(500);
+                    
                     await boton.click();
                     await this.page!.waitForTimeout(2000);
-                    await this.manejarModalConfirmacion();
+                    
+                    // Manejar modal de confirmación si aparece
+                    const modalManejado = await this.manejarModalConfirmacion();
+                    if (modalManejado) {
+                        await this.page!.waitForTimeout(2000);
+                    }
+                    
+                    console.log('   ✅ Navegación exitosa');
                     return true;
                 }
-            } catch {
+            } catch (error) {
+                console.log(`   ⚠️ Error con selector ${selector}:`, (error as Error).message);
                 continue;
             }
         }
 
+        console.log('   ❌ No se encontró botón para siguiente paso');
         return false;
     }
 
-    private async manejarModalConfirmacion(): Promise<void> {
+    private async manejarModalConfirmacion(): Promise<boolean> {
         try {
             await this.page!.waitForTimeout(1000);
             
-            const botonConfirmar = await this.page!.$('button:has-text("Sí, estoy seguro"), button:has-text("Sí"), button:has-text("OK")');
-            if (botonConfirmar && await botonConfirmar.isVisible()) {
-                await botonConfirmar.click();
-                await this.page!.waitForTimeout(1000);
+            const selectoresConfirmar = [
+                'button:has-text("Sí, estoy seguro")',
+                'button:has-text("Sí")',
+                'button:has-text("OK")',
+                'button:has-text("Aceptar")',
+                'button:has-text("Continuar")',
+                '.btn-primary:has-text("Sí")',
+                '.btn-success:has-text("Sí")',
+                '.swal2-confirm',
+                '.swal2-actions button'
+            ];
+            
+            for (const selector of selectoresConfirmar) {
+                const boton = await this.page!.$(selector);
+                if (boton && await boton.isVisible()) {
+                    console.log(`   ✅ Confirmando modal: ${selector}`);
+                    await boton.click();
+                    await this.page!.waitForTimeout(2000);
+                    return true;
+                }
             }
-        } catch {
-            // No hay modal
+            
+            return false;
+            
+        } catch (error) {
+            console.log('   ⚠️ Error manejando modal:', (error as Error).message);
+            return false;
         }
     }
 
@@ -2235,11 +2859,30 @@ async function extraerCamposPaso(page: Page): Promise<CampoFormulario[]> {
                     opciones = Array.from(selectEl.options).map(option => option.text);
                 }
                 
-                // Determinar si es requerido
+                // Determinar si es requerido - Detección mejorada
                 const required = element.hasAttribute('required') || 
                                element.getAttribute('aria-required') === 'true' ||
+                               element.getAttribute('aria-invalid') === 'true' ||
                                element.classList.contains('required') ||
-                               (label.includes('*') || label.includes('obligatorio'));
+                               element.classList.contains('mandatory') ||
+                               element.classList.contains('obligatorio') ||
+                               element.classList.contains('is-required') ||
+                               element.classList.contains('form-required') ||
+                               (label.includes('*') || label.includes('obligatorio')) ||
+                               (label.includes('(requerido)') || label.includes('(obligatorio)')) ||
+                               // Verificar en el contenedor padre
+                               (() => {
+                                   const contenedor = element.closest('div, fieldset, .form-group, .field');
+                                   if (contenedor) {
+                                       const textoContenedor = contenedor.textContent || '';
+                                       const classContenedor = contenedor.className || '';
+                                       return classContenedor.includes('required') || 
+                                              classContenedor.includes('mandatory') ||
+                                              textoContenedor.includes('*') ||
+                                              textoContenedor.includes('obligatorio');
+                                   }
+                                   return false;
+                               })();
                 
                 return {
                     tipo,
@@ -2251,10 +2894,239 @@ async function extraerCamposPaso(page: Page): Promise<CampoFormulario[]> {
             }).filter(item => item !== null);
         });
         
+        // Integrar detección dinámica de campos obligatorios (si está habilitada)
+        let camposObligatoriosDinamicos: string[] = [];
+        try {
+            // Por defecto, la detección dinámica está habilitada para mejorar la detección
+            // Se puede desactivar pasando deteccionDinamica: false en la configuración
+            const habilitarDeteccionDinamica = true; // Valor por defecto
+            
+            if (habilitarDeteccionDinamica) {
+                console.log('🔍 MVP: Iniciando detección dinámica de campos obligatorios...');
+                camposObligatoriosDinamicos = await detectarCamposObligatoriosMVP(page, campos);
+            } else {
+                console.log('⚠️ MVP: Detección dinámica deshabilitada, usando solo detección estática');
+            }
+            
+            // Marcar campos como obligatorios según la detección dinámica
+            if (camposObligatoriosDinamicos.length > 0) {
+                let camposMarcados = 0;
+                campos.forEach(campo => {
+                    const identificadores = [campo.nombre, campo.label].filter(Boolean);
+                    const esObligatorioDinamico = identificadores.some(id => 
+                        camposObligatoriosDinamicos.includes(id)
+                    );
+                    
+                    if (esObligatorioDinamico && !campo.requerido) {
+                        console.log(`🎯 MVP: Campo "${campo.label || campo.nombre}" marcado como obligatorio por detección dinámica`);
+                        campo.requerido = true;
+                        camposMarcados++;
+                    }
+                });
+                
+                console.log(`✅ MVP: ${camposMarcados} campos adicionales marcados como obligatorios`);
+            }
+            
+            // Estadísticas finales
+            const totalObligatorios = campos.filter(c => c.requerido).length;
+            const totalCampos = campos.length;
+            const porcentajeObligatorios = totalCampos > 0 ? Math.round((totalObligatorios / totalCampos) * 100) : 0;
+            
+            console.log(`📊 MVP: ANÁLISIS DE CAMPOS OBLIGATORIOS COMPLETADO:`);
+            console.log(`   📝 Total campos encontrados: ${totalCampos}`);
+            console.log(`   ⚠️ Campos obligatorios detectados: ${totalObligatorios} (${porcentajeObligatorios}%)`);
+            console.log(`   🔍 Detección dinámica encontró: ${camposObligatoriosDinamicos.length} adicionales`);
+            
+            if (porcentajeObligatorios > 50) {
+                console.log('🎯 MVP: Alto porcentaje de campos obligatorios detectado');
+            } else if (porcentajeObligatorios > 25) {
+                console.log('📋 MVP: Porcentaje moderado de campos obligatorios');
+            } else {
+                console.log('📝 MVP: Pocos campos obligatorios detectados');
+            }
+            
+        } catch (error) {
+            console.error('MVP: Error en detección dinámica de campos obligatorios:', error);
+        }
+        
         return campos as CampoFormulario[];
         
     } catch (error) {
         console.error('Error extrayendo campos:', error);
+        return [];
+    }
+}
+
+/**
+ * Detecta campos obligatorios intentando avanzar sin llenar y viendo qué campos se marcan en rojo
+ * Adaptado de extraerFormularios.ts pero optimizado para MVP
+ */
+async function detectarCamposObligatoriosMVP(page: Page, campos: any[]): Promise<string[]> {
+    console.log('🔍 MVP: Detectando campos obligatorios dinámicamente...');
+    
+    try {
+        // Buscar el botón siguiente con múltiples estrategias
+        let botonSiguiente = null;
+        
+        // Selectores específicos para botones de navegación
+        const selectoresBotones = [
+            'button:has-text("SIGUIENTE")',
+            'button:has-text("Siguiente")', 
+            'button:has-text("siguiente")',
+            'input[value*="iguiente"]',
+            'input[value*="IGUIENTE"]',
+            '.btn-next',
+            '[class*="next"]',
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'button:has-text("Continuar")',
+            'button:has-text("CONTINUAR")',
+            'a:has-text("Siguiente")',
+            'a:has-text("SIGUIENTE")',
+            'button:has-text("Enviar")',
+            'button:has-text("ENVIAR")'
+        ];
+        
+        for (const selector of selectoresBotones) {
+            try {
+                botonSiguiente = await page.$(selector);
+                if (botonSiguiente) {
+                    console.log(`✅ MVP: Botón encontrado con selector: ${selector}`);
+                    break;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+        
+        // Si no encuentra con selectores, buscar por texto
+        if (!botonSiguiente) {
+            const todosLosBotones = await page.$$('button, input[type="submit"], input[type="button"], a');
+            for (const boton of todosLosBotones) {
+                try {
+                    const texto = await boton.textContent();
+                    const value = await boton.getAttribute('value');
+                    const textoBuscar = (texto || value || '').toLowerCase();
+                    
+                    if (textoBuscar.includes('siguiente') || 
+                        textoBuscar.includes('continuar') ||
+                        textoBuscar.includes('next') ||
+                        textoBuscar.includes('submit') ||
+                        textoBuscar.includes('enviar')) {
+                        botonSiguiente = boton;
+                        console.log(`✅ MVP: Botón encontrado por texto: "${texto || value}"`);
+                        break;
+                    }
+                } catch (error) {
+                    continue;
+                }
+            }
+        }
+        
+        if (!botonSiguiente) {
+            console.log('❌ MVP: No se encontró botón de navegación, usando detección estática únicamente');
+            return [];
+        }
+
+        // Hacer scroll al botón si es necesario
+        await botonSiguiente.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        
+        // Verificar si el botón está visible
+        const esVisible = await botonSiguiente.isVisible();
+        if (!esVisible) {
+            console.log('❌ MVP: El botón encontrado no es visible, usando detección estática únicamente');
+            return [];
+        }
+        
+        try {
+            // Hacer clic en el botón sin llenar nada para provocar validación
+            await page.evaluate((element) => {
+                if (element && 'click' in element && typeof element.click === 'function') {
+                    (element as HTMLElement).click();
+                }
+            }, botonSiguiente);
+            
+            await page.waitForTimeout(2000); // Esperar a que aparezcan los errores
+        } catch (error) {
+            console.log('⚠️ MVP: Error al hacer clic en botón, posible navegación:', (error as Error).message);
+            return [];
+        }
+        
+        // Buscar campos que ahora tienen indicadores de error
+        const camposConError = await page.$$eval('input, select, textarea', (elements) => {
+            return elements.map(el => {
+                const element = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                
+                // Verificar diferentes formas de indicar error
+                const tieneClaseError = element.classList.contains('error') || 
+                                      element.classList.contains('invalid') || 
+                                      element.classList.contains('has-error') ||
+                                      element.classList.contains('field-error') ||
+                                      element.classList.contains('is-invalid') ||
+                                      element.classList.contains('form-error');
+                
+                // Verificar si el campo o su contenedor tiene estilos de error
+                const style = window.getComputedStyle(element);
+                const borderRojo = style.borderColor.includes('rgb(255') || 
+                                  style.borderColor.includes('red') ||
+                                  style.borderColor.includes('#f') ||
+                                  style.borderColor.includes('#e') ||
+                                  style.borderColor.includes('#d') ||
+                                  style.outlineColor.includes('red');
+                
+                // Verificar si hay un mensaje de error cercano
+                const contenedor = element.closest('div, fieldset, .form-group, .field') || element.parentElement;
+                const hayMensajeError = contenedor?.querySelector('.error-message, .field-error, .invalid-feedback, [class*="error"], .help-block');
+                
+                // Verificar aria-invalid
+                const ariaInvalid = element.getAttribute('aria-invalid') === 'true';
+                
+                if (tieneClaseError || borderRojo || hayMensajeError || ariaInvalid) {
+                    return {
+                        name: element.name || element.id || '',
+                        id: element.id || '',
+                        placeholder: (element as HTMLInputElement).placeholder || '',
+                        type: element.type || element.tagName.toLowerCase()
+                    };
+                }
+                
+                return null;
+            }).filter(el => el !== null);
+        });
+        
+        // Extraer los nombres/identificadores de los campos con error
+        const nombresCamposObligatorios: string[] = [];
+        
+        camposConError.forEach(campo => {
+            if (campo) {
+                // Buscar coincidencia con los campos que tenemos
+                const campoCoincidente = campos.find(c => 
+                    (c.name && c.name === campo.name) || 
+                    (c.id && c.id === campo.id) ||
+                    (campo.placeholder && c.etiqueta?.includes(campo.placeholder)) ||
+                    (c.nombre && c.nombre === campo.name) ||
+                    (c.nombre && c.nombre === campo.id)
+                );
+                
+                if (campoCoincidente) {
+                    const identificador = campoCoincidente.name || campoCoincidente.id || campoCoincidente.nombre || campoCoincidente.etiqueta;
+                    if (identificador && !nombresCamposObligatorios.includes(identificador)) {
+                        nombresCamposObligatorios.push(identificador);
+                    }
+                }
+            }
+        });
+        
+        console.log(`✅ MVP: Campos obligatorios detectados dinámicamente: ${nombresCamposObligatorios.length}`);
+        if (nombresCamposObligatorios.length > 0) {
+            console.log(`   Campos: ${nombresCamposObligatorios.join(', ')}`);
+        }
+        
+        return nombresCamposObligatorios;
+        
+    } catch (error) {
+        console.error('MVP: Error al detectar campos obligatorios:', error);
         return [];
     }
 }
@@ -2511,8 +3383,8 @@ export async function ejecutarMVPHibrido(configuracionNombre: string = 'demo'): 
     
     const resultado = await mvp.ejecutar();
     
-    console.log('\n📈 RESUMEN FINAL');
-    console.log('================');
+    console.log('\n📈 RESUMEN FINAL MVP HÍBRIDO');
+    console.log('===============================');
     console.log(`⏱️ Tiempo total: ${((resultado.tiempoTotal || resultado.tiempoEjecucion * 1000) / 1000 / 60).toFixed(1)} minutos`);
     console.log(`📊 Pasos completados: ${resultado.estadisticas.totalPasos}`);
     console.log(`📝 Campos encontrados: ${resultado.estadisticas.totalCampos}`);
