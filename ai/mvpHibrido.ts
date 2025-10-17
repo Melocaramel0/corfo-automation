@@ -18,9 +18,10 @@ export interface EstructuraFormularioDetectada {
     esPaginaConfirmacion: boolean;
     esPaginaBorradores: boolean;
     tieneBarraProgreso: boolean;
+    esSlickSlider?: boolean; // Nueva propiedad para slick sliders
     titulosPasos: string[];
     urlActual: string;
-    tipoDeteccion: 'barra_progreso' | 'navegacion_botones' | 'analisis_contenido' | 'fallback';
+    tipoDeteccion: 'barra_progreso' | 'fallback';
     confianza: number; // 0-100%
     desplegables?: Desplegable[]; // Nueva propiedad para desplegables
 }
@@ -48,8 +49,6 @@ export class DetectorEstructura {
     }
 
     async detectarEstructuraCompleta(): Promise<EstructuraFormularioDetectada> {
-        console.log('🔍 DETECTANDO ESTRUCTURA DEL FORMULARIO...');
-        
         const url = this.page.url();
         let estructura: EstructuraFormularioDetectada = {
             totalPasos: 1,
@@ -63,22 +62,10 @@ export class DetectorEstructura {
             confianza: 0
         };
 
-        // Método 1: Detectar por barra de progreso visual
-        const deteccionProgreso = await this.detectarPorBarraProgreso();
-        if (deteccionProgreso.confianza && deteccionProgreso.confianza > estructura.confianza) {
-            estructura = { ...estructura, ...deteccionProgreso };
-        }
-
-        // Método 2: Detectar por botones de navegación
-        const deteccionBotones = await this.detectarPorBotonesNavegacion();
-        if (deteccionBotones.confianza && deteccionBotones.confianza > estructura.confianza) {
-            estructura = { ...estructura, ...deteccionBotones };
-        }
-
-        // Método 3: Detectar por análisis de contenido
-        const deteccionContenido = await this.detectarPorContenido();
-        if (deteccionContenido.confianza && deteccionContenido.confianza > estructura.confianza) {
-            estructura = { ...estructura, ...deteccionContenido };
+        // 🎯 DETECCIÓN POR SLICK-SLIDER (CORFO)
+        const deteccionSlick = await this.detectarPorSlickSlider();
+        if (deteccionSlick.confianza && deteccionSlick.confianza > estructura.confianza) {
+            estructura = { ...estructura, ...deteccionSlick };
         }
 
         // Detectar tipos especiales de página
@@ -99,200 +86,84 @@ export class DetectorEstructura {
         return estructura;
     }
 
-    private async detectarPorBarraProgreso(): Promise<Partial<EstructuraFormularioDetectada>> {
+    private async detectarPorSlickSlider(): Promise<Partial<EstructuraFormularioDetectada>> {
         try {
-            console.log('🔍 Método 1: Detectando por barra de progreso...');
+            console.log('🔍 Detectando estructura por Slick Slider...');
             
-            const progreso = await this.page.evaluate(() => {
-                // Buscar elementos de progreso comunes
-                const selectoresProgreso = [
-                    '.progress-bar', '.step-indicator', '.stepper',
-                    '.progress-steps', '.wizard-steps', '.form-steps',
-                    '[class*="step"]', '[class*="progress"]', '[class*="wizard"]',
-                    '.breadcrumb', '.nav-tabs', '.nav-pills'
-                ];
-
-                for (const selector of selectoresProgreso) {
-                    const elementos = document.querySelectorAll(selector);
-                    if (elementos.length > 0) {
-                        // Analizar estructura de pasos
-                        const pasos = Array.from(elementos).filter(el => {
-                            const texto = el.textContent?.trim() || '';
-                            const esVisible = window.getComputedStyle(el).display !== 'none';
-                            return esVisible && (texto.length > 0 || el.children.length > 0);
-                        });
-
-                        if (pasos.length > 1) {
-                            const titulosPasos = pasos.map(paso => {
-                                const texto = paso.textContent?.trim() || '';
-                                return texto.length > 0 ? texto : `Paso ${pasos.indexOf(paso) + 1}`;
-                            });
-
-                            // Detectar paso actual (elemento con clase active, current, selected, etc.)
-                            let pasoActual = 1;
-                            for (let i = 0; i < pasos.length; i++) {
-                                const elemento = pasos[i] as Element;
-                                if (elemento.classList.contains('active') || 
-                                    elemento.classList.contains('current') ||
-                                    elemento.classList.contains('selected') ||
-                                    elemento.classList.contains('step-active')) {
-                                    pasoActual = i + 1;
-                                    break;
-                                }
-                            }
-
-                            return {
-                                totalPasos: pasos.length,
-                                pasoActual: pasoActual,
-                                titulosPasos: titulosPasos,
-                                tieneBarraProgreso: true
-                            };
-                        }
-                    }
-                }
-
-                return null;
-            });
-
-            if (progreso) {
-                console.log(`   ✅ Detectados ${progreso.totalPasos} pasos por barra de progreso`);
-                return {
-                    ...progreso,
-                    tipoDeteccion: 'barra_progreso',
-                    confianza: 90
-                };
-            }
-
-        } catch (error) {
-            console.log('   ⚠️ Error en detección por progreso:', (error as Error).message);
-        }
-
-        return { confianza: 0 };
-    }
-
-    private async detectarPorBotonesNavegacion(): Promise<Partial<EstructuraFormularioDetectada>> {
-        try {
-            console.log('🔍 Método 2: Detectando por botones de navegación...');
-            
-            const navegacion = await this.page.evaluate(() => {
-                // Buscar botones siguiente/anterior
-                const todosBotones = document.querySelectorAll('button, input[type="button"], input[type="submit"], a');
+            const resultado = await this.page.evaluate(() => {
+                // DETECCIÓN ESPECÍFICA PARA SLICK-SLIDER (CORFO)
+                const slickSliders = document.querySelectorAll('.slick-slider, .carousel.slick-initialized');
                 
-                let tieneSiguiente = false;
-                let tieneAnterior = false;
-                
-                Array.from(todosBotones).forEach(boton => {
-                    const texto = boton.textContent?.toLowerCase() || '';
-                    const value = (boton as HTMLInputElement).value?.toLowerCase() || '';
-                    const textoBuscar = texto + ' ' + value;
+                for (const slider of Array.from(slickSliders)) {
+                    // Buscar todos los elementos li con data-slick-index
+                    const pasosSlick = slider.querySelectorAll('li[data-slick-index]');
                     
-                    if (textoBuscar.includes('siguiente') || textoBuscar.includes('continuar')) {
-                        tieneSiguiente = true;
-                    }
-                    if (textoBuscar.includes('anterior') || textoBuscar.includes('atrás')) {
-                        tieneAnterior = true;
-                    }
-                });
-
-                // Si hay navegación, probablemente hay múltiples pasos
-                if (tieneSiguiente || tieneAnterior) {
-                    let estimacionPasos = 3; // Mínimo con navegación
-                    
-                    if (tieneAnterior) {
-                        estimacionPasos = 7; // Nueva estructura detectada
-                    }
-
-                    return {
-                        totalPasos: estimacionPasos,
-                        tieneNavegacion: true
-                    };
-                }
-
-                return null;
-            });
-
-            if (navegacion) {
-                console.log(`   ✅ Detectada navegación - estimando ${navegacion.totalPasos} pasos`);
-                return {
-                    ...navegacion,
-                    tipoDeteccion: 'navegacion_botones',
-                    confianza: 60
-                };
-            }
-
-        } catch (error) {
-            console.log('   ⚠️ Error en detección por navegación:', (error as Error).message);
-        }
-
-        return { confianza: 0 };
-    }
-
-    private async detectarPorContenido(): Promise<Partial<EstructuraFormularioDetectada>> {
-        try {
-            console.log('🔍 Método 3: Detectando por análisis de contenido...');
-            
-            const contenido = await this.page.evaluate(() => {
-                const textoCompleto = document.body.textContent || '';
-                
-                // Patrones que indican múltiples pasos
-                const patronesPasos = [
-                    /paso\s*(\d+)\s*de\s*(\d+)/i,
-                    /step\s*(\d+)\s*of\s*(\d+)/i,
-                    /(\d+)\s*\/\s*(\d+)/,
-                    /página\s*(\d+)\s*de\s*(\d+)/i
-                ];
-
-                for (const patron of patronesPasos) {
-                    const match = textoCompleto.match(patron);
-                    if (match) {
-                        const pasoActual = parseInt(match[1]);
-                        const totalPasos = parseInt(match[2]);
+                    if (pasosSlick.length > 0) {
+                        // Contar todos los pasos (visibles y ocultos)
+                        const totalPasos = pasosSlick.length;
                         
-                        if (pasoActual > 0 && totalPasos > 1 && pasoActual <= totalPasos) {
-                            return {
-                                pasoActual: pasoActual,
-                                totalPasos: totalPasos
-                            };
+                        // Detectar paso actual (elemento sin aria-hidden="true" o con clase active)
+                        let pasoActual = 1;
+                        for (let i = 0; i < pasosSlick.length; i++) {
+                            const elemento = pasosSlick[i] as Element;
+                            const ariaHidden = elemento.getAttribute('aria-hidden');
+                            
+                            // Si no está oculto o tiene clase active, es el paso actual
+                            if (ariaHidden !== 'true' || 
+                                elemento.classList.contains('active') || 
+                                elemento.classList.contains('current') ||
+                                elemento.classList.contains('slick-current')) {
+                                pasoActual = i + 1;
+                                break;
+                            }
                         }
+                        
+                        // Extraer títulos de los pasos
+                        const titulosPasos = Array.from(pasosSlick).map((paso: Element, index: number) => {
+                            const texto = paso.textContent?.trim() || '';
+                            const id = paso.id || '';
+                            
+                            if (texto.length > 0) {
+                                return texto;
+                            } else if (id.includes('Paso') || id.includes('BotonPaso')) {
+                                return `Paso ${index + 1}`;
+                            } else {
+                                return `Paso ${index + 1}`;
+                            }
+                        });
+                        
+                        return {
+                            totalPasos: totalPasos,
+                            pasoActual: pasoActual,
+                            titulosPasos: titulosPasos,
+                            tieneBarraProgreso: true,
+                            esSlickSlider: true
+                        };
                     }
-                }
-
-                // Buscar indicadores específicos de CORFO (estructura nueva)
-                const indicadoresCORFO = [
-                    'datos generales proyecto', 'encargado del proyecto', 
-                    'beneficiario', 'asociado', 'coejecutor', 
-                    'propuesta técnica', 'financiera', 'confirmación'
-                ];
-
-                const indicadoresEncontrados = indicadoresCORFO.filter(indicador => 
-                    textoCompleto.toLowerCase().includes(indicador)
-                );
-
-                if (indicadoresEncontrados.length >= 2) {
-                    return {
-                        totalPasos: 7, // Nueva estructura detectada
-                        esFormularioComplejo: true
-                    };
                 }
 
                 return null;
             });
 
-            if (contenido) {
-                console.log(`   ✅ Detectado por contenido - ${contenido.totalPasos} pasos`);
+            if (resultado) {
+                console.log(`   ✅ Slick Slider detectado: ${resultado.totalPasos} pasos`);
+                console.log(`   📍 Paso actual: ${resultado.pasoActual}`);
                 return {
-                    ...contenido,
-                    tipoDeteccion: 'analisis_contenido',
-                    confianza: 70
+                    ...resultado,
+                    tipoDeteccion: 'barra_progreso',
+                    confianza: 95
                 };
+            } else {
+                console.log('   ⚠️ No se encontró Slick Slider');
             }
 
         } catch (error) {
-            console.log('   ⚠️ Error en detección por contenido:', (error as Error).message);
+            console.log('   ⚠️ Error en detección de Slick Slider:', (error as Error).message);
         }
 
         return { confianza: 0 };
     }
+
 
     async esPaginaConfirmacion(): Promise<boolean> {
         return await this.page.evaluate(() => {
@@ -386,6 +257,7 @@ export class DetectorEstructura {
             return urlEsBorradores || tieneTextoBorradores || tieneBotonNuevaPostulacion || tieneTablaBorradores;
         });
     }
+
 
     // 🆕 NUEVO: Detectar desplegables en el formulario - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
     async detectarDesplegables(): Promise<Desplegable[]> {
@@ -849,8 +721,21 @@ export class MVPHibrido {
     private async procesarFormularioHibrido(): Promise<void> {
         console.log('🔄 Iniciando procesamiento híbrido...');
         
-        // 🎯 DETECCIÓN AUTOMÁTICA DE ESTRUCTURA
+        // 🎯 VERIFICAR PRIMERO SI ESTAMOS EN BORRADORES
         const detector = new DetectorEstructura(this.page!);
+        const esBorradores = await detector.esPaginaBorradores();
+        
+        if (esBorradores) {
+            console.log('📁 PÁGINA DE BORRADORES DETECTADA - Navegando al formulario real...');
+            console.log(`   🔗 URL actual: ${this.page!.url()}`);
+            
+            await this.navegarDeBorradoresAFormulario();
+            
+            console.log(`   🔗 URL después de navegar: ${this.page!.url()}`);
+        }
+        
+        // 🎯 AHORA SÍ DETECTAR ESTRUCTURA EN EL FORMULARIO REAL
+        console.log('🔍 DETECTANDO ESTRUCTURA DEL FORMULARIO REAL...');
         let estructura = await detector.detectarEstructuraCompleta();
         
         // Adaptar el MVP basado en la estructura detectada
@@ -875,25 +760,6 @@ export class MVPHibrido {
             );
             console.log(`   📄 Texto de la página (primeros 800 chars): "${textoCompleto}"`);
             console.log(`   🔗 URL completa: ${this.page!.url()}`);
-        }
-
-        // Manejar casos especiales
-        if (estructura.esPaginaBorradores) {
-            console.log('📁 PÁGINA DE BORRADORES DETECTADA - Navegando al formulario real...');
-            console.log(`   🔗 URL actual: ${this.page!.url()}`);
-            
-            await this.navegarDeBorradoresAFormulario();
-            
-            console.log(`   🔗 URL después de navegar: ${this.page!.url()}`);
-            
-            // Re-detectar estructura después de navegar
-            const nuevaEstructura = await detector.detectarEstructuraCompleta();
-            pasoActual = nuevaEstructura.pasoActual;
-            
-            console.log(`   📊 Nueva estructura detectada: ${nuevaEstructura.totalPasos} pasos, paso actual: ${nuevaEstructura.pasoActual}`);
-            
-            // Actualizar la estructura principal con la nueva detección
-            estructura = nuevaEstructura;
         }
 
         if (estructura.esPaginaConfirmacion) {
