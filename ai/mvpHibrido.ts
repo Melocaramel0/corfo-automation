@@ -354,111 +354,7 @@ export class DetectorEstructura {
         }
     }
 
-    // 🆕 NUEVO: Expandir secciones automáticamente - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
-    async expandirSeccionesAutomaticamente(): Promise<void> {
-        console.log('📂 Expandiendo secciones automáticamente (solo visibles en paso actual)...');
-        
-        try {
-            const resultado = await this.page.evaluate(() => {
-                let expandidas = 0;
-                let yaAbiertas = 0;
-                let totalDesplegables = 0;
-                
-                // Buscar TODOS los elementos que podrían ser desplegables
-                const todosLosHeaders = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
-                
-                // Filtrar solo desplegables de PRIMER NIVEL (no anidados)
-                const desplegablesPrimerNivel = Array.from(todosLosHeaders).filter(header => {
-                    // Verificar que no esté dentro de otro desplegable
-                    const parentDesplegable = header.closest('[class*="collapse"]:not(a)');
-                    return !parentDesplegable;
-                });
-                
-                // Filtrar solo desplegables VISIBLES en el paso actual
-                const desplegablesVisibles = desplegablesPrimerNivel.filter(header => {
-                    const text = header.textContent?.trim() || '';
-                    const rect = header.getBoundingClientRect();
-                    
-                    // Solo incluir desplegables que están en el área visible del paso actual
-                    const isVisible = rect.top >= 0 && rect.top <= window.innerHeight;
-                    
-                    return text && 
-                           text.length > 5 &&
-                           text.length < 100 &&
-                           isVisible && // Solo desplegables visibles en el viewport
-                           !text.includes('Siguiente') &&
-                           !text.includes('Anterior') &&
-                           !text.includes('Atrás') &&
-                           !text.includes('Continuar') &&
-                           !text.includes('Enviar') &&
-                           !text.includes('Guardar') &&
-                           !text.includes('Cerrar') &&
-                           !text.includes('Cancelar') &&
-                           !text.includes('Aceptar') &&
-                           !text.includes('OK') &&
-                           !text.includes('Sí') &&
-                           !text.includes('No') &&
-                           !text.match(/^\d+$/) &&
-                           !text.match(/^[A-Z\s]+$/) &&
-                           !text.includes('PASO') &&
-                           !text.includes('STEP') &&
-                           !text.includes('PÁGINA') &&
-                           !text.includes('PAGE');
-                });
-                
-                totalDesplegables = desplegablesVisibles.length;
-                
-                // Solo expandir los que están cerrados (collapsed) - NO tocar los ya abiertos
-                const headersCerrados = desplegablesVisibles.filter(header => 
-                    header.classList.contains('collapsed')
-                );
-                
-                headersCerrados.forEach(header => {
-                    const text = header.textContent?.trim() || '';
-                    if (text) {
-                        // Hacer clic para expandir
-                        (header as HTMLElement).click();
-                        expandidas++;
-                    }
-                });
-                
-                // Contar los que ya están abiertos (NO hacer clic en estos)
-                const headersAbiertos = desplegablesVisibles.filter(header => 
-                    !header.classList.contains('collapsed')
-                );
-                
-                headersAbiertos.forEach(header => {
-                    const text = header.textContent?.trim() || '';
-                    if (text) {
-                        yaAbiertas++;
-                    }
-                });
-                
-                return { expandidas, yaAbiertas, totalDesplegables };
-            });
-            
-            console.log(`   📊 Total desplegables detectados: ${resultado.totalDesplegables}`);
-            console.log(`   ✅ Secciones ya abiertas (mantenidas): ${resultado.yaAbiertas}`);
-            console.log(`   🔄 Secciones expandidas: ${resultado.expandidas}`);
-            
-            // Esperar a que se cargue el contenido expandido
-            await this.page.waitForTimeout(2000);
-            
-            // Hacer scroll después de expandir para asegurar que todo esté visible
-            console.log('   📜 Haciendo scroll después de expandir...');
-            await this.page.evaluate(() => {
-                window.scrollTo(0, document.body.scrollHeight);
-            });
-            await this.page.waitForTimeout(1000);
-            await this.page.evaluate(() => {
-                window.scrollTo(0, 0);
-            });
-            await this.page.waitForTimeout(1000);
-            
-        } catch (error) {
-            console.log('   ⚠️ Error expandiendo secciones:', (error as Error).message);
-        }
-    }
+
 
     // 🆕 NUEVO: Validar completitud del paso actual
     async validarCompletitudPaso(): Promise<boolean> {
@@ -803,7 +699,7 @@ export class MVPHibrido {
 
             try {
                 // 🆕 NUEVO: Expandir secciones automáticamente antes de procesar
-                await detector.expandirSeccionesAutomaticamente();
+                await this.expandirSeccionesAutomaticamente();
                 
                 const paso = await this.procesarPasoActual(pasoActual, tiempoInicioPaso);
                 this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
@@ -995,7 +891,13 @@ export class MVPHibrido {
     private async extraerYCompletarCampos(): Promise<DetallePasoMVP[]> {
         const detalles: DetallePasoMVP[] = [];
         
-        // Hacer scroll para activar contenido dinámico
+        console.log(`   🔍 INICIANDO EXTRACCIÓN MEJORADA DE CAMPOS...`);
+        
+        // 🎯 PASO 1: Procesar desplegables primero (campos ocultos)
+        console.log(`   📂 Procesando desplegables y campos ocultos...`);
+        await this.expandirSeccionesAutomaticamente();
+        
+        // 🎯 PASO 2: Hacer scroll para activar contenido dinámico
         console.log(`   📜 Haciendo scroll para activar contenido dinámico...`);
         await this.page!.evaluate(async () => {
             await new Promise<void>((resolve) => {
@@ -1014,14 +916,41 @@ export class MVPHibrido {
             });
         });
 
+        // 🎯 PASO 3: Buscar TODOS los campos (incluyendo los que se abrieron en desplegables)
+        console.log(`   🔍 Buscando TODOS los campos visibles después de expandir...`);
+
         // Buscar en iframe principal si existe
         const frames = this.page!.frames();
         console.log(`   🖼️ Frames encontrados: ${frames.length}`);
         
-        let elementos = await this.page!.$$('input, select, textarea');
-        console.log(`   🔍 Elementos en página principal: ${elementos.length}`);
+        // 🚀 OPTIMIZACIÓN: Buscar directamente solo campos visibles e interactuables en el paso actual
+        let elementos = await this.page!.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
+        console.log(`   🔍 Campos encontrados en página principal: ${elementos.length}`);
         
-        // Si no hay elementos en la página principal, buscar en iframes
+        // 🎯 NUEVO: Filtrar solo campos que están realmente visibles en el paso actual
+        const elementosVisiblesEnPaso = [];
+        for (const elemento of elementos) {
+            try {
+                const rect = await elemento.boundingBox();
+                const isVisible = await elemento.isVisible();
+                const isEnabled = await elemento.isEnabled();
+                
+                // Verificar si está en el viewport visible (relajar restricciones)
+                if (rect && isVisible && isEnabled && 
+                    rect.y >= -200 && rect.y <= 1500 && // Ampliar rango vertical
+                    rect.x >= -200 && rect.x <= 1400) { // Ampliar rango horizontal
+                    elementosVisiblesEnPaso.push(elemento);
+                }
+            } catch (error) {
+                // Si hay error verificando, incluir el elemento
+                elementosVisiblesEnPaso.push(elemento);
+            }
+        }
+        
+        elementos = elementosVisiblesEnPaso;
+        console.log(`   ✅ Campos realmente visibles en paso actual: ${elementos.length}`);
+        
+        // Si no hay elementos visibles en la página principal, buscar en iframes
         if (elementos.length === 0) {
             for (let i = 0; i < frames.length; i++) {
                 try {
@@ -1029,10 +958,9 @@ export class MVPHibrido {
                     const frameUrl = frame.url();
                     console.log(`   🖼️ Revisando frame ${i + 1}: ${frameUrl}`);
                     
-                    const elementosFrame = await frame.$$('input, select, textarea');
+                    const elementosFrame = await frame.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
                     if (elementosFrame.length > 0) {
-                        console.log(`   ✅ Encontrados ${elementosFrame.length} elementos en frame ${i + 1}`);
-                        // Cambiar contexto al frame con más elementos
+                        console.log(`   ✅ Encontrados ${elementosFrame.length} campos visibles en frame ${i + 1}`);
                         elementos = elementosFrame;
                         break;
                     }
@@ -1042,14 +970,7 @@ export class MVPHibrido {
             }
         }
 
-        // Buscar SOLO campos visibles e interactuables (NO hidden)
-        if (elementos.length === 0) {
-            console.log(`   🔍 Buscando campos visibles e interactuables...`);
-            elementos = await this.page!.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-            console.log(`   📝 Campos visibles encontrados: ${elementos.length}`);
-        }
-
-        // Filtrar elementos que no son realmente visibles
+        // 🎯 PASO 4: Verificación final de visibilidad e interactuabilidad
         const elementosVisibles = [];
         for (const elemento of elementos) {
             try {
@@ -1067,14 +988,20 @@ export class MVPHibrido {
         elementos = elementosVisibles;
         console.log(`   ✅ Campos realmente visibles e interactuables: ${elementos.length}`);
 
+        // 🎯 PASO 5: Procesar cada campo encontrado
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
 
         for (const elemento of elementos) {
             try {
                 // Verificar si el elemento es realmente interactuable
                 const info = await this.obtenerInfoCampoMejorada(elemento);
-                if (!info) continue;
+                if (!info) {
+                    console.log(`     ⚠️ Campo sin información válida, saltando`);
+                    continue;
+                }
 
+                console.log(`     🔍 Procesando campo: "${info.etiqueta}" (tipo: ${info.tipo})`);
+                
                 const valorAsignado = await this.completarCampo(elemento, info);
 
                 const detalle: DetallePasoMVP = {
@@ -1087,15 +1014,243 @@ export class MVPHibrido {
                 };
 
                 detalles.push(detalle);
-                console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}"`);
+                console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado || 'N/A'}"`);
                 await this.page!.waitForTimeout(this.configuracion.tiempoEsperaEntreCampos);
 
             } catch (error) {
+                console.log(`     ⚠️ Error procesando campo:`, (error as Error).message);
                 continue;
             }
         }
 
+        console.log(`   🎯 RESUMEN: ${detalles.length} campos procesados, ${detalles.filter(d => d.completado).length} completados exitosamente`);
         return detalles;
+    }
+
+    // 🆕 NUEVO: Procesar desplegables con lógica secuencial correcta
+    private async expandirSeccionesAutomaticamente(): Promise<void> {
+        console.log('📂 Procesando desplegables del paso actual...');
+        
+        try {
+            // 🎯 PASO 1: Detectar desplegables del paso actual
+            const desplegablesInfo = await this.detectarDesplegablesVisiblesEnPaso();
+            
+            if (desplegablesInfo.length === 0) {
+                console.log('   ℹ️ No hay desplegables en el paso actual');
+                return;
+            }
+            
+            console.log(`   📊 Desplegables encontrados: ${desplegablesInfo.length}`);
+            desplegablesInfo.forEach((d, index) => {
+                const estado = d.isOpen ? 'ABIERTO' : 'CERRADO';
+                console.log(`     ${index + 1}. "${d.titulo}" (${estado})`);
+            });
+            
+            // 🎯 PASO 2: Procesar desplegables secuencialmente
+            let totalCamposProcesados = 0;
+            
+            for (let i = 0; i < desplegablesInfo.length; i++) {
+                const desplegable = desplegablesInfo[i];
+                const estado = desplegable.isOpen ? 'ABIERTO' : 'CERRADO';
+                
+                console.log(`   🔄 Procesando "${desplegable.titulo}" (${estado})...`);
+                
+                // 🎯 LÓGICA CORRECTA: Solo abrir si está cerrado
+                if (desplegable.isClosed) {
+                    console.log(`     🔓 Abriendo desplegable cerrado...`);
+                    await this.abrirDesplegable(desplegable.selector);
+                    await this.page!.waitForTimeout(1500); // Esperar a que se abra completamente
+                } else {
+                    console.log(`     ✅ Desplegable ya está abierto, procesando campos...`);
+                }
+                
+                // 🎯 COMPLETAR TODOS LOS CAMPOS antes de pasar al siguiente
+                const camposCompletados = await this.extraerYCompletarCamposEnDesplegable(desplegable);
+                totalCamposProcesados += camposCompletados;
+                
+                console.log(`     ✅ Campos completados: ${camposCompletados}`);
+                
+                // 🎯 IMPORTANTE: NO cerrar desplegables abiertos por defecto
+                // Solo cerrar si los abrimos nosotros y no es el último
+                if (desplegable.isClosed && i < desplegablesInfo.length - 1) {
+                    console.log(`     🔒 Cerrando desplegable para continuar con el siguiente...`);
+                    await this.cerrarDesplegable(desplegable.selector);
+                    await this.page!.waitForTimeout(500);
+                }
+            }
+            
+            console.log(`   🎯 Total campos procesados: ${totalCamposProcesados}`);
+            
+        } catch (error) {
+            console.log('   ⚠️ Error procesando desplegables:', (error as Error).message);
+        }
+    }
+
+    // 🆕 NUEVO: Detectar desplegables del paso actual con estado correcto
+    private async detectarDesplegablesVisiblesEnPaso(): Promise<any[]> {
+        return await this.page!.evaluate(() => {
+            const desplegables: any[] = [];
+            
+            // 🎯 BUSCAR SOLO DESPLEGABLES EN EL PASO ACTUAL
+            const todosLosHeaders = document.querySelectorAll('a[data-toggle="collapse"]');
+            
+            todosLosHeaders.forEach(header => {
+                const text = header.textContent?.trim() || '';
+                const href = header.getAttribute('href') || '';
+                const dataParent = header.getAttribute('data-parent') || '';
+                
+                // 🎯 VERIFICACIÓN DE VISIBILIDAD EN PASO ACTUAL
+                const rect = header.getBoundingClientRect();
+                const style = window.getComputedStyle(header);
+                
+                const isVisible = style.display !== 'none' && 
+                                 style.visibility !== 'hidden' && 
+                                 style.opacity !== '0' &&
+                                 rect.width > 0 && 
+                                 rect.height > 0;
+                
+                // 🎯 SOLO DESPLEGABLES EN EL ÁREA PRINCIPAL DEL FORMULARIO
+                const isInMainForm = header.closest('main, .main-content, .form-container, .content, .form-body, .panel-body') !== null ||
+                                    header.closest('[class*="form"], [class*="content"], [class*="main"], [class*="panel"]') !== null;
+                
+                // 🎯 FILTRO: Solo desplegables válidos del paso actual
+                if (text && 
+                    text.length > 5 && 
+                    text.length < 100 &&
+                    href.startsWith('#') &&
+                    isVisible &&
+                    isInMainForm &&
+                    rect.top >= 0 && rect.top <= window.innerHeight &&
+                    rect.left >= 0 && rect.left <= window.innerWidth &&
+                    // Excluir navegación
+                    !text.includes('Siguiente') &&
+                    !text.includes('Anterior') &&
+                    !text.includes('Atrás') &&
+                    !text.includes('Continuar') &&
+                    !text.includes('Enviar') &&
+                    !text.includes('Guardar') &&
+                    !text.includes('Cerrar') &&
+                    !text.includes('Cancelar') &&
+                    !text.includes('Aceptar') &&
+                    !text.includes('OK') &&
+                    !text.includes('Sí') &&
+                    !text.includes('No') &&
+                    !text.match(/^\d+$/) &&
+                    !text.match(/^[A-Z\s]+$/) &&
+                    !text.includes('PASO') &&
+                    !text.includes('STEP') &&
+                    !text.includes('PÁGINA') &&
+                    !text.includes('PAGE')) {
+                    
+                    // 🎯 DETECTAR ESTADO CORRECTO: Abierto vs Cerrado
+                    const hasCollapsedClass = header.classList.contains('collapsed');
+                    const ariaExpanded = header.getAttribute('aria-expanded');
+                    
+                    // LÓGICA CORRECTA:
+                    // - Si NO tiene clase 'collapsed' Y aria-expanded='true' = ABIERTO
+                    // - Si SÍ tiene clase 'collapsed' Y aria-expanded='false' = CERRADO
+                    const isOpen = !hasCollapsedClass && ariaExpanded === 'true';
+                    const isClosed = hasCollapsedClass && ariaExpanded === 'false';
+                    
+                    // Solo incluir si el estado está bien definido
+                    if (isOpen || isClosed) {
+                        desplegables.push({
+                            titulo: text,
+                            selector: href,
+                            dataParent: dataParent,
+                            isOpen: isOpen,
+                            isClosed: isClosed,
+                            hasCollapsedClass: hasCollapsedClass,
+                            ariaExpanded: ariaExpanded,
+                            header: header
+                        });
+                    }
+                }
+            });
+            
+            return desplegables;
+        });
+    }
+
+    // 🆕 NUEVO: Abrir un desplegable específico
+    private async abrirDesplegable(selector: string): Promise<void> {
+        try {
+            // Escapar caracteres especiales manualmente (CSS.escape no está disponible en Node.js)
+            const selectorEscapado = selector.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+            const header = await this.page!.$(`a[href="${selectorEscapado}"]`);
+            if (header) {
+                await header.click();
+                console.log(`     🔄 Abriendo desplegable: ${selector}`);
+            }
+        } catch (error) {
+            console.log(`     ⚠️ Error abriendo desplegable ${selector}:`, (error as Error).message);
+        }
+    }
+
+    // 🆕 NUEVO: Cerrar un desplegable específico
+    private async cerrarDesplegable(selector: string): Promise<void> {
+        try {
+            // Escapar caracteres especiales manualmente
+            const selectorEscapado = selector.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+            const header = await this.page!.$(`a[href="${selectorEscapado}"]`);
+            if (header) {
+                await header.click();
+                console.log(`     🔒 Cerrando desplegable: ${selector}`);
+            }
+        } catch (error) {
+            console.log(`     ⚠️ Error cerrando desplegable ${selector}:`, (error as Error).message);
+        }
+    }
+
+    // 🆕 NUEVO: Extraer y completar campos dentro de un desplegable específico
+    private async extraerYCompletarCamposEnDesplegable(desplegable: any): Promise<number> {
+        try {
+            // Buscar campos dentro del contenido del desplegable
+            const camposEnDesplegable = await this.page!.evaluate((selector) => {
+                const contenido = document.querySelector(selector);
+                if (!contenido) return [];
+                
+                const campos = contenido.querySelectorAll('input:not([type="hidden"]), select, textarea');
+                return Array.from(campos).map(campo => {
+                    const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                    return {
+                        id: element.id || '',
+                        name: element.name || '',
+                        type: element.type || element.tagName.toLowerCase(),
+                        value: element.value || '',
+                        selector: element.id ? `[id="${element.id}"]` : `[name="${element.name}"]`
+                    };
+                });
+            }, desplegable.selector);
+            
+            console.log(`     🔍 Campos encontrados en "${desplegable.titulo}": ${camposEnDesplegable.length}`);
+            
+            // Completar cada campo encontrado
+            let camposCompletados = 0;
+            for (const campo of camposEnDesplegable) {
+                try {
+                    const elemento = await this.page!.$(campo.selector);
+                    if (elemento) {
+                        const info = await this.obtenerInfoCampoMejorada(elemento);
+                        if (info) {
+                            const valor = await this.completarCampo(elemento, info);
+                            if (valor) {
+                                camposCompletados++;
+                                console.log(`       ✅ Campo completado: ${info.etiqueta}`);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log(`       ⚠️ Error completando campo:`, (error as Error).message);
+                }
+            }
+            
+            return camposCompletados;
+            
+        } catch (error) {
+            console.log(`     ⚠️ Error procesando desplegable:`, (error as Error).message);
+            return 0;
+        }
     }
 
     private async obtenerInfoCampoMejorada(elemento: any): Promise<any> {
@@ -1107,6 +1262,13 @@ export class MVPHibrido {
                 const name = el.name || '';
                 const className = el.className || '';
                 const value = el.value || '';
+                const placeholder = el.placeholder || '';
+                
+                // 🎯 NUEVO: Atributos específicos de CORFO
+                const dataCodigo = el.getAttribute('data-codigo') || '';
+                const dataOriginalTitle = el.getAttribute('data-original-title') || '';
+                const title = el.getAttribute('title') || '';
+                const dataControlId = el.getAttribute('data-controlid') || '';
 
                 // Verificar si el elemento está realmente disponible
                 const rect = el.getBoundingClientRect();
@@ -1123,13 +1285,28 @@ export class MVPHibrido {
 
                 let etiqueta = '';
                 
-                // Estrategia 1: Label con atributo 'for'
-                if (id) {
+                // 🎯 ESTRATEGIA 1: data-codigo (específico de CORFO)
+                if (dataCodigo) {
+                    etiqueta = dataCodigo.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                }
+
+                // 🎯 ESTRATEGIA 2: data-original-title (específico de CORFO)
+                if (!etiqueta && dataOriginalTitle) {
+                    etiqueta = dataOriginalTitle;
+                }
+
+                // 🎯 ESTRATEGIA 3: title (específico de CORFO)
+                if (!etiqueta && title) {
+                    etiqueta = title;
+                }
+
+                // Estrategia 4: Label con atributo 'for'
+                if (!etiqueta && id) {
                     const labelEl = document.querySelector(`label[for="${id}"]`);
                     if (labelEl) etiqueta = labelEl.textContent?.trim() || '';
                 }
 
-                // Estrategia 2: Label padre
+                // Estrategia 5: Label padre
                 if (!etiqueta) {
                     const parentLabel = el.closest('label');
                     if (parentLabel) {
@@ -1137,18 +1314,22 @@ export class MVPHibrido {
                     }
                 }
 
-                // Estrategia 3: Placeholder
-                if (!etiqueta && el.placeholder) {
-                    etiqueta = el.placeholder;
+                // Estrategia 6: Placeholder (solo si no es numérico)
+                if (!etiqueta && placeholder && !placeholder.match(/^\d+$/) && !placeholder.includes('999999999')) {
+                    etiqueta = placeholder;
                 }
 
-                // Estrategia 4: Texto anterior (hermanos anteriores)
+                // Estrategia 7: Texto anterior (hermanos anteriores)
                 if (!etiqueta) {
                     let previous = el.previousElementSibling;
                     let attempts = 0;
-                    while (previous && !etiqueta && attempts < 5) {
+                    while (previous && !etiqueta && attempts < 3) {
                         const text = previous.textContent?.trim();
-                        if (text && text.length > 0 && text.length < 200) {
+                        if (text && text.length > 2 && text.length < 100 && 
+                            !text.match(/^\d+$/) && 
+                            !text.match(/^[^\w\s]+$/) && 
+                            !text.match(/^[A-Z\s]+$/) &&
+                            !text.includes('999999999')) {
                             etiqueta = text;
                             break;
                         }
@@ -1157,21 +1338,49 @@ export class MVPHibrido {
                     }
                 }
 
-                // Estrategia 5: Contenedor padre
+                // Estrategia 8: Contenedor padre
                 if (!etiqueta) {
                     const container = el.closest('div, td, th, li, fieldset');
                     if (container) {
                         const allText = container.textContent?.trim() || '';
                         const lines = allText.split('\n').map((line: string) => line.trim()).filter((line: string) => line.length > 0);
-                        if (lines.length > 0) {
-                            etiqueta = lines[0].substring(0, 100);
+                        for (const line of lines) {
+                            if (line.length > 2 && line.length < 100 &&
+                                !line.match(/^\d+$/) && 
+                                !line.match(/^[^\w\s]+$/) && 
+                                !line.match(/^[A-Z\s]+$/) &&
+                                !line.includes('999999999')) {
+                                etiqueta = line;
+                                break;
+                            }
                         }
                     }
                 }
 
-                // Estrategia 6: Usar name o id como fallback
+                // Estrategia 9: Usar name o id como fallback (limpio)
                 if (!etiqueta) {
-                    etiqueta = name || id || `Campo ${tagName}`;
+                    const nameLimpio = name ? name.replace(/[^\w\s]/g, ' ').trim() : '';
+                    const idLimpio = id ? id.replace(/[^\w\s]/g, ' ').trim() : '';
+                    
+                    if (nameLimpio && nameLimpio.length > 2) {
+                        etiqueta = nameLimpio;
+                    } else if (idLimpio && idLimpio.length > 2) {
+                        etiqueta = idLimpio;
+                    } else {
+                        etiqueta = `Campo ${tagName}`;
+                    }
+                }
+
+                // 🎯 NUEVO: Obtener opciones para selects
+                let opciones: any[] = [];
+                if (tagName === 'select') {
+                    const options = el.querySelectorAll('option');
+                    opciones = Array.from(options).map((opt: any) => ({
+                        value: opt.value,
+                        text: opt.textContent?.trim() || '',
+                        selected: opt.selected,
+                        disabled: opt.disabled
+                    }));
                 }
 
                 // Detección mejorada de campos obligatorios
@@ -1207,6 +1416,13 @@ export class MVPHibrido {
                     id: id,
                     value: value,
                     className: className,
+                    placeholder: placeholder,
+                    dataCodigo: dataCodigo,
+                    dataOriginalTitle: dataOriginalTitle,
+                    title: title,
+                    dataControlId: dataControlId,
+                    opciones: opciones,
+                    esMultiple: el.multiple || false,
                     debug: {
                         isDisplayed,
                         isVisible,
@@ -1221,133 +1437,71 @@ export class MVPHibrido {
         }
     }
 
-    private async obtenerInfoCampo(elemento: any): Promise<any> {
-        try {
-            return await elemento.evaluate((el: any) => {
-                const tagName = el.tagName.toLowerCase();
-                const type = el.type || tagName;
-                const id = el.id || '';
-                const name = el.name || '';
-                const className = el.className || '';
-
-                let etiqueta = '';
-                
-                if (id) {
-                    const label = document.querySelector(`label[for="${id}"]`);
-                    if (label) etiqueta = label.textContent?.trim() || '';
-                }
-
-                if (!etiqueta) {
-                    const parentLabel = el.closest('label');
-                    if (parentLabel) {
-                        etiqueta = parentLabel.textContent?.replace(el.value || '', '').trim() || '';
-                    }
-                }
-
-                if (!etiqueta && el.placeholder) {
-                    etiqueta = el.placeholder;
-                }
-
-                if (!etiqueta) {
-                    let previous = el.previousElementSibling;
-                    while (previous && !etiqueta) {
-                        const text = previous.textContent?.trim();
-                        if (text && text.length > 0 && text.length < 100) {
-                            etiqueta = text;
-                            break;
-                        }
-                        previous = previous.previousElementSibling;
-                    }
-                }
-
-                // Detección mejorada de campos obligatorios
-                const esObligatorio = el.hasAttribute('required') || 
-                                    el.getAttribute('aria-required') === 'true' ||
-                                    el.getAttribute('aria-invalid') === 'true' ||
-                                    className.includes('required') ||
-                                    className.includes('mandatory') ||
-                                    className.includes('obligatorio') ||
-                                    className.includes('is-required') ||
-                                    className.includes('form-required') ||
-                                    (etiqueta.includes('*') || etiqueta.includes('obligatorio')) ||
-                                    (etiqueta.includes('(requerido)') || etiqueta.includes('(obligatorio)')) ||
-                                    // Verificar en el contenedor padre
-                                    (() => {
-                                        const contenedor = el.closest('div, fieldset, .form-group, .field');
-                                        if (contenedor) {
-                                            const textoContenedor = contenedor.textContent || '';
-                                            const classContenedor = contenedor.className || '';
-                                            return classContenedor.includes('required') || 
-                                                   classContenedor.includes('mandatory') ||
-                                                   textoContenedor.includes('*') ||
-                                                   textoContenedor.includes('obligatorio');
-                                        }
-                                        return false;
-                                    })();
-
-                return {
-                    tipo: type,
-                    etiqueta: etiqueta || `Campo ${tagName}`,
-                    esObligatorio
-                };
-            });
-        } catch (error) {
-            return null;
-        }
-    }
 
     private async completarCampo(elemento: any, info: any): Promise<string | null> {
         try {
+            const tipo = info.tipo.toLowerCase();
+            const etiqueta = info.etiqueta || '';
+            const opciones = info.opciones || [];
+            const esMultiple = info.esMultiple || false;
+
+            // 🎯 MANEJO ESPECÍFICO DE SELECTS
+            if (tipo === 'select') {
+                return await this.completarSelectRobusto(elemento, info);
+            }
+
+            // 🎯 MANEJO DE INPUTS DE ARCHIVO
+            if (tipo === 'file') {
+                console.log(`     📁 Campo de archivo detectado: "${etiqueta}" - Saltando`);
+                return 'archivo_saltado';
+            }
+
+            // 🎯 GENERAR VALOR PARA OTROS TIPOS
             const valor = this.generarValorParaCampo(info);
             if (!valor) return null;
 
-            const tipo = info.tipo.toLowerCase();
-
-            if (tipo === 'select') {
-                const opciones = await elemento.$$eval('option', (opts: any[]) => 
-                    opts.map((opt: any) => ({ value: opt.value, text: opt.textContent?.trim() }))
-                );
-
-                if (opciones.length > 1) {
-                    // Buscar opción que contenga texto relevante
-                    const opcionValida = opciones.find((opt: any) => 
-                        opt.value && opt.value !== '' && 
-                        (opt.text.toLowerCase().includes('seleccionar') === false &&
-                         opt.text.toLowerCase().includes('--') === false &&
-                         opt.text.toLowerCase().includes('ninguno') === false)
-                    );
-                    if (opcionValida) {
-                        await elemento.selectOption(opcionValida.value);
-                        return opcionValida.text;
-                    } else {
-                        // Si no hay opción válida, seleccionar la segunda (saltando la primera que suele ser placeholder)
-                        await elemento.selectOption({ index: 1 });
-                        return opciones[1]?.text || 'Seleccionado';
-                    }
-                }
-            } else if (tipo === 'checkbox') {
+            // 🎯 MANEJO DE CHECKBOXES
+            if (tipo === 'checkbox') {
                 const isChecked = await elemento.isChecked();
                 if (!isChecked) {
                     await elemento.check();
                 }
                 return 'true';
-            } else if (tipo === 'radio') {
+            }
+
+            // 🎯 MANEJO DE RADIO BUTTONS
+            if (tipo === 'radio') {
                 const isChecked = await elemento.isChecked();
                 if (!isChecked) {
                     await elemento.click();
                 }
                 return 'seleccionado';
-            } else if (['text', 'email', 'tel', 'url', 'password', 'textarea'].includes(tipo)) {
-                // Limpiar campo antes de llenar
+            }
+
+            // 🎯 MANEJO DE INPUTS DE TEXTO
+            if (['text', 'email', 'tel', 'url', 'password'].includes(tipo)) {
                 await elemento.fill('');
                 await elemento.fill(valor);
                 return valor;
-            } else if (tipo === 'number') {
+            }
+
+            // 🎯 MANEJO DE TEXTAREAS
+            if (tipo === 'textarea') {
+                await elemento.fill('');
+                await elemento.fill(valor);
+                return valor;
+            }
+
+            // 🎯 MANEJO DE INPUTS NUMÉRICOS
+            if (tipo === 'number') {
                 const numeroValor = typeof valor === 'string' ? valor.replace(/[^\d]/g, '') : valor;
                 await elemento.fill('');
                 await elemento.fill(numeroValor);
                 return numeroValor;
-            } else if (tipo === 'date') {
+            }
+
+            // 🎯 MANEJO DE INPUTS DE FECHA
+            if (tipo === 'date') {
                 await elemento.fill('');
                 await elemento.fill('2024-12-31');
                 return '2024-12-31';
@@ -1360,57 +1514,186 @@ export class MVPHibrido {
         }
     }
 
+    // 🎯 NUEVO: Método específico para completar selects
+    private async completarSelectRobusto(elemento: any, info: any): Promise<string | null> {
+        try {
+            const opciones = info.opciones || [];
+            const esMultiple = info.esMultiple || false;
+            const etiqueta = info.etiqueta || '';
+            const dataCodigo = info.dataCodigo || '';
+            
+            console.log(`     🔍 Select: "${etiqueta}" (${opciones.length} opciones, múltiple: ${esMultiple})`);
+            
+            if (opciones.length === 0) {
+                console.log(`     ⚠️ Select sin opciones`);
+                return null;
+            }
+            
+            // 🎯 Filtrar opciones válidas (no placeholders)
+            const opcionesValidas = opciones.filter((opt: any) => 
+                opt.value && 
+                opt.value !== '' && 
+                opt.text && 
+                opt.text.length > 0 &&
+                !opt.disabled &&
+                !opt.text.toLowerCase().includes('seleccionar') &&
+                !opt.text.toLowerCase().includes('--') &&
+                !opt.text.toLowerCase().includes('ninguno') &&
+                !opt.text.toLowerCase().includes('seleccione') &&
+                !opt.text.toLowerCase().includes('elija') &&
+                !opt.text.toLowerCase().includes('choose') &&
+                !opt.text.toLowerCase().includes('select') &&
+                !opt.text.toLowerCase().includes('por favor')
+            );
+            
+            console.log(`     📋 Opciones válidas: ${opcionesValidas.length}`);
+            
+            if (opcionesValidas.length === 0) {
+                console.log(`     ⚠️ No hay opciones válidas`);
+                return null;
+            }
+            
+            // 🎯 Selección inteligente basada en contexto
+            let opcionSeleccionada = null;
+            const contextoCompleto = `${etiqueta} ${dataCodigo}`.toLowerCase();
+            
+            // Selección por palabras clave específicas
+            if (contextoCompleto.includes('región') || contextoCompleto.includes('region')) {
+                opcionSeleccionada = opcionesValidas.find((opt: any) => 
+                    opt.text.toLowerCase().includes('metropolitana') ||
+                    opt.text.toLowerCase().includes('santiago') ||
+                    opt.text.toLowerCase().includes('valparaíso') ||
+                    opt.text.toLowerCase().includes('biobío') ||
+                    opt.text.toLowerCase().includes('araucanía')
+                );
+            } else if (contextoCompleto.includes('sector') && contextoCompleto.includes('aplicación')) {
+                opcionSeleccionada = opcionesValidas.find((opt: any) => 
+                    opt.text.toLowerCase().includes('tecnología') ||
+                    opt.text.toLowerCase().includes('innovación') ||
+                    opt.text.toLowerCase().includes('medio ambiente') ||
+                    opt.text.toLowerCase().includes('sustentabilidad') ||
+                    opt.text.toLowerCase().includes('digital')
+                );
+            } else if (contextoCompleto.includes('sector') && contextoCompleto.includes('impacto')) {
+                opcionSeleccionada = opcionesValidas.find((opt: any) => 
+                    opt.text.toLowerCase().includes('económico') ||
+                    opt.text.toLowerCase().includes('social') ||
+                    opt.text.toLowerCase().includes('ambiental') ||
+                    opt.text.toLowerCase().includes('territorial')
+                );
+            } else if (contextoCompleto.includes('tamaño') || contextoCompleto.includes('tamano')) {
+                opcionSeleccionada = opcionesValidas.find((opt: any) => 
+                    opt.text.toLowerCase().includes('mediana') ||
+                    opt.text.toLowerCase().includes('pequeña') ||
+                    opt.text.toLowerCase().includes('grande')
+                );
+            } else if (contextoCompleto.includes('tipo') && contextoCompleto.includes('documento')) {
+                opcionSeleccionada = opcionesValidas.find((opt: any) => 
+                    opt.text.toLowerCase().includes('cédula') ||
+                    opt.text.toLowerCase().includes('identidad')
+                );
+            }
+            
+            // Si no se encontró por contexto, usar la primera opción válida
+            if (!opcionSeleccionada) {
+                opcionSeleccionada = opcionesValidas[0];
+            }
+            
+            // 🎯 Seleccionar la opción
+            if (esMultiple) {
+                // Para selects múltiples, seleccionar solo una opción
+                await elemento.selectOption(opcionSeleccionada.value);
+                console.log(`     ✅ Select múltiple completado: "${opcionSeleccionada.text}"`);
+            } else {
+                // Para selects simples
+                await elemento.selectOption(opcionSeleccionada.value);
+                console.log(`     ✅ Select completado: "${opcionSeleccionada.text}"`);
+            }
+            
+            return opcionSeleccionada.text;
+            
+        } catch (error) {
+            console.log(`     ⚠️ Error completando select:`, (error as Error).message);
+            return null;
+        }
+    }
+
     private generarValorParaCampo(info: any): string {
         const etiqueta = info.etiqueta.toLowerCase();
         const tipo = info.tipo.toLowerCase();
-
-        // Mapeo más agresivo para asegurar 100% de completitud
-        if (etiqueta.includes('rut') || etiqueta.includes('run')) {
+        const dataCodigo = (info.dataCodigo || '').toLowerCase();
+        const placeholder = (info.placeholder || '').toLowerCase();
+        
+        // 🎯 Mapeo inteligente basado en etiqueta y data-codigo
+        const contextoCompleto = `${etiqueta} ${dataCodigo} ${placeholder}`.toLowerCase();
+        
+        // Detección por palabras clave específicas
+        if (contextoCompleto.includes('rut') || contextoCompleto.includes('run') || contextoCompleto.includes('identificador')) {
             return CAMPOS_CORFO_MAPPING.RUT;
-        } else if (etiqueta.includes('email') || etiqueta.includes('correo') || etiqueta.includes('mail')) {
-            return this.configuracion.preferenciasAutocompletado.datosPersonales.email;
-        } else if (etiqueta.includes('teléfono') || etiqueta.includes('telefono') || etiqueta.includes('fono')) {
-            return this.configuracion.preferenciasAutocompletado.datosPersonales.telefono;
-        } else if (etiqueta.includes('nombre') && !etiqueta.includes('proyecto')) {
-            return this.configuracion.preferenciasAutocompletado.datosPersonales.nombre;
-        } else if (etiqueta.includes('apellido')) {
-            return this.configuracion.preferenciasAutocompletado.datosPersonales.apellido;
-        } else if (etiqueta.includes('razón social') || etiqueta.includes('empresa') || etiqueta.includes('organización')) {
-            return this.configuracion.preferenciasAutocompletado.datosEmpresa.razonSocial;
-        } else if (etiqueta.includes('proyecto') || etiqueta.includes('iniciativa')) {
+        } else if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') || contextoCompleto.includes('mail')) {
+            return CAMPOS_CORFO_MAPPING.EMAIL;
+        } else if (contextoCompleto.includes('teléfono') || contextoCompleto.includes('telefono') || contextoCompleto.includes('fono') || contextoCompleto.includes('celular')) {
+            return CAMPOS_CORFO_MAPPING.TELEFONO;
+        } else if (contextoCompleto.includes('nombre') && !contextoCompleto.includes('proyecto')) {
+            return CAMPOS_CORFO_MAPPING.NOMBRE;
+        } else if (contextoCompleto.includes('apellido')) {
+            return CAMPOS_CORFO_MAPPING.APELLIDO_PATERNO;
+        } else if (contextoCompleto.includes('razón social') || contextoCompleto.includes('empresa') || contextoCompleto.includes('organización')) {
+            return CAMPOS_CORFO_MAPPING.RAZON_SOCIAL;
+        } else if (contextoCompleto.includes('título') && contextoCompleto.includes('proyecto')) {
             return CAMPOS_CORFO_MAPPING.TITULO_PROYECTO;
-        } else if (etiqueta.includes('descripción') || etiqueta.includes('resumen') || etiqueta.includes('detalle')) {
-            return CAMPOS_CORFO_MAPPING.RESUMEN_PROYECTO;
-        } else if (etiqueta.includes('monto') || etiqueta.includes('costo') || etiqueta.includes('presupuesto') || etiqueta.includes('valor')) {
-            return CAMPOS_CORFO_MAPPING.MONTO_SOLICITADO;
-        } else if (etiqueta.includes('dirección') || etiqueta.includes('direccion') || etiqueta.includes('domicilio')) {
-            return 'Av. Principal 123, Santiago, Chile';
-        } else if (etiqueta.includes('comuna') || etiqueta.includes('ciudad')) {
-            return 'Santiago';
-        } else if (etiqueta.includes('región') || etiqueta.includes('region')) {
-            return 'Metropolitana';
-        } else if (etiqueta.includes('objetivo') || etiqueta.includes('meta')) {
+        } else if (contextoCompleto.includes('objetivo') && contextoCompleto.includes('general')) {
             return CAMPOS_CORFO_MAPPING.OBJETIVO_GENERAL;
-        } else if (etiqueta.includes('duración') || etiqueta.includes('duracion') || etiqueta.includes('meses')) {
+        } else if (contextoCompleto.includes('descripción') && contextoCompleto.includes('proyecto')) {
+            return CAMPOS_CORFO_MAPPING.RESUMEN_PROYECTO;
+        } else if (contextoCompleto.includes('inversión') || contextoCompleto.includes('inversion')) {
+            return '50000000'; // Valor específico para inversión
+        } else if (contextoCompleto.includes('costos') || contextoCompleto.includes('operacion') || contextoCompleto.includes('operación')) {
+            return '50000000'; // Valor específico para costos de operación
+        } else if (contextoCompleto.includes('monto') || contextoCompleto.includes('costo') || contextoCompleto.includes('presupuesto') || contextoCompleto.includes('valor') || contextoCompleto.includes('total')) {
+            return '50000000'; // Valor más realista para montos
+        } else if (contextoCompleto.includes('duración') || contextoCompleto.includes('duracion') || contextoCompleto.includes('meses')) {
             return CAMPOS_CORFO_MAPPING.DURACION_PROYECTO;
-        } else if (etiqueta.includes('empleos') || etiqueta.includes('empleo') || etiqueta.includes('trabajos')) {
-            return '5';
-        } else if (etiqueta.includes('año') || etiqueta.includes('año') || etiqueta.includes('year')) {
+        } else if (contextoCompleto.includes('dirección') || contextoCompleto.includes('direccion') || contextoCompleto.includes('domicilio')) {
+            return CAMPOS_CORFO_MAPPING.DIRECCION_CALLE;
+        } else if (contextoCompleto.includes('comuna') || contextoCompleto.includes('ciudad')) {
+            return CAMPOS_CORFO_MAPPING.COMUNA;
+        } else if (contextoCompleto.includes('región') || contextoCompleto.includes('region')) {
+            return CAMPOS_CORFO_MAPPING.REGION;
+        } else if (contextoCompleto.includes('empleos') || contextoCompleto.includes('empleo') || contextoCompleto.includes('trabajos')) {
+            return CAMPOS_CORFO_MAPPING.NUMERO;
+        } else if (contextoCompleto.includes('año') || contextoCompleto.includes('año') || contextoCompleto.includes('year')) {
             return '2024';
-        } else if (etiqueta.includes('fecha') || etiqueta.includes('date')) {
-            return '2024-12-31';
-        } else if (etiqueta.includes('porcentaje') || etiqueta.includes('porcentaje') || etiqueta.includes('%')) {
-            return '50';
-        } else if (etiqueta.includes('cantidad') || etiqueta.includes('número') || etiqueta.includes('numero')) {
-            return '10';
+        } else if (contextoCompleto.includes('fecha') || contextoCompleto.includes('date')) {
+            return CAMPOS_CORFO_MAPPING.FECHA;
+        } else if (contextoCompleto.includes('porcentaje') || contextoCompleto.includes('porcentaje') || contextoCompleto.includes('%')) {
+            return CAMPOS_CORFO_MAPPING.PORCENTAJE;
+        } else if (contextoCompleto.includes('cantidad') || contextoCompleto.includes('número') || contextoCompleto.includes('numero')) {
+            return CAMPOS_CORFO_MAPPING.NUMERO;
+        } else if (contextoCompleto.includes('observaciones') || contextoCompleto.includes('comentarios')) {
+            return CAMPOS_CORFO_MAPPING.TEXTO_LARGO;
+        } else if (contextoCompleto.includes('página web') || contextoCompleto.includes('sitio web') || contextoCompleto.includes('url')) {
+            return 'https://www.ejemplo.cl';
+        } else if (contextoCompleto.includes('linkedin') || contextoCompleto.includes('facebook') || contextoCompleto.includes('instagram')) {
+            return 'https://www.ejemplo.com';
+        } else if (contextoCompleto.includes('profesión') || contextoCompleto.includes('cargo') || contextoCompleto.includes('ocupación')) {
+            return 'Ingeniero de Software';
+        } else if (contextoCompleto.includes('nacionalidad')) {
+            return 'Chilena';
+        } else if (contextoCompleto.includes('género') || contextoCompleto.includes('sexo')) {
+            return 'Masculino';
+        } else if (contextoCompleto.includes('etnia')) {
+            return 'No aplica';
+        } else if (contextoCompleto.includes('pueblo originario')) {
+            return 'No';
         }
-
-        // Mapeo por tipo de campo - más agresivo
+        
+        // 🎯 Mapeo por tipo de campo
         switch (tipo) {
-            case 'email': return this.configuracion.preferenciasAutocompletado.datosPersonales.email;
-            case 'tel': return this.configuracion.preferenciasAutocompletado.datosPersonales.telefono;
-            case 'number': return '100';
-            case 'date': return '2024-12-31';
+            case 'email': return CAMPOS_CORFO_MAPPING.EMAIL;
+            case 'tel': return CAMPOS_CORFO_MAPPING.TELEFONO;
+            case 'number': return CAMPOS_CORFO_MAPPING.NUMERO;
+            case 'date': return CAMPOS_CORFO_MAPPING.FECHA;
             case 'textarea': return CAMPOS_CORFO_MAPPING.TEXTO_LARGO;
             case 'text': return CAMPOS_CORFO_MAPPING.TEXTO_CORTO;
             case 'url': return 'https://www.ejemplo.cl';
@@ -1726,7 +2009,7 @@ export class MVPHibrido {
                     const urlDespues = this.page!.url();
                     
                     // Verificar si aparecieron campos reales
-                    const camposReales = await this.page!.$$('input[type="radio"], input[type="text"], input[type="email"], select, textarea');
+                    const camposReales = await this.page!.$$('input[type="radio"]:not([style*="display: none"]), input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"])');
                     console.log(`   📝 Campos reales encontrados después del clic: ${camposReales.length}`);
                     
                     if (camposReales.length > 0 || urlAntes !== urlDespues) {
@@ -1748,7 +2031,7 @@ export class MVPHibrido {
             console.log('ℹ️ No se encontró botón para navegar al primer paso, puede que ya estemos ahí');
             
             // Verificar si ya hay campos de formulario visibles
-            const camposExistentes = await this.page!.$$('input[type="radio"], input[type="text"], input[type="email"], select, textarea');
+            const camposExistentes = await this.page!.$$('input[type="radio"]:not([style*="display: none"]), input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"])');
             if (camposExistentes.length > 0) {
                 console.log(`✅ Ya hay ${camposExistentes.length} campos reales disponibles`);
             } else {
@@ -1761,7 +2044,7 @@ export class MVPHibrido {
                 });
                 await this.page!.waitForTimeout(3000);
                 
-                const camposPostScroll = await this.page!.$$('input[type="radio"], input[type="text"], input[type="email"], select, textarea');
+                const camposPostScroll = await this.page!.$$('input[type="radio"]:not([style*="display: none"]), input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"])');
                 console.log(`📝 Campos encontrados después del scroll: ${camposPostScroll.length}`);
             }
         }
@@ -1776,25 +2059,13 @@ export class MVPHibrido {
         }
     }
 
-    private async expandirSeccionesAutomaticamente(): Promise<void> {
-        const expandibles = await this.page!.$$('[data-toggle="collapse"], .accordion-toggle, .collapse-toggle');
-        
-        for (const elemento of expandibles.slice(0, 5)) {
-            try {
-                await elemento.click();
-                await this.page!.waitForTimeout(500);
-            } catch {
-                continue;
-            }
-        }
-    }
 
     // 🆕 NUEVO: Reintentar autocompletado para campos faltantes - VERSIÓN AGRESIVA
     private async reintentarAutocompletado(): Promise<void> {
         console.log('🔄 Reintentando autocompletado de campos faltantes...');
         
         try {
-            // Buscar TODOS los campos visibles (no solo obligatorios)
+            // Buscar solo campos visibles en el paso actual (no campos ocultos)
             const camposFaltantes = await this.page!.evaluate(() => {
                 const campos = document.querySelectorAll('input:not([type="hidden"]), select, textarea');
                 const faltantes: any[] = [];
@@ -1802,14 +2073,29 @@ export class MVPHibrido {
                 campos.forEach(campo => {
                     const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
                     
+                    // 🎯 NUEVO: Verificar si el campo está realmente visible en el paso actual
+                    const rect = element.getBoundingClientRect();
+                    const style = window.getComputedStyle(element);
+                    
+                    const isVisible = style.display !== 'none' && 
+                                     style.visibility !== 'hidden' && 
+                                     style.opacity !== '0' &&
+                                     rect.width > 0 && 
+                                     rect.height > 0;
+                    
+                    const isInViewport = rect.top >= 0 && 
+                                       rect.top <= window.innerHeight && 
+                                       rect.left >= 0 && 
+                                       rect.left <= window.innerWidth;
+                    
                     // Verificar si está vacío
                     const estaVacio = !element.value || element.value.trim() === '';
                     const tieneError = element.classList.contains('error') || 
                                      element.classList.contains('invalid') ||
                                      element.getAttribute('aria-invalid') === 'true';
                     
-                    // Incluir TODOS los campos vacíos o con error (no solo obligatorios)
-                    if (estaVacio || tieneError) {
+                    // 🎯 NUEVO: Solo incluir campos visibles en el paso actual que estén vacíos o con error
+                    if ((estaVacio || tieneError) && isVisible && isInViewport) {
                         // Buscar etiqueta
                         let etiqueta = '';
                         if (element.id) {
@@ -1843,8 +2129,11 @@ export class MVPHibrido {
                             }
                         }
                         
+                        // 🎯 NUEVO: Usar selector CSS válido para IDs numéricos
+                        const selector = element.id ? `[id="${element.id}"]` : `[name="${element.name}"]`;
+                        
                         faltantes.push({
-                            selector: element.id ? `#${element.id}` : `[name="${element.name}"]`,
+                            selector: selector,
                             tipo: element.tagName.toLowerCase(),
                             etiqueta: etiqueta || 'Campo sin etiqueta',
                             esObligatorio: element.hasAttribute('required') || 
@@ -2208,7 +2497,7 @@ async function implementarFlujoCompleto(page: Page, configuracion: Configuracion
             await scrollCompletoPagina(page);
 
             // Extraer campos del paso actual
-            const camposPaso = await extraerCamposPaso(page);
+            const camposPaso = await extraerCamposPaso_ELIMINADO(page);
             console.log(`   🔍 Campos encontrados: ${camposPaso.length}`);
 
             totalCamposProcesados += camposPaso.length;
@@ -2217,7 +2506,7 @@ async function implementarFlujoCompleto(page: Page, configuracion: Configuracion
             let camposCompletados = 0;
             if (configuracion.autocompletar && camposPaso.length > 0) {
                 console.log(`   ✏️ Autocompletando ${camposPaso.length} campos...`);
-                camposCompletados = await autocompletarCamposPaso(page, camposPaso, configuracion);
+                camposCompletados = camposPaso.filter((c: any) => c.completado).length;
                 totalCamposAutocompletados += camposCompletados;
                 console.log(`   ✅ Campos autocompletados: ${camposCompletados}`);
             }
@@ -2229,7 +2518,7 @@ async function implementarFlujoCompleto(page: Page, configuracion: Configuracion
                 url: page.url(),
                 camposEncontrados: camposPaso.length,
                 camposAutocompletados: camposCompletados,
-                campos: camposPaso.map(c => ({
+                campos: camposPaso.map((c: any) => ({
                     tipo: c.tipo,
                     label: c.label,
                     nombre: c.nombre,
@@ -2241,7 +2530,7 @@ async function implementarFlujoCompleto(page: Page, configuracion: Configuracion
             // Intentar navegar al siguiente paso
             if (pasoActual < limitePasos) {
                 console.log(`   ➡️ Navegando al siguiente paso...`);
-                hayMasPasos = await navegarAlSiguientePaso(page);
+                hayMasPasos = await navegarAlSiguientePaso_ELIMINADO(page);
                 
                 if (hayMasPasos) {
                     pasoActual++;
@@ -2513,57 +2802,7 @@ async function crearNuevaPostulacion(page: Page): Promise<boolean> {
 /**
  * Elimina postulaciones existentes si las hay
  */
-async function eliminarPostulacionesExistentes(page: Page): Promise<void> {
-    try {
-        console.log('   🗑️ Buscando postulaciones previas para eliminar...');
-        
-        const selectoresPapelera = [
-            '.ico_sm_papelera',
-            '.delPostulacion',
-            'span.ico_sm_papelera',
-            'a[data-original-title*="Desistir"]',
-            'span.delPostulacion'
-        ];
-        
-        let iconoPapelera = null;
-        for (const selector of selectoresPapelera) {
-            iconoPapelera = await page.$(selector);
-            if (iconoPapelera) {
-                console.log(`   🗑️ Postulación previa encontrada: ${selector}`);
-                break;
-            }
-        }
-        
-        if (iconoPapelera) {
-            console.log('   🖱️ Eliminando postulación previa...');
-            await iconoPapelera.click();
-            await page.waitForTimeout(2000);
-            
-            // Confirmar eliminación
-            const botonesConfirmar = [
-                'button:has-text("Sí, estoy seguro")',
-                'button:has-text("Sí")',
-                '.btn-danger',
-                '.btn-primary:has-text("Sí")'
-            ];
-            
-            for (const selector of botonesConfirmar) {
-                const botonConfirmar = await page.$(selector);
-                if (botonConfirmar) {
-                    await botonConfirmar.click();
-                    await page.waitForTimeout(2000);
-                    console.log('   ✅ Postulación previa eliminada');
-                    break;
-                }
-            }
-        } else {
-            console.log('   ℹ️ No hay postulaciones previas para eliminar');
-        }
-        
-    } catch (error) {
-        console.log(`   ⚠️ Error eliminando postulaciones: ${(error as Error).message}`);
-    }
-}
+
 
 /**
  * Verifica que tenemos acceso al formulario real
@@ -2575,9 +2814,9 @@ async function verificarAccesoFormulario(page: Page): Promise<boolean> {
         // Esperar un poco para que la página cargue
         await page.waitForTimeout(3000);
         
-        // Buscar campos de formulario
-        const campos = await page.$$('input, select, textarea');
-        console.log(`   📝 Campos encontrados: ${campos.length}`);
+        // Buscar campos de formulario visibles
+        const campos = await page.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
+        console.log(`   📝 Campos visibles encontrados: ${campos.length}`);
         
         if (campos.length > 0) {
             // Verificar que no son solo campos de búsqueda/navegación
@@ -2657,15 +2896,16 @@ async function scrollCompletoPagina(page: Page): Promise<void> {
 }
 
 /**
- * Extrae campos del paso actual
+ * ELIMINADO: Función duplicada - usar método de la clase MVPHibrido
  */
-async function extraerCamposPaso(page: Page): Promise<CampoFormulario[]> {
+async function extraerCamposPaso_ELIMINADO(page: Page): Promise<CampoFormulario[]> {
     try {
-        const campos = await page.$$eval('input, select, textarea', (elements) => {
+        // 🚀 OPTIMIZACIÓN: Buscar directamente solo elementos visibles
+        const campos = await page.$$eval('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])', (elements) => {
             return elements.map(el => {
                 const element = el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
                 
-                // Verificar visibilidad
+                // Verificación adicional de visibilidad (más estricta)
                 const rect = element.getBoundingClientRect();
                 const style = window.getComputedStyle(element);
                 const isVisible = style.display !== 'none' && 
@@ -3001,9 +3241,9 @@ async function detectarCamposObligatoriosMVP(page: Page, campos: any[]): Promise
  * Autocompleta los campos de un paso
  */
 /**
- * Obtiene el valor apropiado para un campo basado en su tipo y etiqueta
+ * ELIMINADO: Función duplicada - usar método de la clase MVPHibrido
  */
-function obtenerValorParaCampo(campo: CampoFormulario): string | null {
+function obtenerValorParaCampo_ELIMINADO(campo: CampoFormulario): string | null {
     const label = campo.label?.toLowerCase() || '';
     const tipo = campo.tipo?.toLowerCase() || '';
     
@@ -3056,7 +3296,7 @@ function obtenerValorParaCampo(campo: CampoFormulario): string | null {
     }
 }
 
-async function autocompletarCamposPaso(
+async function autocompletarCamposPaso_ELIMINADO(
     page: Page, 
     campos: CampoFormulario[], 
     configuracion: ConfiguracionMVP
@@ -3069,11 +3309,15 @@ async function autocompletarCamposPaso(
                 continue; // Saltar campos opcionales si está configurado
             }
             
-            const valor = obtenerValorParaCampo(campo);
+            const valor = obtenerValorParaCampo_ELIMINADO(campo);
             if (valor !== null) {
-                const completado = await completarCampo(page, campo, valor);
+                // Crear elemento temporal para completar
+                const elemento = await page.$(`[id="${campo.nombre}"]`) || await page.$(`[name="${campo.nombre}"]`);
+                if (elemento) {
+                    const completado = await completarCampo_ELIMINADO(page, campo, valor);
                 if (completado) {
                     camposCompletados++;
+                    }
                 }
             }
             
@@ -3086,9 +3330,9 @@ async function autocompletarCamposPaso(
 }
 
 /**
- * Completa un campo específico
+ * ELIMINADO: Función duplicada - usar método de la clase MVPHibrido
  */
-async function completarCampo(page: Page, campo: CampoFormulario, valor: any): Promise<boolean> {
+async function completarCampo_ELIMINADO(page: Page, campo: CampoFormulario, valor: any): Promise<boolean> {
     try {
         const selectores = [
             `[name="${campo.nombre}"]`,
@@ -3144,9 +3388,9 @@ async function completarCampo(page: Page, campo: CampoFormulario, valor: any): P
 }
 
 /**
- * Navega al siguiente paso del formulario
+ * ELIMINADO: Función duplicada - usar método de la clase MVPHibrido
  */
-async function navegarAlSiguientePaso(page: Page): Promise<boolean> {
+async function navegarAlSiguientePaso_ELIMINADO(page: Page): Promise<boolean> {
     try {
         const selectoresSiguiente = [
             'button:has-text("SIGUIENTE")', 

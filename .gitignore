@@ -35,3 +35,11 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+
+# Debug
+debug/
+
+# structure
+structure/
+
+
