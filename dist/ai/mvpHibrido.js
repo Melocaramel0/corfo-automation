@@ -38,7 +38,6 @@ exports.ejecutarMVPHibrido = ejecutarMVPHibrido;
 const playwright_1 = require("playwright");
 const configuraciones_1 = require("./configuraciones");
 const extraerFormularios_1 = require("../scraping/extraerFormularios");
-const cacheInteligente_1 = require("./cacheInteligente");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const dotenv = __importStar(require("dotenv"));
@@ -341,7 +340,7 @@ class DetectorEstructura {
                 return desplegables;
             });
             console.log(`   ✅ Desplegables detectados: ${desplegables.length}`);
-            desplegables.forEach(d => {
+            desplegables.forEach((d) => {
                 console.log(`     📂 "${d.titulo}" - ${d.isOpen ? 'Abierto' : 'Cerrado'} - Sub-desplegables: ${d.subDesplegablesCount}`);
             });
             return desplegables;
@@ -410,10 +409,8 @@ class MVPHibrido {
         this.browser = null;
         this.page = null;
         this.tiempoInicio = 0;
-        this.formularioCache = null;
         this.formUrl = '';
         this.configuracion = configuracion;
-        this.cache = new cacheInteligente_1.CacheInteligente();
         this.resultado = {
             exito: false,
             mensaje: '',
@@ -500,8 +497,9 @@ class MVPHibrido {
             await this.navegarAURLEspecifica(urlEspecifica);
         }
         else {
-            // Si no hay URL, pedirla
-            await this.mostrarConvocatoriasYSolicitar();
+            // Si no hay URL, pedirla directamente
+            this.formUrl = await this.solicitarUrlPorConsola();
+            await this.navegarAURLEspecifica(this.formUrl);
         }
         // Ahora realizar login desde el contexto actual (sin ir al home por defecto)
         await this.realizarLogin();
@@ -630,18 +628,13 @@ class MVPHibrido {
         // 🎯 DETECCIÓN AUTOMÁTICA DE TIPO DE PASO
         const detector = new DetectorEstructura(this.page);
         const esConfirmacion = await detector.esPaginaConfirmacion();
-        const esIntroduccion = await detector.esPasoIntroduccion();
         let campos = [];
         if (esConfirmacion) {
             console.log('🎯 PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
             campos = await this.procesarPasoConfirmacion();
         }
-        else if (esIntroduccion) {
-            console.log('📋 PASO DE INTRODUCCIÓN DETECTADO - Completando campos de aceptación');
-            campos = await this.procesarPasoIntroduccion();
-        }
         else {
-            console.log(`🔄 Procesando paso regular ${numeroPaso} - Autocompletando campos`);
+            console.log(`🔄 Procesando paso ${numeroPaso} - Autocompletando campos`);
             await this.expandirSeccionesAutomaticamente();
             campos = await this.extraerYCompletarCampos();
         }
@@ -663,82 +656,6 @@ class MVPHibrido {
             console.log('🎉 VERIFICACIÓN FINAL COMPLETADA');
         }
         return paso;
-    }
-    async procesarPasoIntroduccion() {
-        console.log('📋 Procesando paso de introducción...');
-        const campos = [];
-        try {
-            // 1. Buscar y completar radio button de aceptación de condiciones
-            const radioAceptacion = await this.page.locator('input[type="radio"]').first();
-            if (await radioAceptacion.isVisible()) {
-                console.log('   ✅ Marcando aceptación de condiciones...');
-                await radioAceptacion.check();
-                campos.push({
-                    tipo: 'radio',
-                    etiqueta: 'Acepta condiciones de postulación',
-                    esObligatorio: true,
-                    completado: true,
-                    valorAsignado: 'Sí'
-                });
-            }
-            // 2. Buscar y completar radio button de autorización de notificaciones
-            const radioNotificaciones = await this.page.locator('input[type="radio"]').nth(1);
-            if (await radioNotificaciones.isVisible()) {
-                console.log('   ✅ Marcando autorización de notificaciones...');
-                await radioNotificaciones.check();
-                campos.push({
-                    tipo: 'radio',
-                    etiqueta: 'Autoriza notificaciones por email',
-                    esObligatorio: true,
-                    completado: true,
-                    valorAsignado: 'Sí'
-                });
-            }
-            // 3. Buscar y completar campo de email
-            const campoEmail = await this.page.locator('input[type="email"], input[name*="email"], input[id*="email"]').first();
-            if (await campoEmail.isVisible()) {
-                const email = 'test@corfo.cl';
-                console.log(`   ✅ Completando email: ${email}`);
-                await campoEmail.fill(email);
-                campos.push({
-                    tipo: 'email',
-                    etiqueta: 'Correo electrónico',
-                    esObligatorio: true,
-                    completado: true,
-                    valorAsignado: email
-                });
-            }
-            // 4. Buscar otros campos de texto que puedan estar presentes
-            const camposTexto = await this.page.locator('input[type="text"]:visible').all();
-            for (let i = 0; i < camposTexto.length; i++) {
-                const campo = camposTexto[i];
-                const esVisible = await campo.isVisible();
-                if (esVisible) {
-                    const placeholder = await campo.getAttribute('placeholder') || '';
-                    const name = await campo.getAttribute('name') || '';
-                    const id = await campo.getAttribute('id') || '';
-                    // Solo completar si no es un campo de email ya procesado
-                    if (!name.toLowerCase().includes('email') && !id.toLowerCase().includes('email')) {
-                        const valor = 'Test';
-                        console.log(`   ✅ Completando campo de texto: ${placeholder || name || id}`);
-                        await campo.fill(valor);
-                        campos.push({
-                            tipo: 'text',
-                            etiqueta: placeholder || name || id,
-                            esObligatorio: true,
-                            completado: true,
-                            valorAsignado: valor
-                        });
-                    }
-                }
-            }
-            console.log(`   📊 Total campos procesados en introducción: ${campos.length}`);
-            return campos;
-        }
-        catch (error) {
-            console.error('❌ Error procesando paso de introducción:', error.message);
-            return campos;
-        }
     }
     async procesarPasoConfirmacion() {
         console.log('📊 Analizando contadores de campos obligatorios...');
@@ -920,37 +837,148 @@ class MVPHibrido {
         }
         elementos = elementosVisibles;
         console.log(`   ✅ Campos realmente visibles e interactuables: ${elementos.length}`);
-        // 🎯 PASO 5: Procesar cada campo encontrado
+        // 🎯 PASO 5: Procesar cada campo encontrado con detección dinámica
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
-        for (const elemento of elementos) {
-            try {
-                // Verificar si el elemento es realmente interactuable
-                const info = await this.obtenerInfoCampoMejorada(elemento);
-                if (!info) {
-                    console.log(`     ⚠️ Campo sin información válida, saltando`);
+        const camposProcesados = new Set(); // Para evitar duplicados
+        let intentos = 0;
+        const maxIntentos = 3; // Máximo 3 iteraciones para detectar campos dinámicos
+        while (intentos < maxIntentos) {
+            intentos++;
+            console.log(`   🔄 Iteración ${intentos}/${maxIntentos} - Detectando campos dinámicos...`);
+            // Obtener elementos actuales en cada iteración
+            if (intentos > 1) {
+                elementos = await this.obtenerElementosInteractuablesActualizados();
+                console.log(`   🔍 Campos encontrados en iteración ${intentos}: ${elementos.length}`);
+            }
+            let camposNuevosEncontrados = 0;
+            for (const elemento of elementos) {
+                try {
+                    // Verificar si el elemento es realmente interactuable
+                    const info = await this.obtenerInfoCampoMejorada(elemento);
+                    if (!info) {
+                        console.log(`     ⚠️ Campo sin información válida, saltando`);
+                        continue;
+                    }
+                    // Crear identificador único para el campo
+                    const campoId = `${info.etiqueta}_${info.tipo}_${info.name || info.id}`;
+                    // Si ya procesamos este campo, saltarlo
+                    if (camposProcesados.has(campoId)) {
+                        continue;
+                    }
+                    console.log(`     🔍 Procesando campo: "${info.etiqueta}" (tipo: ${info.tipo})`);
+                    const valorAsignado = await this.completarCampo(elemento, info);
+                    const detalle = {
+                        etiqueta: info.etiqueta,
+                        tipo: info.tipo,
+                        valorAsignado: valorAsignado || '',
+                        completado: !!valorAsignado,
+                        esObligatorio: info.esObligatorio,
+                        razonFallo: valorAsignado ? undefined : 'No se pudo determinar valor apropiado'
+                    };
+                    detalles.push(detalle);
+                    camposProcesados.add(campoId);
+                    camposNuevosEncontrados++;
+                    console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado || 'N/A'}"`);
+                    // 🎯 NUEVO: Si completamos un select, esperar y re-escanear para campos dinámicos
+                    if (info.tipo === 'select' && valorAsignado) {
+                        console.log(`     🔄 Campo select completado, esperando campos dinámicos...`);
+                        await this.esperarYCapturarCamposDinamicos();
+                    }
+                    await this.page.waitForTimeout(this.configuracion.tiempoEsperaEntreCampos);
+                }
+                catch (error) {
+                    console.log(`     ⚠️ Error procesando campo:`, error.message);
                     continue;
                 }
-                console.log(`     🔍 Procesando campo: "${info.etiqueta}" (tipo: ${info.tipo})`);
-                const valorAsignado = await this.completarCampo(elemento, info);
-                const detalle = {
-                    etiqueta: info.etiqueta,
-                    tipo: info.tipo,
-                    valorAsignado: valorAsignado || '',
-                    completado: !!valorAsignado,
-                    esObligatorio: info.esObligatorio,
-                    razonFallo: valorAsignado ? undefined : 'No se pudo determinar valor apropiado'
-                };
-                detalles.push(detalle);
-                console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado || 'N/A'}"`);
-                await this.page.waitForTimeout(this.configuracion.tiempoEsperaEntreCampos);
             }
-            catch (error) {
-                console.log(`     ⚠️ Error procesando campo:`, error.message);
-                continue;
+            console.log(`   📊 Iteración ${intentos}: ${camposNuevosEncontrados} campos nuevos procesados`);
+            // Si no encontramos campos nuevos, salir del bucle
+            if (camposNuevosEncontrados === 0) {
+                console.log(`   ✅ No se encontraron más campos dinámicos, finalizando detección`);
+                break;
+            }
+            // Esperar un poco antes de la siguiente iteración
+            if (intentos < maxIntentos) {
+                await this.page.waitForTimeout(1000);
             }
         }
         console.log(`   🎯 RESUMEN: ${detalles.length} campos procesados, ${detalles.filter(d => d.completado).length} completados exitosamente`);
         return detalles;
+    }
+    // 🆕 NUEVO: Método para obtener elementos interactuables actualizados
+    async obtenerElementosInteractuablesActualizados() {
+        // Buscar en iframe principal si existe
+        const frames = this.page.frames();
+        // 🚀 OPTIMIZACIÓN: Buscar directamente solo campos visibles e interactuables en el paso actual
+        let elementos = await this.page.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
+        // 🎯 NUEVO: Filtrar solo campos que están realmente visibles en el paso actual
+        const elementosVisiblesEnPaso = [];
+        for (const elemento of elementos) {
+            try {
+                const rect = await elemento.boundingBox();
+                const isVisible = await elemento.isVisible();
+                const isEnabled = await elemento.isEnabled();
+                // Verificar si está en el viewport visible (relajar restricciones)
+                if (rect && isVisible && isEnabled &&
+                    rect.y >= -200 && rect.y <= 1500 && // Ampliar rango vertical
+                    rect.x >= -200 && rect.x <= 1400) { // Ampliar rango horizontal
+                    elementosVisiblesEnPaso.push(elemento);
+                }
+            }
+            catch (error) {
+                // Si hay error verificando, incluir el elemento
+                elementosVisiblesEnPaso.push(elemento);
+            }
+        }
+        elementos = elementosVisiblesEnPaso;
+        // Si no hay elementos visibles en la página principal, buscar en iframes
+        if (elementos.length === 0) {
+            for (let i = 0; i < frames.length; i++) {
+                try {
+                    const frame = frames[i];
+                    const frameUrl = frame.url();
+                    const elementosFrame = await frame.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
+                    if (elementosFrame.length > 0) {
+                        elementos = elementosFrame;
+                        break;
+                    }
+                }
+                catch (error) {
+                    // Continuar con el siguiente frame
+                }
+            }
+        }
+        // 🎯 PASO: Verificación final de visibilidad e interactuabilidad
+        const elementosVisibles = [];
+        for (const elemento of elementos) {
+            try {
+                const esVisible = await elemento.isVisible();
+                const esInteractuable = await elemento.isEnabled();
+                if (esVisible && esInteractuable) {
+                    elementosVisibles.push(elemento);
+                }
+            }
+            catch (error) {
+                // Si hay error verificando visibilidad, incluir el elemento
+                elementosVisibles.push(elemento);
+            }
+        }
+        return elementosVisibles;
+    }
+    // 🆕 NUEVO: Método para esperar y capturar campos dinámicos
+    async esperarYCapturarCamposDinamicos() {
+        console.log(`     ⏳ Esperando campos dinámicos (2 segundos)...`);
+        await this.page.waitForTimeout(2000);
+        // Verificar si hay nuevos campos habilitados
+        const nuevosCampos = await this.page.evaluate(() => {
+            const campos = document.querySelectorAll('input, select, textarea');
+            const camposHabilitados = Array.from(campos).filter(campo => {
+                const element = campo;
+                return !element.disabled && element.offsetParent !== null; // Visible y habilitado
+            });
+            return camposHabilitados.length;
+        });
+        console.log(`     📊 Campos habilitados detectados: ${nuevosCampos}`);
     }
     // 🆕 NUEVO: Procesar desplegables con lógica secuencial correcta
     async expandirSeccionesAutomaticamente() {
@@ -1172,6 +1200,15 @@ class MVPHibrido {
                 const dataOriginalTitle = el.getAttribute('data-original-title') || '';
                 const title = el.getAttribute('title') || '';
                 const dataControlId = el.getAttribute('data-controlid') || '';
+                // 🎯 NUEVO: Detectar campos de email basándose en contexto (solo para inputs de texto)
+                if (type === 'text' || type === 'input') {
+                    const contextoCompleto = `${id} ${name} ${placeholder} ${dataCodigo} ${dataOriginalTitle} ${title}`.toLowerCase();
+                    if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') ||
+                        contextoCompleto.includes('mail') || contextoCompleto.includes('electrónico') ||
+                        contextoCompleto.includes('electronico')) {
+                        type = 'email';
+                    }
+                }
                 // Verificar si el elemento está realmente disponible
                 const rect = el.getBoundingClientRect();
                 const style = window.getComputedStyle(el);
@@ -1491,7 +1528,8 @@ class MVPHibrido {
         if (contextoCompleto.includes('rut') || contextoCompleto.includes('run') || contextoCompleto.includes('identificador')) {
             return extraerFormularios_1.CAMPOS_CORFO_MAPPING.RUT;
         }
-        else if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') || contextoCompleto.includes('mail')) {
+        else if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') || contextoCompleto.includes('mail') ||
+            contextoCompleto.includes('e-mail') || contextoCompleto.includes('electrónico') || contextoCompleto.includes('electronico')) {
             return extraerFormularios_1.CAMPOS_CORFO_MAPPING.EMAIL;
         }
         else if (contextoCompleto.includes('teléfono') || contextoCompleto.includes('telefono') || contextoCompleto.includes('fono') || contextoCompleto.includes('celular')) {
@@ -1553,6 +1591,12 @@ class MVPHibrido {
         }
         else if (contextoCompleto.includes('observaciones') || contextoCompleto.includes('comentarios')) {
             return extraerFormularios_1.CAMPOS_CORFO_MAPPING.TEXTO_LARGO;
+        }
+        else if (contextoCompleto.includes('justifique') || contextoCompleto.includes('justificar') || contextoCompleto.includes('justificación')) {
+            return 'Este proyecto se basa en ciclos biológicos naturales para optimizar los procesos y minimizar el impacto ambiental, aprovechando los patrones naturales de crecimiento y desarrollo para crear soluciones más eficientes y sostenibles.';
+        }
+        else if (contextoCompleto.includes('ciclos biológicos') || contextoCompleto.includes('biologicos') || contextoCompleto.includes('biológicos')) {
+            return 'El proyecto implementa principios de ciclos biológicos para mejorar la eficiencia y sostenibilidad de los procesos, utilizando patrones naturales de crecimiento y desarrollo.';
         }
         else if (contextoCompleto.includes('página web') || contextoCompleto.includes('sitio web') || contextoCompleto.includes('url')) {
             return 'https://www.ejemplo.cl';
@@ -1620,7 +1664,7 @@ class MVPHibrido {
         catch { }
         // 2) Intentar interfaz antigua via iframe en la página actual
         const frames = this.page.frames();
-        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
+        const loginFrame = frames.find((frame) => frame.url().includes('login.corfo.cl'));
         if (loginFrame) {
             await loginFrame.waitForLoadState('networkidle');
             await this.page.waitForTimeout(2000);
@@ -1659,7 +1703,7 @@ class MVPHibrido {
                     return;
                 }
                 const frames2 = this.page.frames();
-                const loginFrame2 = frames2.find(frame => frame.url().includes('login.corfo.cl'));
+                const loginFrame2 = frames2.find((frame) => frame.url().includes('login.corfo.cl'));
                 if (loginFrame2) {
                     await loginFrame2.waitForLoadState('networkidle');
                     await loginFrame2.fill('#rut', process.env.CORFO_USER);
@@ -1677,57 +1721,6 @@ class MVPHibrido {
         }
         catch { }
         throw new Error('No se encontró interfaz de login en la página actual');
-    }
-    async navegarAFormulario() {
-        console.log('🔍 Navegando al formulario CORFO...');
-        await this.page.goto('https://www.corfo.cl/sites/cpp/programasyconvocatorias', {
-            waitUntil: 'domcontentloaded'
-        });
-        // Scroll para cargar formularios
-        await this.page.evaluate(async () => {
-            await new Promise((resolve) => {
-                let totalHeight = 0;
-                const distance = 300;
-                const timer = setInterval(() => {
-                    const scrollHeight = document.body.scrollHeight;
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
-                    if (totalHeight >= scrollHeight) {
-                        clearInterval(timer);
-                        resolve();
-                    }
-                }, 200);
-            });
-        });
-        await this.page.waitForTimeout(3000);
-        const masInfoLink = await this.page.$('div.foot-caja_result a');
-        if (masInfoLink) {
-            const href = await masInfoLink.getAttribute('href');
-            const urlCompleta = href.startsWith('http') ? href : `https://www.corfo.cl${href}`;
-            console.log(`📋 Accediendo a convocatoria: ${urlCompleta}`);
-            await this.page.goto(urlCompleta, { waitUntil: 'networkidle' });
-            await this.page.waitForTimeout(2000);
-            // Buscar botón "Inicia tu postulación"
-            const botonIniciar = await this.page.$('a:has-text("Inicia tu postulación"), button:has-text("Inicia tu postulación")');
-            if (botonIniciar) {
-                console.log('🚀 Haciendo clic en "Inicia tu postulación"...');
-                await Promise.all([
-                    this.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { }),
-                    botonIniciar.click()
-                ]);
-                await this.page.waitForTimeout(5000);
-                // Verificar si estamos en la página de borradores
-                const urlActual = this.page.url();
-                console.log(`📍 URL después del login: ${urlActual}`);
-                if (urlActual.includes('PostuladorBorradores.aspx')) {
-                    console.log('📋 Estamos en página de borradores, navegando al formulario real...');
-                    await this.navegarDeBorradoresAFormulario();
-                }
-                else {
-                    console.log('✅ Ya estamos en el formulario real');
-                }
-            }
-        }
     }
     async navegarAURLEspecifica(url) {
         console.log(`🎯 Navegando directamente a la URL: ${url}`);
@@ -1765,12 +1758,6 @@ class MVPHibrido {
             console.error(`❌ Error navegando a URL específica: ${error}`);
             throw error;
         }
-    }
-    async mostrarConvocatoriasYSolicitar() {
-        console.log('🔍 Esperando URL del formulario...');
-        const url = await this.solicitarUrlPorConsola();
-        console.log(`✅ URL ingresada: ${url}`);
-        await this.navegarAURLEspecifica(url);
     }
     async navegarDeBorradoresAFormulario() {
         console.log('🔄 Navegando desde borradores al formulario real...');
@@ -1904,7 +1891,7 @@ class MVPHibrido {
     }
     async obtenerTituloPaso() {
         try {
-            const titulo = await this.page.$eval('h1, h2, h3', el => el.textContent?.trim());
+            const titulo = await this.page.$eval('h1, h2, h3', (el) => el.textContent?.trim());
             return titulo || `Paso ${Date.now()}`;
         }
         catch {
@@ -1999,7 +1986,7 @@ class MVPHibrido {
                                 await elemento.selectOption({ index: 1 });
                             }
                             else if (campo.tipo === 'input') {
-                                const tipoInput = await elemento.evaluate(el => el.type);
+                                const tipoInput = await elemento.evaluate((el) => el.type);
                                 if (tipoInput === 'checkbox' || tipoInput === 'radio') {
                                     await elemento.check();
                                 }
@@ -2140,762 +2127,6 @@ class MVPHibrido {
     }
 }
 exports.MVPHibrido = MVPHibrido;
-/**
- * Realiza el login a CORFO
- */
-async function realizarLogin(page) {
-    console.log('🔐 Iniciando login en CORFO...');
-    // Navegar primero a la página de inicio para manejar avisos
-    await page.goto('https://www.corfo.cl/sites/cpp/homecorfo#', {
-        waitUntil: 'networkidle',
-        timeout: 30000
-    });
-    // Cerrar aviso inicial si existe
-    try {
-        const avisoBtn = await page.waitForSelector('button:has-text("Cerrar mensaje e ingresar al sitio de CORFO")', {
-            timeout: 7000,
-            state: 'visible'
-        });
-        if (avisoBtn) {
-            await avisoBtn.click();
-            await page.waitForTimeout(1000);
-        }
-    }
-    catch (error) {
-        // No hay aviso inicial
-    }
-    // Navegar al enlace de "Ingreso usuario" donde debe estar la nueva interfaz
-    console.log('🔍 Navegando a la página de login...');
-    // Buscar y hacer clic en "Ingreso usuario"
-    const ingresoUsuarioLink = await page.waitForSelector('a:has-text("Ingreso usuario")', {
-        timeout: 10000,
-        state: 'visible'
-    });
-    if (!ingresoUsuarioLink) {
-        throw new Error('No se pudo encontrar el enlace "Ingreso usuario"');
-    }
-    // Navegar al login
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle' }),
-        ingresoUsuarioLink.click()
-    ]);
-    console.log('🔍 URL después de navegar al login:', page.url());
-    // Primera estrategia: Buscar el link "¿Tienes clave Corfo? Inicia sesión aquí"
-    let loginButton = null;
-    try {
-        // Intentar encontrar el enlace específico para clave Corfo por ID
-        loginButton = await page.waitForSelector('#mostrarCorfoLoginLink', {
-            timeout: 8000,
-            state: 'visible'
-        });
-        if (loginButton) {
-            console.log('Encontrado enlace "¿Tienes clave Corfo? Inicia sesión aquí"');
-            // Hacer click en el enlace de clave Corfo (ejecuta JavaScript, no navega)
-            await loginButton.click();
-            // Esperar a que aparezca el formulario de login (el div se hace visible)
-            console.log('Esperando a que aparezca el formulario de Clave Corfo...');
-            await page.waitForSelector('#bloqueCorfoLogin', {
-                state: 'visible',
-                timeout: 10000
-            });
-            console.log('Formulario de Clave Corfo ahora visible, procediendo con login...');
-            // Llenar los campos directamente en la página actual (no hay iframe)
-            const user = process.env.CORFO_USER;
-            const pass = process.env.CORFO_PASS;
-            await page.waitForSelector('#rut', { state: 'visible' });
-            await page.waitForSelector('#pass', { state: 'visible' });
-            // Llenar los campos
-            await page.fill('#rut', user);
-            await page.fill('#pass', pass);
-            // Hacer clic en el botón de enviar
-            await page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
-            await page.click('#ingresa_');
-            // Esperar a que el login se procese
-            await page.waitForTimeout(3000);
-            console.log('Login con Clave Corfo completado');
-            return; // Salir de la función porque ya hicimos login
-        }
-    }
-    catch (error) {
-        console.log('No se encontró el enlace de Clave Corfo, usando interfaz tradicional con iframe...');
-        // Si no está la nueva interfaz, debe ser la interfaz antigua con iframe
-        // Los campos están en un iframe, procedemos con la lógica antigua
-        const frames = await page.frames();
-        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
-        if (loginFrame) {
-            await loginFrame.waitForLoadState('networkidle');
-            await page.waitForTimeout(3000);
-            await loginFrame.fill('#rut', process.env.CORFO_USER);
-            await loginFrame.fill('#pass', process.env.CORFO_PASS);
-            await loginFrame.click('#ingresa_');
-            await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 });
-            const volverButton = await page.waitForSelector('a:has-text("Volver al sitio Público")', {
-                state: 'visible',
-                timeout: 10000
-            });
-            await Promise.all([
-                page.waitForNavigation({ waitUntil: 'networkidle' }),
-                volverButton.click()
-            ]);
-            console.log('Login con iframe completado');
-            return;
-        }
-        else {
-            throw new Error('No se encontró ni la nueva interfaz ni el iframe de login');
-        }
-    }
-    // Si llegamos aquí, significa que hubo un error inesperado
-    throw new Error('Error inesperado en el proceso de login');
-}
-/**
- * Implementa el flujo completo de análisis y autocompletado del formulario
- */
-async function implementarFlujoCompleto(page, configuracion) {
-    console.log('🚀 INICIANDO FLUJO COMPLETO MVP HÍBRIDO');
-    const inicioTiempo = Date.now();
-    let totalCamposProcesados = 0;
-    let totalCamposAutocompletados = 0;
-    const pasosProcesados = [];
-    try {
-        // PASO 1: Realizar login
-        console.log('🔐 Paso 1: Realizando login...');
-        await realizarLogin(page);
-        // PASO 2: Navegar al formulario real desde borradores
-        console.log('📋 Paso 2: Navegando al formulario de postulación...');
-        const formularioAccedido = await navegarAlFormularioReal(page);
-        if (!formularioAccedido) {
-            throw new Error('No se pudo acceder al formulario de postulación');
-        }
-        console.log('✅ Formulario accedido exitosamente');
-        // PASO 3: Procesar todos los pasos del formulario
-        console.log('🔄 Paso 3: Procesando pasos del formulario...');
-        let pasoActual = 1;
-        let hayMasPasos = true;
-        const limitePasos = 15; // Según el análisis, hay 14 pasos
-        while (hayMasPasos && pasoActual <= limitePasos) {
-            console.log(`\n📋 Procesando Paso ${pasoActual}...`);
-            // Obtener información del paso actual
-            const nombrePaso = await obtenerNombrePaso(page);
-            console.log(`   📝 Nombre del paso: "${nombrePaso}"`);
-            // Hacer scroll para cargar todo el contenido
-            await scrollCompletoPagina(page);
-            // Extraer y completar campos del paso actual usando la clase MVPHibrido
-            const configuracionAgente = {
-                modoDebug: false,
-                tiempoEsperaEntreCampos: 500,
-                validacionEstricta: false,
-                generarDatosFicticios: true,
-                idioma: 'es',
-                reglas: {
-                    camposObligatorios: true,
-                    formatoEmail: true,
-                    formatoTelefono: true,
-                    formatoRut: true,
-                    longitudMinima: true,
-                    valorNumericoEnRango: true
-                },
-                preferenciasAutocompletado: {
-                    usarDatosReales: true,
-                    datosPersonales: {
-                        nombre: 'Juan',
-                        apellido: 'Pérez',
-                        email: 'juan.perez@email.com',
-                        telefono: '+56912345678',
-                        rut: '12345678-9'
-                    },
-                    datosEmpresa: {
-                        razonSocial: 'Empresa Demo S.A.',
-                        rut: '12345678-9',
-                        giro: 'Servicios de Tecnología',
-                        direccion: 'Av. Principal 123'
-                    }
-                }
-            };
-            const mvp = new MVPHibrido(configuracionAgente);
-            mvp['page'] = page; // Acceso directo para compatibilidad
-            const detallesPaso = await mvp['extraerYCompletarCampos']();
-            console.log(`   🔍 Campos encontrados: ${detallesPaso.length}`);
-            totalCamposProcesados += detallesPaso.length;
-            // Contar campos completados
-            const camposCompletados = detallesPaso.filter(d => d.completado).length;
-            totalCamposAutocompletados += camposCompletados;
-            console.log(`   ✅ Campos completados: ${camposCompletados}`);
-            // Guardar información del paso
-            pasosProcesados.push({
-                numero: pasoActual,
-                nombre: nombrePaso,
-                url: page.url(),
-                camposEncontrados: detallesPaso.length,
-                camposAutocompletados: camposCompletados,
-                campos: detallesPaso.map((d) => ({
-                    tipo: d.tipo,
-                    label: d.etiqueta,
-                    nombre: d.etiqueta,
-                    requerido: d.esObligatorio,
-                    autocompletado: d.completado
-                }))
-            });
-            // Intentar navegar al siguiente paso
-            if (pasoActual < limitePasos) {
-                console.log(`   ➡️ Navegando al siguiente paso...`);
-                hayMasPasos = await navegarAlSiguientePaso_ELIMINADO(page);
-                if (hayMasPasos) {
-                    pasoActual++;
-                    await page.waitForTimeout(2000); // Esperar que cargue el siguiente paso
-                    console.log(`   ✅ Navegación exitosa al paso ${pasoActual}`);
-                }
-                else {
-                    console.log(`   ℹ️ No hay más pasos disponibles o llegamos al final`);
-                }
-            }
-            else {
-                console.log(`   ℹ️ Límite de pasos alcanzado (${limitePasos})`);
-                hayMasPasos = false;
-            }
-        }
-        // Calcular tiempo total
-        const tiempoTotal = (Date.now() - inicioTiempo) / 1000 / 60; // en minutos
-        const resultado = {
-            exito: true,
-            mensaje: `MVP completado exitosamente en ${tiempoTotal.toFixed(1)} minutos`,
-            tiempoEjecucion: tiempoTotal,
-            estadisticas: {
-                totalPasos: pasosProcesados.length,
-                totalCampos: totalCamposProcesados,
-                camposCompletados: totalCamposAutocompletados,
-                porcentajeExito: totalCamposProcesados > 0 ?
-                    Math.round((totalCamposAutocompletados / totalCamposProcesados) * 100) : 0,
-                velocidadCamposPorSegundo: tiempoTotal > 0 ? totalCamposProcesados / (tiempoTotal * 60) : 0,
-                tiempoPromedioPorPaso: pasosProcesados.length > 0 ? tiempoTotal / pasosProcesados.length : 0,
-                pasosProcesados: pasosProcesados.length,
-                camposAutocompletados: totalCamposAutocompletados,
-                porcentajeCompletado: totalCamposProcesados > 0 ?
-                    Math.round((totalCamposAutocompletados / totalCamposProcesados) * 100) : 0
-            },
-            pasos: pasosProcesados
-        };
-        console.log('\n✅ FLUJO COMPLETO FINALIZADO');
-        console.log(`📊 Resumen:`);
-        console.log(`   • Pasos procesados: ${resultado.estadisticas.pasosProcesados}`);
-        console.log(`   • Total campos: ${resultado.estadisticas.totalCampos}`);
-        console.log(`   • Campos autocompletados: ${resultado.estadisticas.camposAutocompletados}`);
-        console.log(`   • Porcentaje completado: ${resultado.estadisticas.porcentajeCompletado}%`);
-        console.log(`   • Tiempo total: ${resultado.tiempoEjecucion.toFixed(1)} minutos`);
-        return resultado;
-    }
-    catch (error) {
-        console.error('❌ Error en flujo completo:', error.message);
-        const tiempoTotal = (Date.now() - inicioTiempo) / 1000 / 60;
-        return {
-            exito: false,
-            mensaje: `Error: ${error.message}`,
-            tiempoEjecucion: tiempoTotal,
-            estadisticas: {
-                totalPasos: pasosProcesados.length,
-                totalCampos: totalCamposProcesados,
-                camposCompletados: totalCamposAutocompletados,
-                porcentajeExito: 0,
-                velocidadCamposPorSegundo: 0,
-                tiempoPromedioPorPaso: 0,
-                pasosProcesados: pasosProcesados.length,
-                camposAutocompletados: totalCamposAutocompletados,
-                porcentajeCompletado: 0
-            },
-            pasos: pasosProcesados
-        };
-    }
-}
-/**
- * Navega desde la página de borradores al formulario real de postulación
- */
-async function navegarAlFormularioReal(page) {
-    console.log('🔍 Navegando al formulario real de postulación...');
-    try {
-        // PASO 1: Navegar a la página de convocatorias
-        console.log('   📄 Navegando a convocatorias...');
-        await page.goto('https://www.corfo.cl/sites/cpp/programasyconvocatorias', {
-            waitUntil: 'domcontentloaded',
-            timeout: 60000
-        });
-        await page.waitForTimeout(3000);
-        // PASO 2: Buscar y hacer clic en el primer "Más Información"
-        console.log('   🔍 Buscando primer formulario...');
-        const primerMasInfoLink = await buscarPrimerMasInformacion(page);
-        if (!primerMasInfoLink) {
-            throw new Error('No se encontró enlace "Más Información"');
-        }
-        // PASO 3: Navegar a la página de detalles
-        const href = await primerMasInfoLink.getAttribute('href');
-        const urlCompleta = href?.startsWith('http') ? href : `https://www.corfo.cl${href}`;
-        console.log(`   ➡️ Navegando a: ${urlCompleta}`);
-        await page.goto(urlCompleta, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForTimeout(2000);
-        // PASO 4: Buscar y hacer clic en "Inicia tu postulación"
-        console.log('   🎯 Buscando botón "Inicia tu postulación"...');
-        const botonIniciar = await buscarBotonIniciarPostulacion(page);
-        if (!botonIniciar) {
-            throw new Error('No se encontró botón "Inicia tu postulación"');
-        }
-        console.log('   🖱️ Haciendo clic en "Inicia tu postulación"...');
-        await Promise.all([
-            page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { }),
-            botonIniciar.click()
-        ]);
-        await page.waitForTimeout(3000);
-        // PASO 5: Manejar página de borradores y crear nueva postulación
-        console.log('   📋 Manejando página de borradores...');
-        const nuevaPostulacionCreada = await crearNuevaPostulacion(page);
-        if (!nuevaPostulacionCreada) {
-            throw new Error('No se pudo crear nueva postulación');
-        }
-        // PASO 6: Verificar que estamos en el formulario real
-        console.log('   ✅ Verificando acceso al formulario...');
-        const enFormulario = await verificarAccesoFormulario(page);
-        if (!enFormulario) {
-            throw new Error('No se pudo verificar acceso al formulario');
-        }
-        console.log('✅ Formulario real accedido exitosamente');
-        return true;
-    }
-    catch (error) {
-        console.error(`❌ Error navegando al formulario: ${error.message}`);
-        return false;
-    }
-}
-/**
- * Busca el primer enlace "Más Información" con scroll inteligente
- */
-async function buscarPrimerMasInformacion(page) {
-    // Hacer scroll para cargar contenido dinámico
-    await page.evaluate(async () => {
-        await new Promise((resolve) => {
-            let totalHeight = 0;
-            const distance = 300;
-            const timer = setInterval(() => {
-                const scrollHeight = document.body.scrollHeight;
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-                if (totalHeight >= scrollHeight) {
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 200);
-        });
-    });
-    await page.waitForTimeout(3000);
-    // Buscar con múltiples selectores
-    const selectores = [
-        'div.foot-caja_result a',
-        'a:has-text("Más información")',
-        'a:has-text("Más Información")',
-        'a[href*="DetalleProgramaConvocatoria"]'
-    ];
-    for (const selector of selectores) {
-        const elemento = await page.$(selector);
-        if (elemento) {
-            console.log(`   ✅ Enlace encontrado: ${selector}`);
-            return elemento;
-        }
-    }
-    return null;
-}
-/**
- * Busca el botón "Inicia tu postulación"
- */
-async function buscarBotonIniciarPostulacion(page) {
-    const selectores = [
-        'a:has-text("Inicia tu postulación")',
-        'a:has-text("INICIA TU POSTULACIÓN")',
-        'button:has-text("Inicia tu postulación")',
-        'button:has-text("INICIA TU POSTULACIÓN")',
-        '[onclick*="postulacion"]',
-        '[href*="postulacion"]'
-    ];
-    for (const selector of selectores) {
-        const elemento = await page.$(selector);
-        if (elemento) {
-            console.log(`   ✅ Botón encontrado: ${selector}`);
-            return elemento;
-        }
-    }
-    return null;
-}
-/**
- * Crea una nueva postulación desde la página de borradores
- */
-async function crearNuevaPostulacion(page) {
-    try {
-        console.log('   🔍 Verificando página de borradores...');
-        // Verificar si estamos en la página de borradores
-        if (page.url().includes('PostuladorBorradores.aspx')) {
-            console.log('   📋 En página de borradores, buscando postulaciones previas...');
-            // Buscar el botón "Nueva Postulación"
-            console.log('   ➕ Buscando botón "Nueva Postulación"...');
-            const selectoresNueva = [
-                'button:has-text("Nueva Postulación")',
-                'button:has-text("NUEVA POSTULACIÓN")',
-                'a:has-text("Nueva Postulación")',
-                'a:has-text("NUEVA POSTULACIÓN")',
-                'input[value*="Nueva"]',
-                '.btn:has-text("Nueva")',
-                '[onclick*="nueva"]'
-            ];
-            let botonNueva = null;
-            for (const selector of selectoresNueva) {
-                botonNueva = await page.$(selector);
-                if (botonNueva) {
-                    console.log(`   ✅ Botón "Nueva Postulación" encontrado: ${selector}`);
-                    break;
-                }
-            }
-            if (botonNueva) {
-                console.log('   🖱️ Haciendo clic en "Nueva Postulación"...');
-                await Promise.all([
-                    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { }),
-                    botonNueva.click()
-                ]);
-                await page.waitForTimeout(3000);
-                console.log('   ✅ Nueva postulación creada');
-                return true;
-            }
-            else {
-                console.log('   ⚠️ No se encontró botón "Nueva Postulación"');
-                return false;
-            }
-        }
-        else {
-            console.log('   ℹ️ No estamos en página de borradores, continuando...');
-            return true;
-        }
-    }
-    catch (error) {
-        console.error(`   ❌ Error creando nueva postulación: ${error.message}`);
-        return false;
-    }
-}
-/**
- * Elimina postulaciones existentes si las hay
- */
-/**
- * Verifica que tenemos acceso al formulario real
- */
-async function verificarAccesoFormulario(page) {
-    try {
-        console.log('   🔍 Verificando campos de formulario...');
-        // Esperar un poco para que la página cargue
-        await page.waitForTimeout(3000);
-        // Buscar campos de formulario visibles
-        const campos = await page.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-        console.log(`   📝 Campos visibles encontrados: ${campos.length}`);
-        if (campos.length > 0) {
-            // Verificar que no son solo campos de búsqueda/navegación
-            const camposRelevantes = await page.$$eval('input, select, textarea', (elements) => {
-                return elements.filter(el => {
-                    const element = el;
-                    return element.type !== 'hidden' &&
-                        !element.className.includes('search') &&
-                        !element.name?.includes('search');
-                }).length;
-            });
-            console.log(`   ✅ Campos relevantes: ${camposRelevantes}`);
-            return camposRelevantes > 0;
-        }
-        return false;
-    }
-    catch (error) {
-        console.error(`   ❌ Error verificando formulario: ${error.message}`);
-        return false;
-    }
-}
-/**
- * Obtiene el nombre del paso actual
- */
-async function obtenerNombrePaso(page) {
-    try {
-        const selectoresNombre = [
-            'h1', 'h2', 'h3',
-            '.step-title', '.phase-title', '.section-title',
-            '.paso-actual', '.current-step',
-            '[class*="titulo"]', '[class*="title"]'
-        ];
-        for (const selector of selectoresNombre) {
-            const elemento = await page.$(selector);
-            if (elemento) {
-                const texto = await elemento.textContent();
-                if (texto && texto.trim().length > 0 && texto.trim().length < 100) {
-                    return texto.trim();
-                }
-            }
-        }
-        // Fallback: usar título de la página
-        const titulo = await page.title();
-        return titulo || `Paso ${Date.now()}`;
-    }
-    catch (error) {
-        return `Paso ${Date.now()}`;
-    }
-}
-/**
- * Hace scroll completo de la página para cargar todo el contenido
- */
-async function scrollCompletoPagina(page) {
-    await page.evaluate(async () => {
-        await new Promise((resolve) => {
-            let totalHeight = 0;
-            const distance = 200;
-            const timer = setInterval(() => {
-                const scrollHeight = document.body.scrollHeight;
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-                if (totalHeight >= scrollHeight) {
-                    clearInterval(timer);
-                    window.scrollTo(0, 0); // Volver al inicio
-                    setTimeout(resolve, 1000);
-                }
-            }, 100);
-        });
-    });
-}
-/**
- * Detecta campos obligatorios intentando avanzar sin llenar y viendo qué campos se marcan en rojo
- * Adaptado de extraerFormularios.ts pero optimizado para MVP
- */
-async function detectarCamposObligatoriosMVP(page, campos) {
-    console.log('🔍 MVP: Detectando campos obligatorios dinámicamente...');
-    try {
-        // Buscar el botón siguiente con múltiples estrategias
-        let botonSiguiente = null;
-        // Selectores específicos para botones de navegación
-        const selectoresBotones = [
-            'button:has-text("SIGUIENTE")',
-            'button:has-text("Siguiente")',
-            'button:has-text("siguiente")',
-            'input[value*="iguiente"]',
-            'input[value*="IGUIENTE"]',
-            '.btn-next',
-            '[class*="next"]',
-            'button[type="submit"]',
-            'input[type="submit"]',
-            'button:has-text("Continuar")',
-            'button:has-text("CONTINUAR")',
-            'a:has-text("Siguiente")',
-            'a:has-text("SIGUIENTE")',
-            'button:has-text("Enviar")',
-            'button:has-text("ENVIAR")'
-        ];
-        for (const selector of selectoresBotones) {
-            try {
-                botonSiguiente = await page.$(selector);
-                if (botonSiguiente) {
-                    console.log(`✅ MVP: Botón encontrado con selector: ${selector}`);
-                    break;
-                }
-            }
-            catch (error) {
-                continue;
-            }
-        }
-        // Si no encuentra con selectores, buscar por texto
-        if (!botonSiguiente) {
-            const todosLosBotones = await page.$$('button, input[type="submit"], input[type="button"], a');
-            for (const boton of todosLosBotones) {
-                try {
-                    const texto = await boton.textContent();
-                    const value = await boton.getAttribute('value');
-                    const textoBuscar = (texto || value || '').toLowerCase();
-                    if (textoBuscar.includes('siguiente') ||
-                        textoBuscar.includes('continuar') ||
-                        textoBuscar.includes('next') ||
-                        textoBuscar.includes('submit') ||
-                        textoBuscar.includes('enviar')) {
-                        botonSiguiente = boton;
-                        console.log(`✅ MVP: Botón encontrado por texto: "${texto || value}"`);
-                        break;
-                    }
-                }
-                catch (error) {
-                    continue;
-                }
-            }
-        }
-        if (!botonSiguiente) {
-            console.log('❌ MVP: No se encontró botón de navegación, usando detección estática únicamente');
-            return [];
-        }
-        // Hacer scroll al botón si es necesario
-        await botonSiguiente.scrollIntoViewIfNeeded();
-        await page.waitForTimeout(500);
-        // Verificar si el botón está visible
-        const esVisible = await botonSiguiente.isVisible();
-        if (!esVisible) {
-            console.log('❌ MVP: El botón encontrado no es visible, usando detección estática únicamente');
-            return [];
-        }
-        try {
-            // Hacer clic en el botón sin llenar nada para provocar validación
-            await page.evaluate((element) => {
-                if (element && 'click' in element && typeof element.click === 'function') {
-                    element.click();
-                }
-            }, botonSiguiente);
-            await page.waitForTimeout(2000); // Esperar a que aparezcan los errores
-        }
-        catch (error) {
-            console.log('⚠️ MVP: Error al hacer clic en botón, posible navegación:', error.message);
-            return [];
-        }
-        // Buscar campos que ahora tienen indicadores de error
-        const camposConError = await page.$$eval('input, select, textarea', (elements) => {
-            return elements.map(el => {
-                const element = el;
-                // Verificar diferentes formas de indicar error
-                const tieneClaseError = element.classList.contains('error') ||
-                    element.classList.contains('invalid') ||
-                    element.classList.contains('has-error') ||
-                    element.classList.contains('field-error') ||
-                    element.classList.contains('is-invalid') ||
-                    element.classList.contains('form-error');
-                // Verificar si el campo o su contenedor tiene estilos de error
-                const style = window.getComputedStyle(element);
-                const borderRojo = style.borderColor.includes('rgb(255') ||
-                    style.borderColor.includes('red') ||
-                    style.borderColor.includes('#f') ||
-                    style.borderColor.includes('#e') ||
-                    style.borderColor.includes('#d') ||
-                    style.outlineColor.includes('red');
-                // Verificar si hay un mensaje de error cercano
-                const contenedor = element.closest('div, fieldset, .form-group, .field') || element.parentElement;
-                const hayMensajeError = contenedor?.querySelector('.error-message, .field-error, .invalid-feedback, [class*="error"], .help-block');
-                // Verificar aria-invalid
-                const ariaInvalid = element.getAttribute('aria-invalid') === 'true';
-                if (tieneClaseError || borderRojo || hayMensajeError || ariaInvalid) {
-                    return {
-                        name: element.name || element.id || '',
-                        id: element.id || '',
-                        placeholder: element.placeholder || '',
-                        type: element.type || element.tagName.toLowerCase()
-                    };
-                }
-                return null;
-            }).filter(el => el !== null);
-        });
-        // Extraer los nombres/identificadores de los campos con error
-        const nombresCamposObligatorios = [];
-        camposConError.forEach(campo => {
-            if (campo) {
-                // Buscar coincidencia con los campos que tenemos
-                const campoCoincidente = campos.find(c => (c.name && c.name === campo.name) ||
-                    (c.id && c.id === campo.id) ||
-                    (campo.placeholder && c.etiqueta?.includes(campo.placeholder)) ||
-                    (c.nombre && c.nombre === campo.name) ||
-                    (c.nombre && c.nombre === campo.id));
-                if (campoCoincidente) {
-                    const identificador = campoCoincidente.name || campoCoincidente.id || campoCoincidente.nombre || campoCoincidente.etiqueta;
-                    if (identificador && !nombresCamposObligatorios.includes(identificador)) {
-                        nombresCamposObligatorios.push(identificador);
-                    }
-                }
-            }
-        });
-        console.log(`✅ MVP: Campos obligatorios detectados dinámicamente: ${nombresCamposObligatorios.length}`);
-        if (nombresCamposObligatorios.length > 0) {
-            console.log(`   Campos: ${nombresCamposObligatorios.join(', ')}`);
-        }
-        return nombresCamposObligatorios;
-    }
-    catch (error) {
-        console.error('MVP: Error al detectar campos obligatorios:', error);
-        return [];
-    }
-}
-/**
- * Autocompleta los campos de un paso
- */
-/**
- * ELIMINADO: Función duplicada - usar método de la clase MVPHibrido
- */
-async function navegarAlSiguientePaso_ELIMINADO(page) {
-    try {
-        const selectoresSiguiente = [
-            'button:has-text("SIGUIENTE")',
-            'button:has-text("Siguiente")',
-            'input[value*="iguiente"]',
-            'input[value*="IGUIENTE"]',
-            'button:has-text("CONTINUAR")',
-            'button:has-text("Continuar")',
-            'a:has-text("Siguiente")',
-            '.btn-next',
-            '[class*="next"]',
-            'button[type="submit"]:not([value*="Enviar"]):not([value*="ENVIAR"])'
-        ];
-        for (const selector of selectoresSiguiente) {
-            const boton = await page.$(selector);
-            if (boton) {
-                const texto = await boton.textContent() || '';
-                const value = await boton.getAttribute('value') || '';
-                // Evitar botones de envío final
-                if (texto.toLowerCase().includes('enviar') ||
-                    value.toLowerCase().includes('enviar') ||
-                    texto.toLowerCase().includes('finalizar')) {
-                    continue;
-                }
-                console.log(`     🖱️ Haciendo clic en: "${texto || value}"`);
-                try {
-                    // Hacer clic y esperar
-                    await boton.click();
-                    await page.waitForTimeout(2000);
-                    // Verificar si aparece modal de confirmación
-                    const modalManejado = await manejarModalConfirmacion(page);
-                    if (modalManejado) {
-                        await page.waitForTimeout(2000);
-                    }
-                    console.log(`     ✅ Navegación exitosa`);
-                    return true;
-                }
-                catch (error) {
-                    console.log(`     ⚠️ Error en navegación: ${error.message}`);
-                    return false;
-                }
-            }
-        }
-        console.log('     ℹ️ No se encontró botón para siguiente paso');
-        return false;
-    }
-    catch (error) {
-        console.log(`     ❌ Error navegando: ${error.message}`);
-        return false;
-    }
-}
-/**
- * Maneja modal de confirmación
- */
-async function manejarModalConfirmacion(page) {
-    try {
-        await page.waitForTimeout(1000);
-        // Buscar botones de confirmación
-        const selectoresConfirmar = [
-            'button:has-text("Sí, estoy seguro")',
-            'button:has-text("Sí")',
-            'button:has-text("OK")',
-            'button:has-text("Aceptar")',
-            'button:has-text("Continuar")',
-            '.btn-primary:has-text("Sí")'
-        ];
-        for (const selector of selectoresConfirmar) {
-            const boton = await page.$(selector);
-            if (boton && await boton.isVisible()) {
-                console.log(`     ✅ Confirmando modal: ${selector}`);
-                await boton.click();
-                await page.waitForTimeout(2000);
-                return true;
-            }
-        }
-        return false;
-    }
-    catch (error) {
-        return false;
-    }
-}
 async function ejecutarMVPHibrido(configuracionNombre = 'demo') {
     console.log('🎯 INICIANDO MVP HÍBRIDO CORFO');
     console.log('============================');

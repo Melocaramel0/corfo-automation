@@ -1,4 +1,4 @@
-﻿import { chromium, Browser, Page } from 'playwright';
+﻿import { chromium, Browser, Page, Frame } from 'playwright';
 import { ConfiguracionAgente } from './tipos';
 import { obtenerConfiguracion } from './configuraciones';
 import { CAMPOS_CORFO_MAPPING } from '../scraping/extraerFormularios';
@@ -62,7 +62,7 @@ export class DetectorEstructura {
             confianza: 0
         };
 
-        // 🎯 DETECCIÓN POR SLICK-SLIDER (CORFO)
+        //  DETECCIÓN POR SLICK-SLIDER (CORFO)
         const deteccionSlick = await this.detectarPorSlickSlider();
         if (deteccionSlick.confianza && deteccionSlick.confianza > estructura.confianza) {
             estructura = { ...estructura, ...deteccionSlick };
@@ -72,20 +72,20 @@ export class DetectorEstructura {
         estructura.esPaginaConfirmacion = await this.esPaginaConfirmacion();
         estructura.esPaginaBorradores = await this.esPaginaBorradores();
         
-        // 🆕 NUEVO: Detectar si es paso de introducción
+        //  NUEVO: Detectar si es paso de introducción
         const esPasoIntroduccion = await this.esPasoIntroduccion();
         if (esPasoIntroduccion) {
             console.log('   📋 Paso de introducción detectado');
         }
 
-        // 🆕 NUEVO: Detectar desplegables
+        //  NUEVO: Detectar desplegables
         estructura.desplegables = await this.detectarDesplegables();
 
         console.log(`📊 ESTRUCTURA DETECTADA:`);
         console.log(`   📈 Método: ${estructura.tipoDeteccion} (${estructura.confianza}% confianza)`);
         console.log(`   📋 Total pasos: ${estructura.totalPasos}`);
         console.log(`   📍 Paso actual: ${estructura.pasoActual}`);
-        console.log(`   🎯 Es confirmación: ${estructura.esPaginaConfirmacion}`);
+        console.log(`    Es confirmación: ${estructura.esPaginaConfirmacion}`);
         console.log(`   📁 Es borradores: ${estructura.esPaginaBorradores}`);
         console.log(`   📂 Desplegables encontrados: ${estructura.desplegables?.length || 0}`);
 
@@ -109,7 +109,7 @@ export class DetectorEstructura {
                         const totalPasos = pasosSlick.length;
                         
                         // Detectar paso actual (elemento sin aria-hidden="true" o con clase active)
-                        let pasoActual = 1;
+                            let pasoActual = 1;
                         for (let i = 0; i < pasosSlick.length; i++) {
                             const elemento = pasosSlick[i] as Element;
                             const ariaHidden = elemento.getAttribute('aria-hidden');
@@ -117,13 +117,13 @@ export class DetectorEstructura {
                             // Si no está oculto o tiene clase active, es el paso actual
                             if (ariaHidden !== 'true' || 
                                 elemento.classList.contains('active') || 
-                                elemento.classList.contains('current') ||
+                                    elemento.classList.contains('current') ||
                                 elemento.classList.contains('slick-current')) {
-                                pasoActual = i + 1;
-                                break;
+                                    pasoActual = i + 1;
+                                    break;
+                                }
                             }
-                        }
-                        
+
                         // Extraer títulos de los pasos
                         const titulosPasos = Array.from(pasosSlick).map((paso: Element, index: number) => {
                             const texto = paso.textContent?.trim() || '';
@@ -137,10 +137,10 @@ export class DetectorEstructura {
                                 return `Paso ${index + 1}`;
                             }
                         });
-                        
-                        return {
+
+                    return {
                             totalPasos: totalPasos,
-                            pasoActual: pasoActual,
+                                pasoActual: pasoActual,
                             titulosPasos: titulosPasos,
                             tieneBarraProgreso: true,
                             esSlickSlider: true
@@ -209,7 +209,7 @@ export class DetectorEstructura {
                 return false; // Si hay muchos desplegables, es un formulario de pasos, no confirmación
             }
 
-            // 🆕 NUEVO: Verificar que NO estamos en un paso de introducción
+            //  NUEVO: Verificar que NO estamos en un paso de introducción
             const esPasoIntroduccion = textoCompleto.includes('introducción') || 
                                      textoCompleto.includes('guía de postulación') ||
                                      textoCompleto.includes('acepta condiciones') ||
@@ -221,7 +221,7 @@ export class DetectorEstructura {
                 return false;
             }
             
-            // 🆕 NUEVO: Verificar que NO estamos en el primer paso con radio buttons típicos de introducción
+            //  NUEVO: Verificar que NO estamos en el primer paso con radio buttons típicos de introducción
             const tieneRadioButtons = document.querySelectorAll('input[type="radio"]').length > 0;
             const tieneTextoSiNo = textoCompleto.includes('sí') || textoCompleto.includes('no');
             const esPrimerPasoConRadios = tieneRadioButtons && tieneTextoSiNo;
@@ -315,7 +315,7 @@ export class DetectorEstructura {
     }
 
 
-    // 🆕 NUEVO: Detectar desplegables en el formulario - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
+    //  NUEVO: Detectar desplegables en el formulario - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
     async detectarDesplegables(): Promise<Desplegable[]> {
         console.log('🔍 Detectando desplegables (solo visibles en paso actual)...');
         
@@ -398,7 +398,7 @@ export class DetectorEstructura {
             });
             
             console.log(`   ✅ Desplegables detectados: ${desplegables.length}`);
-            desplegables.forEach(d => {
+            desplegables.forEach((d: Desplegable) => {
                 console.log(`     📂 "${d.titulo}" - ${d.isOpen ? 'Abierto' : 'Cerrado'} - Sub-desplegables: ${d.subDesplegablesCount}`);
             });
             
@@ -412,7 +412,7 @@ export class DetectorEstructura {
 
 
 
-    // 🆕 NUEVO: Validar completitud del paso actual
+    //  NUEVO: Validar completitud del paso actual
     async validarCompletitudPaso(): Promise<boolean> {
         console.log('✅ Validando completitud del paso actual...');
         
@@ -537,6 +537,7 @@ export class MVPHibrido {
     private tiempoInicio: number = 0;
     private resultado: ResultadoMVP;
     private formUrl: string = '';
+    private archivosSubidosEnSesion: Set<string> = new Set(); // Para evitar subidas duplicadas
 
     constructor(configuracion: ConfiguracionAgente) {
         this.configuracion = configuracion;
@@ -565,7 +566,7 @@ export class MVPHibrido {
     async ejecutar(): Promise<ResultadoMVP> {
         console.log('🚀 INICIANDO MVP HÍBRIDO - ANÁLISIS + AUTOCOMPLETADO');
         console.log('=' .repeat(60));
-        console.log('🎯 Objetivo: Completar formulario en 15-20 minutos');
+        console.log(' Objetivo: Completar formulario en 15-20 minutos');
         console.log('⚡ Estrategia: Extracción + Completado simultáneo');
         console.log('🛡️ Seguridad: NO envía formulario (solo testing)');
         console.log('');
@@ -618,7 +619,7 @@ export class MVPHibrido {
             output: process.stdout
         });
         return new Promise((resolve, reject) => {
-            rl.question('\n🎯 Ingresa la URL del formulario CORFO que deseas validar: ', (respuesta: string) => {
+            rl.question('\n Ingresa la URL del formulario CORFO que deseas validar: ', (respuesta: string) => {
                 rl.close();
                 const url = (respuesta || '').trim();
                 if (url.startsWith('http')) return resolve(url);
@@ -633,7 +634,7 @@ export class MVPHibrido {
         // Prioridad: ir primero a la URL objetivo antes del login
         const urlEspecifica = this.formUrl || process.env.CORFO_URL;
         if (urlEspecifica && urlEspecifica !== 'https://ejemplo.corfo.cl/concurso/abc') {
-            console.log(`🎯 Navegando primero a la URL objetivo: ${urlEspecifica}`);
+            console.log(` Navegando primero a la URL objetivo: ${urlEspecifica}`);
             await this.navegarAURLEspecifica(urlEspecifica);
         } else {
             // Si no hay URL, pedirla directamente
@@ -646,7 +647,7 @@ export class MVPHibrido {
 
         // Asegurar que estemos en la URL objetivo autenticados (si la navegación de login nos movió)
         if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
-            console.log(`🎯 Reafirmando URL objetivo autenticado: ${this.formUrl}`);
+            console.log(` Reafirmando URL objetivo autenticado: ${this.formUrl}`);
             await this.navegarAURLEspecifica(this.formUrl);
         }
         
@@ -664,7 +665,7 @@ export class MVPHibrido {
     private async procesarFormularioHibrido(): Promise<void> {
         console.log('🔄 Iniciando procesamiento híbrido...');
         
-        // 🎯 VERIFICAR PRIMERO SI ESTAMOS EN BORRADORES
+        //  VERIFICAR PRIMERO SI ESTAMOS EN BORRADORES
         const detector = new DetectorEstructura(this.page!);
         const esBorradores = await detector.esPaginaBorradores();
         
@@ -677,7 +678,7 @@ export class MVPHibrido {
             console.log(`   🔗 URL después de navegar: ${this.page!.url()}`);
         }
         
-        // 🎯 AHORA SÍ DETECTAR ESTRUCTURA EN EL FORMULARIO REAL
+        //  AHORA SÍ DETECTAR ESTRUCTURA EN EL FORMULARIO REAL
         console.log('🔍 DETECTANDO ESTRUCTURA DEL FORMULARIO REAL...');
         let estructura = await detector.detectarEstructuraCompleta();
         
@@ -687,7 +688,7 @@ export class MVPHibrido {
         const tiempoLimitePorPaso = 3 * 60 * 1000; // 3 minutos máximo por paso
         const TOTAL_PASOS_ESPERADOS = estructura.totalPasos;
 
-        console.log(`🎯 ADAPTACIÓN AUTOMÁTICA:`);
+        console.log(` ADAPTACIÓN AUTOMÁTICA:`);
         console.log(`   📊 Total pasos detectados: ${TOTAL_PASOS_ESPERADOS}`);
         console.log(`   📍 Iniciando desde paso: ${pasoActual}`);
         console.log(`   🔧 Método detección: ${estructura.tipoDeteccion}`);
@@ -711,7 +712,7 @@ export class MVPHibrido {
                 console.log('⚠️ CORRECCIÓN: Muchos desplegables detectados, NO es página de confirmación');
                 estructura.esPaginaConfirmacion = false;
             } else {
-                console.log('🎯 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
+                console.log(' PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
                 console.log(`   🔗 URL: ${this.page!.url()}`);
                 console.log(`   📊 Desplegables: ${estructura.desplegables?.length || 0}`);
                 console.log(`   📝 Total pasos: ${estructura.totalPasos}`);
@@ -745,7 +746,7 @@ export class MVPHibrido {
                 console.log('-'.repeat(40));
 
             try {
-                // 🆕 NUEVO: Expandir secciones automáticamente antes de procesar
+                //  NUEVO: Expandir secciones automáticamente antes de procesar
                 await this.expandirSeccionesAutomaticamente();
                 
                 const paso = await this.procesarPasoActual(pasoActual, tiempoInicioPaso);
@@ -757,7 +758,7 @@ export class MVPHibrido {
                     console.log('⚠️ Límite de tiempo por paso alcanzado, pasando al siguiente');
                 }
 
-                // 🆕 NUEVO: Validar completitud antes de avanzar
+                //  NUEVO: Validar completitud antes de avanzar
                 const esCompleto = await detector.validarCompletitudPaso();
                 if (!esCompleto) {
                     console.log('⚠️ Paso no completado al 100%, reintentando autocompletado...');
@@ -793,14 +794,14 @@ export class MVPHibrido {
 
         console.log(`📝 Paso ${numeroPaso}: "${titulo}"`);
 
-        // 🎯 DETECCIÓN AUTOMÁTICA DE TIPO DE PASO
+        //  DETECCIÓN AUTOMÁTICA DE TIPO DE PASO
         const detector = new DetectorEstructura(this.page!);
         const esConfirmacion = await detector.esPaginaConfirmacion();
 
         let campos: DetallePasoMVP[] = [];
         
         if (esConfirmacion) {
-            console.log('🎯 PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
+            console.log(' PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
             campos = await this.procesarPasoConfirmacion();
         } else {
             console.log(`🔄 Procesando paso ${numeroPaso} - Autocompletando campos`);
@@ -910,7 +911,7 @@ export class MVPHibrido {
             
             console.log(`📈 RESUMEN DE VERIFICACIÓN:`);
             console.log(`   📊 Total campos obligatorios: ${totalCampos}`);
-            console.log(`   🎯 Porcentaje de éxito: ${porcentajeExito}%`);
+            console.log(`    Porcentaje de éxito: ${porcentajeExito}%`);
             
             if (porcentajeExito >= 90) {
                 console.log('🎉 ¡EXCELENTE! Formulario casi completamente correcto');
@@ -941,11 +942,11 @@ export class MVPHibrido {
         
         console.log(`   🔍 INICIANDO EXTRACCIÓN MEJORADA DE CAMPOS...`);
         
-        // 🎯 PASO 1: Procesar desplegables primero (campos ocultos)
+        //  PASO 1: Procesar desplegables primero (campos ocultos)
         console.log(`   📂 Procesando desplegables y campos ocultos...`);
         await this.expandirSeccionesAutomaticamente();
         
-        // 🎯 PASO 2: Hacer scroll para activar contenido dinámico
+        //  PASO 2: Hacer scroll para activar contenido dinámico
         console.log(`   📜 Haciendo scroll para activar contenido dinámico...`);
         await this.page!.evaluate(async () => {
             await new Promise<void>((resolve) => {
@@ -964,79 +965,13 @@ export class MVPHibrido {
             });
         });
 
-        // 🎯 PASO 3: Buscar TODOS los campos (incluyendo los que se abrieron en desplegables)
-        console.log(`   🔍 Buscando TODOS los campos visibles después de expandir...`);
-
-        // Buscar en iframe principal si existe
-        const frames = this.page!.frames();
-        console.log(`   🖼️ Frames encontrados: ${frames.length}`);
+        //  PASO 3: Buscar TODOS los campos de forma simplificada
+        console.log(`   🔍 Buscando campos en el paso actual...`);
         
-        // 🚀 OPTIMIZACIÓN: Buscar directamente solo campos visibles e interactuables en el paso actual
-        let elementos = await this.page!.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-        console.log(`   🔍 Campos encontrados en página principal: ${elementos.length}`);
+        let elementos = await this.obtenerTodosLosCampos();
+        console.log(`   ✅ Campos encontrados: ${elementos.length}`);
         
-        // 🎯 NUEVO: Filtrar solo campos que están realmente visibles en el paso actual
-        const elementosVisiblesEnPaso = [];
-        for (const elemento of elementos) {
-            try {
-                const rect = await elemento.boundingBox();
-                const isVisible = await elemento.isVisible();
-                const isEnabled = await elemento.isEnabled();
-                
-                // Verificar si está en el viewport visible (relajar restricciones)
-                if (rect && isVisible && isEnabled && 
-                    rect.y >= -200 && rect.y <= 1500 && // Ampliar rango vertical
-                    rect.x >= -200 && rect.x <= 1400) { // Ampliar rango horizontal
-                    elementosVisiblesEnPaso.push(elemento);
-                }
-            } catch (error) {
-                // Si hay error verificando, incluir el elemento
-                elementosVisiblesEnPaso.push(elemento);
-            }
-        }
-        
-        elementos = elementosVisiblesEnPaso;
-        console.log(`   ✅ Campos realmente visibles en paso actual: ${elementos.length}`);
-        
-        // Si no hay elementos visibles en la página principal, buscar en iframes
-        if (elementos.length === 0) {
-            for (let i = 0; i < frames.length; i++) {
-                try {
-                    const frame = frames[i];
-                    const frameUrl = frame.url();
-                    console.log(`   🖼️ Revisando frame ${i + 1}: ${frameUrl}`);
-                    
-                    const elementosFrame = await frame.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-                    if (elementosFrame.length > 0) {
-                        console.log(`   ✅ Encontrados ${elementosFrame.length} campos visibles en frame ${i + 1}`);
-                        elementos = elementosFrame;
-                        break;
-                    }
-                } catch (error) {
-                    console.log(`   ⚠️ Error al acceder frame ${i + 1}:`, (error as Error).message);
-                }
-            }
-        }
-
-        // 🎯 PASO 4: Verificación final de visibilidad e interactuabilidad
-        const elementosVisibles = [];
-        for (const elemento of elementos) {
-            try {
-                const esVisible = await elemento.isVisible();
-                const esInteractuable = await elemento.isEnabled();
-                if (esVisible && esInteractuable) {
-                    elementosVisibles.push(elemento);
-                }
-            } catch (error) {
-                // Si hay error verificando visibilidad, incluir el elemento
-                elementosVisibles.push(elemento);
-            }
-        }
-        
-        elementos = elementosVisibles;
-        console.log(`   ✅ Campos realmente visibles e interactuables: ${elementos.length}`);
-
-        // 🎯 PASO 5: Procesar cada campo encontrado con detección dinámica
+        //  PASO 6: Procesar cada campo encontrado con detección dinámica
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
         
         const camposProcesados = new Set<string>(); // Para evitar duplicados
@@ -1049,16 +984,16 @@ export class MVPHibrido {
             
             // Obtener elementos actuales en cada iteración
             if (intentos > 1) {
-                elementos = await this.obtenerElementosInteractuablesActualizados();
+                elementos = await this.obtenerTodosLosCampos();
                 console.log(`   🔍 Campos encontrados en iteración ${intentos}: ${elementos.length}`);
             }
             
             let camposNuevosEncontrados = 0;
-            
-            for (const elemento of elementos) {
-                try {
-                    // Verificar si el elemento es realmente interactuable
-                    const info = await this.obtenerInfoCampoMejorada(elemento);
+
+        for (const elemento of elementos) {
+            try {
+                // Verificar si el elemento es realmente interactuable
+                const info = await this.obtenerInfoCampoMejorada(elemento);
                     if (!info) {
                         console.log(`     ⚠️ Campo sin información válida, saltando`);
                         continue;
@@ -1073,38 +1008,43 @@ export class MVPHibrido {
                     }
 
                     console.log(`     🔍 Procesando campo: "${info.etiqueta}" (tipo: ${info.tipo})`);
-                    
-                    const valorAsignado = await this.completarCampo(elemento, info);
 
-                    const detalle: DetallePasoMVP = {
-                        etiqueta: info.etiqueta,
-                        tipo: info.tipo,
-                        valorAsignado: valorAsignado || '',
-                        completado: !!valorAsignado,
-                        esObligatorio: info.esObligatorio,
-                        razonFallo: valorAsignado ? undefined : 'No se pudo determinar valor apropiado'
-                    };
+                const valorAsignado = await this.completarCampo(elemento, info);
 
-                    detalles.push(detalle);
+                // Si el campo retorna null, no incluirlo en el reporte
+                if (valorAsignado === null) {
+                    continue;
+                }
+
+                const detalle: DetallePasoMVP = {
+                    etiqueta: info.etiqueta,
+                    tipo: info.tipo,
+                    valorAsignado: valorAsignado || '',
+                    completado: !!valorAsignado,
+                    esObligatorio: info.esObligatorio,
+                    razonFallo: valorAsignado ? undefined : 'No se pudo determinar valor apropiado'
+                };
+
+                detalles.push(detalle);
                     camposProcesados.add(campoId);
                     camposNuevosEncontrados++;
                     
                     console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado || 'N/A'}"`);
                     
-                    // 🎯 NUEVO: Si completamos un select, esperar y re-escanear para campos dinámicos
+                    //  NUEVO: Si completamos un select, esperar y re-escanear para campos dinámicos
                     if (info.tipo === 'select' && valorAsignado) {
                         console.log(`     🔄 Campo select completado, esperando campos dinámicos...`);
                         await this.esperarYCapturarCamposDinamicos();
                     }
                     
-                    await this.page!.waitForTimeout(this.configuracion.tiempoEsperaEntreCampos);
+                await this.page!.waitForTimeout(this.configuracion.tiempoEsperaEntreCampos);
 
-                } catch (error) {
+            } catch (error) {
                     console.log(`     ⚠️ Error procesando campo:`, (error as Error).message);
-                    continue;
-                }
+                continue;
             }
-            
+        }
+
             console.log(`   📊 Iteración ${intentos}: ${camposNuevosEncontrados} campos nuevos procesados`);
             
             // Si no encontramos campos nuevos, salir del bucle
@@ -1119,77 +1059,70 @@ export class MVPHibrido {
             }
         }
 
-        console.log(`   🎯 RESUMEN: ${detalles.length} campos procesados, ${detalles.filter(d => d.completado).length} completados exitosamente`);
+        console.log(`    RESUMEN: ${detalles.length} campos procesados, ${detalles.filter(d => d.completado).length} completados exitosamente`);
         return detalles;
     }
 
-    // 🆕 NUEVO: Método para obtener elementos interactuables actualizados
-    private async obtenerElementosInteractuablesActualizados(): Promise<any[]> {
-        // Buscar en iframe principal si existe
-        const frames = this.page!.frames();
-        
-        // 🚀 OPTIMIZACIÓN: Buscar directamente solo campos visibles e interactuables en el paso actual
-        let elementos = await this.page!.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-        
-        // 🎯 NUEVO: Filtrar solo campos que están realmente visibles en el paso actual
-        const elementosVisiblesEnPaso = [];
-        for (const elemento of elementos) {
-            try {
-                const rect = await elemento.boundingBox();
-                const isVisible = await elemento.isVisible();
-                const isEnabled = await elemento.isEnabled();
-                
-                // Verificar si está en el viewport visible (relajar restricciones)
-                if (rect && isVisible && isEnabled && 
-                    rect.y >= -200 && rect.y <= 1500 && // Ampliar rango vertical
-                    rect.x >= -200 && rect.x <= 1400) { // Ampliar rango horizontal
-                    elementosVisiblesEnPaso.push(elemento);
-                }
-            } catch (error) {
-                // Si hay error verificando, incluir el elemento
-                elementosVisiblesEnPaso.push(elemento);
-            }
-        }
-        
-        elementos = elementosVisiblesEnPaso;
-        
-        // Si no hay elementos visibles en la página principal, buscar en iframes
-        if (elementos.length === 0) {
-            for (let i = 0; i < frames.length; i++) {
+    //  MÉTODO UNIFICADO: Obtener todos los campos (sin duplicación)
+    private async obtenerTodosLosCampos(): Promise<any[]> {
+        try {
+            // Buscar todos los tipos de campos en una sola consulta
+            const elementos = await this.page!.$$('input:not([type="hidden"]), select, textarea');
+            
+            // Filtrar solo campos visibles e interactuables
+            const camposValidos = [];
+            const camposArchivoEncontrados = [];
+            
+            for (const elemento of elementos) {
                 try {
-                    const frame = frames[i];
-                    const frameUrl = frame.url();
+                    const rect = await elemento.boundingBox();
+                    const isVisible = await elemento.isVisible();
+                    const isEnabled = await elemento.isEnabled();
+                    const tipo = await elemento.evaluate((el: Element) => (el as HTMLInputElement).type);
                     
-                    const elementosFrame = await frame.$$('input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), input[type="tel"]:not([style*="display: none"]), input[type="number"]:not([style*="display: none"]), input[type="file"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"]), input[type="radio"]:not([style*="display: none"]), input[type="checkbox"]:not([style*="display: none"])');
-                    if (elementosFrame.length > 0) {
-                        elementos = elementosFrame;
-                        break;
+                    //  NUEVO: Verificar si es un botón "Subir Archivo" (no un campo real)
+                    const esBotonSubirArchivo = await elemento.evaluate((el: Element) => {
+                        const texto = el.textContent?.trim().toLowerCase() || '';
+                        const placeholder = (el as HTMLInputElement).placeholder?.toLowerCase() || '';
+                        return texto.includes('subir archivo') || placeholder.includes('subir archivo');
+                    });
+                    
+                    if (esBotonSubirArchivo) {
+                        continue; // Excluir botones "Subir Archivo"
+                    }
+                    
+                    // Los campos de archivo pueden estar ocultos pero son válidos
+                    if (tipo === 'file') {
+                        camposArchivoEncontrados.push(elemento);
+                        camposValidos.push(elemento);
+                        continue;
+                    }
+                    
+                    // Verificar visibilidad y posición para otros campos
+                    if (rect && isVisible && isEnabled && 
+                        rect.y >= -200 && rect.y <= 1500 &&
+                        rect.x >= -200 && rect.x <= 1400) {
+                        camposValidos.push(elemento);
                     }
                 } catch (error) {
-                    // Continuar con el siguiente frame
+                    // Si hay error verificando, incluir el elemento
+                    camposValidos.push(elemento);
                 }
             }
+            
+            
+            return camposValidos;
+            
+        } catch (error) {
+            console.log('   ⚠️ Error obteniendo campos:', (error as Error).message);
+            return [];
         }
-
-        // 🎯 PASO: Verificación final de visibilidad e interactuabilidad
-        const elementosVisibles = [];
-        for (const elemento of elementos) {
-            try {
-                const esVisible = await elemento.isVisible();
-                const esInteractuable = await elemento.isEnabled();
-                if (esVisible && esInteractuable) {
-                    elementosVisibles.push(elemento);
-                }
-            } catch (error) {
-                // Si hay error verificando visibilidad, incluir el elemento
-                elementosVisibles.push(elemento);
-            }
-        }
-        
-        return elementosVisibles;
     }
 
-    // 🆕 NUEVO: Método para esperar y capturar campos dinámicos
+    
+
+
+    //  NUEVO: Método para esperar y capturar campos dinámicos
     private async esperarYCapturarCamposDinamicos(): Promise<void> {
         console.log(`     ⏳ Esperando campos dinámicos (2 segundos)...`);
         await this.page!.waitForTimeout(2000);
@@ -1208,12 +1141,12 @@ export class MVPHibrido {
         console.log(`     📊 Campos habilitados detectados: ${nuevosCampos}`);
     }
 
-    // 🆕 NUEVO: Procesar desplegables con lógica secuencial correcta
+    //  NUEVO: Procesar desplegables con lógica secuencial correcta
     private async expandirSeccionesAutomaticamente(): Promise<void> {
         console.log('📂 Procesando desplegables del paso actual...');
         
         try {
-            // 🎯 PASO 1: Detectar desplegables del paso actual
+            //  PASO 1: Detectar desplegables del paso actual
             const desplegablesInfo = await this.detectarDesplegablesVisiblesEnPaso();
             
             if (desplegablesInfo.length === 0) {
@@ -1227,7 +1160,7 @@ export class MVPHibrido {
                 console.log(`     ${index + 1}. "${d.titulo}" (${estado})`);
             });
             
-            // 🎯 PASO 2: Procesar desplegables secuencialmente
+            //  PASO 2: Procesar desplegables secuencialmente
             let totalCamposProcesados = 0;
             
             for (let i = 0; i < desplegablesInfo.length; i++) {
@@ -1236,7 +1169,7 @@ export class MVPHibrido {
                 
                 console.log(`   🔄 Procesando "${desplegable.titulo}" (${estado})...`);
                 
-                // 🎯 LÓGICA CORRECTA: Solo abrir si está cerrado
+                //  LÓGICA CORRECTA: Solo abrir si está cerrado
                 if (desplegable.isClosed) {
                     console.log(`     🔓 Abriendo desplegable cerrado...`);
                     await this.abrirDesplegable(desplegable.selector);
@@ -1245,13 +1178,13 @@ export class MVPHibrido {
                     console.log(`     ✅ Desplegable ya está abierto, procesando campos...`);
                 }
                 
-                // 🎯 COMPLETAR TODOS LOS CAMPOS antes de pasar al siguiente
+                //  COMPLETAR TODOS LOS CAMPOS antes de pasar al siguiente
                 const camposCompletados = await this.extraerYCompletarCamposEnDesplegable(desplegable);
                 totalCamposProcesados += camposCompletados;
                 
                 console.log(`     ✅ Campos completados: ${camposCompletados}`);
                 
-                // 🎯 IMPORTANTE: NO cerrar desplegables abiertos por defecto
+                //  IMPORTANTE: NO cerrar desplegables abiertos por defecto
                 // Solo cerrar si los abrimos nosotros y no es el último
                 if (desplegable.isClosed && i < desplegablesInfo.length - 1) {
                     console.log(`     🔒 Cerrando desplegable para continuar con el siguiente...`);
@@ -1260,19 +1193,19 @@ export class MVPHibrido {
                 }
             }
             
-            console.log(`   🎯 Total campos procesados: ${totalCamposProcesados}`);
+            console.log(`    Total campos procesados: ${totalCamposProcesados}`);
             
         } catch (error) {
             console.log('   ⚠️ Error procesando desplegables:', (error as Error).message);
         }
     }
 
-    // 🆕 NUEVO: Detectar desplegables del paso actual con estado correcto
+    //  NUEVO: Detectar desplegables del paso actual con estado correcto
     private async detectarDesplegablesVisiblesEnPaso(): Promise<any[]> {
         return await this.page!.evaluate(() => {
             const desplegables: any[] = [];
             
-            // 🎯 BUSCAR SOLO DESPLEGABLES EN EL PASO ACTUAL
+            //  BUSCAR SOLO DESPLEGABLES EN EL PASO ACTUAL
             const todosLosHeaders = document.querySelectorAll('a[data-toggle="collapse"]');
             
             todosLosHeaders.forEach(header => {
@@ -1280,7 +1213,7 @@ export class MVPHibrido {
                 const href = header.getAttribute('href') || '';
                 const dataParent = header.getAttribute('data-parent') || '';
                 
-                // 🎯 VERIFICACIÓN DE VISIBILIDAD EN PASO ACTUAL
+                //  VERIFICACIÓN DE VISIBILIDAD EN PASO ACTUAL
                 const rect = header.getBoundingClientRect();
                 const style = window.getComputedStyle(header);
                 
@@ -1290,11 +1223,11 @@ export class MVPHibrido {
                                  rect.width > 0 && 
                                  rect.height > 0;
                 
-                // 🎯 SOLO DESPLEGABLES EN EL ÁREA PRINCIPAL DEL FORMULARIO
+                //  SOLO DESPLEGABLES EN EL ÁREA PRINCIPAL DEL FORMULARIO
                 const isInMainForm = header.closest('main, .main-content, .form-container, .content, .form-body, .panel-body') !== null ||
                                     header.closest('[class*="form"], [class*="content"], [class*="main"], [class*="panel"]') !== null;
                 
-                // 🎯 FILTRO: Solo desplegables válidos del paso actual
+                //  FILTRO: Solo desplegables válidos del paso actual
                 if (text && 
                     text.length > 5 && 
                     text.length < 100 &&
@@ -1323,7 +1256,7 @@ export class MVPHibrido {
                     !text.includes('PÁGINA') &&
                     !text.includes('PAGE')) {
                     
-                    // 🎯 DETECTAR ESTADO CORRECTO: Abierto vs Cerrado
+                    //  DETECTAR ESTADO CORRECTO: Abierto vs Cerrado
                     const hasCollapsedClass = header.classList.contains('collapsed');
                     const ariaExpanded = header.getAttribute('aria-expanded');
                     
@@ -1353,7 +1286,7 @@ export class MVPHibrido {
         });
     }
 
-    // 🆕 NUEVO: Abrir un desplegable específico
+    //  NUEVO: Abrir un desplegable específico
     private async abrirDesplegable(selector: string): Promise<void> {
         try {
             // Escapar caracteres especiales manualmente (CSS.escape no está disponible en Node.js)
@@ -1368,7 +1301,7 @@ export class MVPHibrido {
         }
     }
 
-    // 🆕 NUEVO: Cerrar un desplegable específico
+    //  NUEVO: Cerrar un desplegable específico
     private async cerrarDesplegable(selector: string): Promise<void> {
         try {
             // Escapar caracteres especiales manualmente
@@ -1383,11 +1316,11 @@ export class MVPHibrido {
         }
     }
 
-    // 🆕 NUEVO: Extraer y completar campos dentro de un desplegable específico
+    //  NUEVO: Extraer y completar campos dentro de un desplegable específico
     private async extraerYCompletarCamposEnDesplegable(desplegable: any): Promise<number> {
         try {
             // Buscar campos dentro del contenido del desplegable
-            const camposEnDesplegable = await this.page!.evaluate((selector) => {
+            const camposEnDesplegable = await this.page!.evaluate((selector: string) => {
                 const contenido = document.querySelector(selector);
                 if (!contenido) return [];
                 
@@ -1440,7 +1373,7 @@ export class MVPHibrido {
                 const tagName = el.tagName.toLowerCase();
                 let type = el.type || tagName;
                 
-                // 🎯 NORMALIZAR TIPOS DE SELECT
+                //  NORMALIZAR TIPOS DE SELECT
                 if (type === 'select-one' || type === 'select-multiple') {
                     type = 'select';
                 }
@@ -1451,13 +1384,19 @@ export class MVPHibrido {
                 const value = el.value || '';
                 const placeholder = el.placeholder || '';
                 
-                // 🎯 NUEVO: Atributos específicos de CORFO
+                //  NUEVO: Atributos específicos de CORFO
                 const dataCodigo = el.getAttribute('data-codigo') || '';
                 const dataOriginalTitle = el.getAttribute('data-original-title') || '';
                 const title = el.getAttribute('title') || '';
                 const dataControlId = el.getAttribute('data-controlid') || '';
                 
-                // 🎯 NUEVO: Detectar campos de email basándose en contexto (solo para inputs de texto)
+                //  NUEVO: Atributos específicos para campos de archivo
+                const dataExtensiones = el.getAttribute('data-extensiones') || '';
+                const dataTamanoMaximo = el.getAttribute('data-tamano-maximo') || '';
+                const dataTipoControl = el.getAttribute('data-tipo-control') || '';
+                const dataAdjuntoId = el.getAttribute('data-adjuntoid') || '';
+                
+                //  NUEVO: Detectar campos de email basándose en contexto (solo para inputs de texto)
                 if (type === 'text' || type === 'input') {
                     const contextoCompleto = `${id} ${name} ${placeholder} ${dataCodigo} ${dataOriginalTitle} ${title}`.toLowerCase();
                     if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') || 
@@ -1475,26 +1414,50 @@ export class MVPHibrido {
                 const hasSize = rect.width > 0 && rect.height > 0;
                 const isInDocument = document.contains(el);
 
-                // Para campos hidden, aceptar si tienen name/id significativo
-                const isInteractuable = isDisplayed && isVisible && (hasSize || type === 'hidden') && isInDocument;
+                //  CORRECCIÓN: Para campos de archivo, aceptar incluso si están ocultos
+                const isInteractuable = isDisplayed && isVisible && (hasSize || type === 'hidden' || type === 'file') && isInDocument;
 
-                if (!isInteractuable && type !== 'hidden') return null;
+                if (!isInteractuable && type !== 'hidden' && type !== 'file') return null;
 
                 let etiqueta = '';
                 
-                // 🎯 ESTRATEGIA 1: data-codigo (específico de CORFO)
+                //  ESTRATEGIA 1: data-codigo (específico de CORFO)
                 if (dataCodigo) {
                     etiqueta = dataCodigo.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
                 }
 
-                // 🎯 ESTRATEGIA 2: data-original-title (específico de CORFO)
+                //  ESTRATEGIA 2: data-original-title (específico de CORFO)
                 if (!etiqueta && dataOriginalTitle) {
                     etiqueta = dataOriginalTitle;
                 }
 
-                // 🎯 ESTRATEGIA 3: title (específico de CORFO)
+                //  ESTRATEGIA 3: title (específico de CORFO)
                 if (!etiqueta && title) {
                     etiqueta = title;
+                }
+
+                //  ESTRATEGIA ESPECIAL PARA CAMPOS DE ARCHIVO: Buscar botón "Subir Archivo" cercano
+                if (!etiqueta && type === 'file') {
+                    // Buscar botón o span con texto "Subir Archivo" cerca del campo
+                    const contenedor = el.closest('div, fieldset, .form-group, .field');
+                    if (contenedor) {
+                        const elementos = contenedor.querySelectorAll('span, button, a');
+                        for (const elem of elementos) {
+                            const texto = elem.textContent?.trim().toLowerCase() || '';
+                            if (texto.includes('subir archivo') || texto.includes('subir') || texto.includes('archivo')) {
+                                etiqueta = 'Campo de Archivo';
+                                break;
+                            }
+                        }
+                        
+                        // Si no se encontró botón específico, buscar texto general
+                        if (!etiqueta) {
+                            const textoContenedor = contenedor.textContent?.toLowerCase() || '';
+                            if (textoContenedor.includes('archivo') || textoContenedor.includes('adjuntar') || textoContenedor.includes('documento')) {
+                                etiqueta = 'Campo de Archivo';
+                            }
+                        }
+                    }
                 }
 
                 // Estrategia 4: Label con atributo 'for'
@@ -1568,7 +1531,7 @@ export class MVPHibrido {
                     }
                 }
 
-                // 🎯 NUEVO: Obtener opciones para selects
+                //  NUEVO: Obtener opciones para selects
                 let opciones: any[] = [];
                 if (tagName === 'select') {
                     const options = el.querySelectorAll('option');
@@ -1618,6 +1581,11 @@ export class MVPHibrido {
                     dataOriginalTitle: dataOriginalTitle,
                     title: title,
                     dataControlId: dataControlId,
+                    //  NUEVO: Atributos específicos para campos de archivo
+                    dataExtensiones: dataExtensiones,
+                    dataTamanoMaximo: dataTamanoMaximo,
+                    dataTipoControl: dataTipoControl,
+                    dataAdjuntoId: dataAdjuntoId,
                     opciones: opciones,
                     esMultiple: el.multiple || false,
                     debug: {
@@ -1642,22 +1610,28 @@ export class MVPHibrido {
             const opciones = info.opciones || [];
             const esMultiple = info.esMultiple || false;
 
-            // 🎯 MANEJO ESPECÍFICO DE SELECTS
+            //  MANEJO ESPECÍFICO DE SELECTS
             if (tipo === 'select') {
                 return await this.completarSelectRobusto(elemento, info);
             }
 
-            // 🎯 MANEJO DE INPUTS DE ARCHIVO
+            //  MANEJO DE INPUTS DE ARCHIVO
             if (tipo === 'file') {
-                console.log(`     📁 Campo de archivo detectado: "${etiqueta}" - Saltando`);
-                return 'archivo_saltado';
+                const resultadoArchivo = await this.subirArchivoPrueba(elemento, info);
+                
+                // Si el campo no tiene botón "Subir Archivo", no lo incluir en el reporte
+                if (resultadoArchivo === 'sin_boton_subir_archivo') {
+                    return null; // No incluir en el reporte
+                }
+                
+                return resultadoArchivo;
             }
 
-            // 🎯 GENERAR VALOR PARA OTROS TIPOS
+            //  GENERAR VALOR PARA OTROS TIPOS
             const valor = this.generarValorParaCampo(info);
             if (!valor) return null;
 
-            // 🎯 MANEJO DE CHECKBOXES
+            //  MANEJO DE CHECKBOXES
             if (tipo === 'checkbox') {
                 const isChecked = await elemento.isChecked();
                 if (!isChecked) {
@@ -1666,7 +1640,7 @@ export class MVPHibrido {
                 return 'true';
             }
 
-            // 🎯 MANEJO DE RADIO BUTTONS
+            //  MANEJO DE RADIO BUTTONS
             if (tipo === 'radio') {
                 const isChecked = await elemento.isChecked();
                 if (!isChecked) {
@@ -1675,21 +1649,21 @@ export class MVPHibrido {
                 return 'seleccionado';
             }
 
-            // 🎯 MANEJO DE INPUTS DE TEXTO
+            //  MANEJO DE INPUTS DE TEXTO
             if (['text', 'email', 'tel', 'url', 'password'].includes(tipo)) {
                 await elemento.fill('');
                 await elemento.fill(valor);
                 return valor;
             }
 
-            // 🎯 MANEJO DE TEXTAREAS
+            //  MANEJO DE TEXTAREAS
             if (tipo === 'textarea') {
                 await elemento.fill('');
                 await elemento.fill(valor);
                 return valor;
             }
 
-            // 🎯 MANEJO DE INPUTS NUMÉRICOS
+            //  MANEJO DE INPUTS NUMÉRICOS
             if (tipo === 'number') {
                 const numeroValor = typeof valor === 'string' ? valor.replace(/[^\d]/g, '') : valor;
                 await elemento.fill('');
@@ -1697,7 +1671,7 @@ export class MVPHibrido {
                 return numeroValor;
             }
 
-            // 🎯 MANEJO DE INPUTS DE FECHA
+            //  MANEJO DE INPUTS DE FECHA
             if (tipo === 'date') {
                 await elemento.fill('');
                 await elemento.fill('2024-12-31');
@@ -1711,7 +1685,176 @@ export class MVPHibrido {
         }
     }
 
-    // 🎯 NUEVO: Método específico para completar selects
+    //  MÉTODO FLEXIBLE: Subir archivo PDF de prueba
+    private async subirArchivoPrueba(elemento: any, info: any): Promise<string | null> {
+        try {
+            const etiqueta = info.etiqueta || '';
+            
+            //  NUEVO: Verificar si este campo de archivo está asociado con un botón "Subir Archivo" visible
+            const tieneBotonSubirArchivo = await this.verificarBotonSubirArchivoVisible(elemento);
+            if (!tieneBotonSubirArchivo) {
+                return 'sin_boton_subir_archivo';
+            }
+            
+            //  NUEVO: Verificar si ya subimos un archivo para este campo en esta sesión
+            const campoId = `${info.dataCodigo || info.name || info.id}`;
+            if (this.archivosSubidosEnSesion.has(campoId)) {
+                return 'archivo_ya_subido_en_sesion';
+            }
+            
+            //  NUEVO: Verificar si ya hay un archivo subido en la página
+            const yaTieneArchivo = await this.verificarArchivoYaSubido(elemento);
+            if (yaTieneArchivo) {
+                return 'archivo_ya_subido';
+            }
+            
+            // Buscar archivo PDF disponible
+            const rutaArchivo = await this.obtenerArchivoPrueba();
+            
+            if (!rutaArchivo) {
+                return 'archivo_no_encontrado';
+            }
+            
+            // Subir el archivo PDF
+            await elemento.setInputFiles(rutaArchivo);
+            await this.page!.waitForTimeout(1000);
+            
+            // Marcar como subido en esta sesión
+            this.archivosSubidosEnSesion.add(campoId);
+            
+            const nombreArchivo = path.basename(rutaArchivo);
+            console.log(`     ✅ Archivo PDF subido: ${nombreArchivo}`);
+            return `archivo_subido: ${nombreArchivo}`;
+            
+        } catch (error) {
+            return 'error_subida_archivo';
+        }
+    }
+
+    //  NUEVO: Verificar si el campo de archivo está asociado con un botón "Subir Archivo" visible
+    private async verificarBotonSubirArchivoVisible(elemento: any): Promise<boolean> {
+        try {
+            // Buscar el contenedor del campo de archivo
+            const contenedor = await elemento.evaluateHandle((el: Element) => {
+                return el.closest('div, fieldset, .form-group, .field, .input-group');
+            });
+            
+                                        if (contenedor) {
+                // Buscar botón "Subir Archivo" en el contenedor
+                const tieneBotonSubirArchivo = await contenedor.evaluate((container: Element) => {
+                    // Buscar botones o spans con texto "Subir Archivo"
+                    const botones = container.querySelectorAll('button, span, a, label');
+                    
+                    for (const boton of Array.from(botones)) {
+                        const texto = boton.textContent?.trim().toLowerCase() || '';
+                        if (texto.includes('subir archivo') || texto.includes('subir') || texto.includes('upload')) {
+                            // Verificar que el botón sea visible
+                            const rect = boton.getBoundingClientRect();
+                            const style = window.getComputedStyle(boton);
+                            
+                            const isVisible = style.display !== 'none' && 
+                                             style.visibility !== 'hidden' && 
+                                             style.opacity !== '0' &&
+                                             rect.width > 0 && 
+                                             rect.height > 0;
+                            
+                            if (isVisible) {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                                        return false;
+                });
+                
+                if (tieneBotonSubirArchivo) {
+                    return true;
+                }
+            }
+            
+            return false;
+            
+        } catch (error) {
+            return false;
+        }
+    }
+
+
+    //  NUEVO: Verificar si ya hay un archivo subido
+    private async verificarArchivoYaSubido(elemento: any): Promise<boolean> {
+        try {
+            // Buscar el contenedor del campo de archivo
+            const contenedor = await elemento.evaluateHandle((el: Element) => {
+                return el.closest('div, fieldset, .form-group, .field, .input-group');
+            });
+            
+            if (contenedor) {
+                // Buscar texto "Archivo adjunto:" en el contenedor
+                const tieneArchivoAdjunto = await contenedor.evaluate((container: Element) => {
+                    const texto = container.textContent?.toLowerCase() || '';
+                    return texto.includes('archivo adjunto:') || 
+                           texto.includes('archivo adjunto') ||
+                           texto.includes('documento_prueba.pdf') ||
+                           texto.includes('fecha subida:');
+                });
+                
+                if (tieneArchivoAdjunto) {
+                    return true;
+                }
+            }
+            
+            //  NUEVO: Verificar también en toda la página por si el texto está fuera del contenedor
+            const tieneArchivoEnPagina = await this.page!.evaluate(() => {
+                const textoCompleto = document.body.textContent?.toLowerCase() || '';
+                return textoCompleto.includes('archivo adjunto:') || 
+                       textoCompleto.includes('documento_prueba.pdf');
+            });
+            
+            if (tieneArchivoEnPagina) {
+                return true;
+            }
+            
+            return false;
+            
+        } catch (error) {
+            return false;
+        }
+    }
+
+    //  MÉTODO FLEXIBLE: Obtener archivo de prueba PDF
+    private async obtenerArchivoPrueba(): Promise<string | null> {
+        try {
+            const directorioArchivos = path.join(__dirname, '..', 'archivos_prueba');
+            
+            // Buscar archivos PDF disponibles
+            const archivosDisponibles = [
+                'documento_prueba.pdf',
+                'archivo_prueba.pdf', 
+                'test.pdf',
+                'prueba.pdf'
+            ];
+            
+            for (const archivo of archivosDisponibles) {
+                const rutaCompleta = path.join(directorioArchivos, archivo);
+                try {
+                    await fs.access(rutaCompleta);
+                    console.log(`     📄 Archivo PDF encontrado: ${archivo}`);
+                    return rutaCompleta;
+                } catch {
+                    // Continuar con el siguiente archivo
+                }
+            }
+            
+            console.log(`     ⚠️ No se encontró archivo PDF en ${directorioArchivos}`);
+            return null;
+            
+        } catch (error) {
+            console.log(`     ⚠️ Error buscando archivo PDF:`, (error as Error).message);
+            return null;
+        }
+    }
+
+    //  NUEVO: Método específico para completar selects
     private async completarSelectRobusto(elemento: any, info: any): Promise<string | null> {
         try {
             const opciones = info.opciones || [];
@@ -1726,7 +1869,7 @@ export class MVPHibrido {
                 return null;
             }
             
-            // 🎯 Filtrar opciones válidas (no placeholders)
+            //  Filtrar opciones válidas (no placeholders)
             const opcionesValidas = opciones.filter((opt: any) => 
                 opt.value && 
                 opt.value !== '' && 
@@ -1750,7 +1893,7 @@ export class MVPHibrido {
                 return null;
             }
             
-            // 🎯 Selección inteligente basada en contexto
+            //  Selección inteligente basada en contexto
             let opcionSeleccionada = null;
             const contextoCompleto = `${etiqueta} ${dataCodigo}`.toLowerCase();
             
@@ -1796,7 +1939,7 @@ export class MVPHibrido {
                 opcionSeleccionada = opcionesValidas[0];
             }
             
-            // 🎯 Seleccionar la opción
+            //  Seleccionar la opción
             if (esMultiple) {
                 // Para selects múltiples, seleccionar solo una opción
                 await elemento.selectOption(opcionSeleccionada.value);
@@ -1821,7 +1964,7 @@ export class MVPHibrido {
         const dataCodigo = (info.dataCodigo || '').toLowerCase();
         const placeholder = (info.placeholder || '').toLowerCase();
         
-        // 🎯 Mapeo inteligente basado en etiqueta y data-codigo
+        //  Mapeo inteligente basado en etiqueta y data-codigo
         const contextoCompleto = `${etiqueta} ${dataCodigo} ${placeholder}`.toLowerCase();
         
         // Detección por palabras clave específicas
@@ -1890,7 +2033,7 @@ export class MVPHibrido {
             return 'No';
         }
         
-        // 🎯 Mapeo por tipo de campo
+        //  Mapeo por tipo de campo
         switch (tipo) {
             case 'email': return CAMPOS_CORFO_MAPPING.EMAIL;
             case 'tel': return CAMPOS_CORFO_MAPPING.TELEFONO;
@@ -1937,7 +2080,7 @@ export class MVPHibrido {
 
         // 2) Intentar interfaz antigua via iframe en la página actual
         const frames = this.page!.frames();
-        const loginFrame = frames.find(frame => frame.url().includes('login.corfo.cl'));
+        const loginFrame = frames.find((frame: Frame) => frame.url().includes('login.corfo.cl'));
         if (loginFrame) {
             await loginFrame.waitForLoadState('networkidle');
             await this.page!.waitForTimeout(2000);
@@ -1979,7 +2122,7 @@ export class MVPHibrido {
                 }
 
                 const frames2 = this.page!.frames();
-                const loginFrame2 = frames2.find(frame => frame.url().includes('login.corfo.cl'));
+                const loginFrame2 = frames2.find((frame: Frame) => frame.url().includes('login.corfo.cl'));
                 if (loginFrame2) {
                     await loginFrame2.waitForLoadState('networkidle');
                     await loginFrame2.fill('#rut', process.env.CORFO_USER!);
@@ -2001,7 +2144,7 @@ export class MVPHibrido {
 
 
     private async navegarAURLEspecifica(url: string): Promise<void> {
-        console.log(`🎯 Navegando directamente a la URL: ${url}`);
+        console.log(` Navegando directamente a la URL: ${url}`);
         
         try {
             await this.page!.goto(url, {
@@ -2032,7 +2175,7 @@ export class MVPHibrido {
                     console.log('✅ Ya estamos en el formulario real');
                 }
             } else {
-                console.log('✅ Ya estamos en el formulario (no se encontró botón de inicio)');
+                console.log('✅ Ya estamos en el formulario');
             }
         } catch (error) {
             console.error(`❌ Error navegando a URL específica: ${error}`);
@@ -2107,7 +2250,7 @@ export class MVPHibrido {
     // Eliminado: ya no se eliminan postulaciones existentes
 
     private async navegarAlPrimerPasoReal(): Promise<void> {
-        console.log('🎯 Navegando al primer paso real del formulario...');
+        console.log(' Navegando al primer paso real del formulario...');
         
         await this.page!.waitForTimeout(3000); // Esperar que cargue completamente
         
@@ -2189,7 +2332,7 @@ export class MVPHibrido {
 
     private async obtenerTituloPaso(): Promise<string> {
         try {
-            const titulo = await this.page!.$eval('h1, h2, h3', el => el.textContent?.trim());
+            const titulo = await this.page!.$eval('h1, h2, h3', (el: Element) => el.textContent?.trim());
             return titulo || `Paso ${Date.now()}`;
         } catch {
             return `Paso ${Date.now()}`;
@@ -2197,7 +2340,7 @@ export class MVPHibrido {
     }
 
 
-    // 🆕 NUEVO: Reintentar autocompletado para campos faltantes - VERSIÓN AGRESIVA
+    //  NUEVO: Reintentar autocompletado para campos faltantes - VERSIÓN AGRESIVA
     private async reintentarAutocompletado(): Promise<void> {
         console.log('🔄 Reintentando autocompletado de campos faltantes...');
         
@@ -2210,7 +2353,7 @@ export class MVPHibrido {
                 campos.forEach(campo => {
                     const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
                     
-                    // 🎯 NUEVO: Verificar si el campo está realmente visible en el paso actual
+                    //  NUEVO: Verificar si el campo está realmente visible en el paso actual
                     const rect = element.getBoundingClientRect();
                     const style = window.getComputedStyle(element);
                     
@@ -2231,7 +2374,7 @@ export class MVPHibrido {
                                      element.classList.contains('invalid') ||
                                      element.getAttribute('aria-invalid') === 'true';
                     
-                    // 🎯 NUEVO: Solo incluir campos visibles en el paso actual que estén vacíos o con error
+                    //  NUEVO: Solo incluir campos visibles en el paso actual que estén vacíos o con error
                     if ((estaVacio || tieneError) && isVisible && isInViewport) {
                         // Buscar etiqueta
                         let etiqueta = '';
@@ -2266,7 +2409,7 @@ export class MVPHibrido {
                             }
                         }
                         
-                        // 🎯 NUEVO: Usar selector CSS válido para IDs numéricos
+                        //  NUEVO: Usar selector CSS válido para IDs numéricos
                         const selector = element.id ? `[id="${element.id}"]` : `[name="${element.name}"]`;
                         
                         faltantes.push({
@@ -2299,7 +2442,7 @@ export class MVPHibrido {
                             if (campo.tipo === 'select') {
                                 await elemento.selectOption({ index: 1 });
                             } else if (campo.tipo === 'input') {
-                                const tipoInput = await elemento.evaluate(el => (el as HTMLInputElement).type);
+                                const tipoInput = await elemento.evaluate((el: Element) => (el as HTMLInputElement).type);
                                 if (tipoInput === 'checkbox' || tipoInput === 'radio') {
                                     await elemento.check();
                                 } else {
@@ -2458,16 +2601,8 @@ export class MVPHibrido {
     }
 }
 
-
-
-
-
-
-
-
-
 export async function ejecutarMVPHibrido(configuracionNombre: string = 'demo'): Promise<ResultadoMVP> {
-    console.log('🎯 INICIANDO MVP HÍBRIDO CORFO');
+    console.log(' INICIANDO MVP HÍBRIDO CORFO');
     console.log('============================');
     
     const configuracion = obtenerConfiguracion(configuracionNombre as any);
@@ -2481,7 +2616,7 @@ export async function ejecutarMVPHibrido(configuracionNombre: string = 'demo'): 
     console.log(`📊 Pasos completados: ${resultado.estadisticas.totalPasos}`);
     console.log(`📝 Campos encontrados: ${resultado.estadisticas.totalCampos}`);
     console.log(`✅ Campos completados: ${resultado.estadisticas.camposCompletados}`);
-    console.log(`🎯 Porcentaje de éxito: ${resultado.estadisticas.porcentajeExito}%`);
+    console.log(` Porcentaje de éxito: ${resultado.estadisticas.porcentajeExito}%`);
     console.log(`⚡ Velocidad: ${resultado.estadisticas.velocidadCamposPorSegundo} campos/segundo`);
     
     if (resultado.errores && resultado.errores.length > 0) {

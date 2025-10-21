@@ -95,19 +95,6 @@ export interface ValidationProcessResult {
   tiempoEjecucion: number
 }
 
-// Interfaz para logs del sistema
-export interface SystemLog {
-  id: string
-  accion: string
-  descripcion: string
-  fecha: string
-  usuario: string
-  concurso?: string
-  ip: string
-  host: string
-  nivel: 'info' | 'warn' | 'error'
-}
-
 // Interfaz para logs específicos del proceso
 export interface ProcessLog {
   id: string
