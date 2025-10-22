@@ -176,6 +176,29 @@ export class DetectorEstructura {
             const textoCompleto = document.body.textContent?.toLowerCase() || '';
             const url = window.location.href.toLowerCase();
             
+            // CRITERIO MUY ESTRICTO: Solo es confirmación si tiene contadores Y no tiene campos de entrada
+            const tieneInputsActivos = document.querySelectorAll('input:not([type="hidden"]), select, textarea').length;
+            
+            // Si hay inputs activos, NO puede ser página de confirmación
+            if (tieneInputsActivos > 0) {
+                return false;
+            }
+            
+            // Verificar contadores específicos
+            const tieneContadoresCampos = textoCompleto.includes('campos obligatorios correctos') && 
+                                        textoCompleto.includes('campos obligatorios incorrectos');
+            
+            // Si no tiene contadores, NO es confirmación
+            if (!tieneContadoresCampos) {
+                return false;
+            }
+            
+            // Verificar que NO estamos en un formulario de pasos
+            const tieneDesplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]').length;
+            if (tieneDesplegables > 0) {
+                return false; // Si hay desplegables, es un formulario de pasos, no confirmación
+            }
+
             // Indicadores MUY específicos y más restrictivos
             const indicadoresConfirmacion = [
                 'resumen y confirmación', 
@@ -190,45 +213,6 @@ export class DetectorEstructura {
                                     url.includes('verification') ||
                                     url.includes('final') ||
                                     url.includes('review');
-
-            // Verificar contadores específicos PERO solo si no estamos en un formulario normal
-            const tieneContadoresCampos = textoCompleto.includes('campos obligatorios correctos') && 
-                                        textoCompleto.includes('campos obligatorios incorrectos');
-            
-            // CRITERIO MUY ESTRICTO: Solo es confirmación si tiene contadores Y no tiene campos de entrada
-            const tieneInputsActivos = document.querySelectorAll('input:not([type="hidden"]), select, textarea').length > 20;
-            
-            // Si hay muchos inputs activos, NO puede ser página de confirmación
-            if (tieneInputsActivos) {
-                return false;
-            }
-            
-            // Verificar que NO estamos en un formulario de pasos
-            const tieneDesplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]').length > 5;
-            if (tieneDesplegables) {
-                return false; // Si hay muchos desplegables, es un formulario de pasos, no confirmación
-            }
-
-            //  NUEVO: Verificar que NO estamos en un paso de introducción
-            const esPasoIntroduccion = textoCompleto.includes('introducción') || 
-                                     textoCompleto.includes('guía de postulación') ||
-                                     textoCompleto.includes('acepta condiciones') ||
-                                     textoCompleto.includes('autoriza notificaciones') ||
-                                     textoCompleto.includes('documentos de la convocatoria') ||
-                                     textoCompleto.includes('recomendaciones generales');
-            
-            if (esPasoIntroduccion) {
-                return false;
-            }
-            
-            //  NUEVO: Verificar que NO estamos en el primer paso con radio buttons típicos de introducción
-            const tieneRadioButtons = document.querySelectorAll('input[type="radio"]').length > 0;
-            const tieneTextoSiNo = textoCompleto.includes('sí') || textoCompleto.includes('no');
-            const esPrimerPasoConRadios = tieneRadioButtons && tieneTextoSiNo;
-            
-            if (esPrimerPasoConRadios) {
-                return false;
-            }
 
             // Verificar si hay botones de envío final
             const botonesEnvio = document.querySelectorAll('button, input[type="submit"], input[type="button"]');
@@ -247,7 +231,7 @@ export class DetectorEstructura {
                 textoCompleto.includes(indicador)
             );
 
-            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && !tieneInputsActivos && tieneBotonEnvio);
+            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && tieneInputsActivos === 0 && tieneBotonEnvio);
         });
     }
 
@@ -285,32 +269,47 @@ export class DetectorEstructura {
             const url = window.location.href;
             const textoCompleto = document.body.textContent?.toLowerCase() || '';
             
-            // Verificar URL
+            // Verificar URL - PRINCIPAL INDICADOR
             const urlEsBorradores = url.includes('Borradores') || 
                                   url.includes('borradores') ||
                                   url.includes('PostuladorBorradores');
             
-            // Verificar texto específico
-            const tieneTextoBorradores = textoCompleto.includes('borradores de postulación') ||
-                                       textoCompleto.includes('nueva postulación') ||
-                                       textoCompleto.includes('nueva postulacion');
+            // Si la URL indica borradores, es definitivamente página de borradores
+            if (urlEsBorradores) {
+                return true;
+            }
             
-            // Verificar botón "Nueva Postulación"
+            // Si la URL indica que estamos en el formulario real, NO es borradores
+            if (url.includes('Postulador.aspx') && !url.includes('Borradores')) {
+                return false;
+            }
+            
+            // Verificar texto específico de borradores (más restrictivo)
+            const tieneTextoBorradores = textoCompleto.includes('borradores de postulación') ||
+                                       textoCompleto.includes('mis borradores') ||
+                                       textoCompleto.includes('postulaciones guardadas');
+            
+            // Verificar botón "Nueva Postulación" - solo si está claramente en contexto de borradores
             const botonesNuevaPostulacion = document.querySelectorAll('button, a, input[type="button"], input[type="submit"]');
             const tieneBotonNuevaPostulacion = Array.from(botonesNuevaPostulacion).some(boton => {
                 const texto = boton.textContent?.toLowerCase() || '';
                 const value = (boton as HTMLInputElement).value?.toLowerCase() || '';
-                return texto.includes('nueva postulación') || texto.includes('nueva postulacion') ||
-                       value.includes('nueva postulación') || value.includes('nueva postulacion');
+                return (texto.includes('nueva postulación') || texto.includes('nueva postulacion') ||
+                       value.includes('nueva postulación') || value.includes('nueva postulacion')) &&
+                       // Solo considerar si hay contexto de borradores
+                       (textoCompleto.includes('borradores') || textoCompleto.includes('guardadas'));
             });
             
-            // Verificar tabla de borradores
+            // Verificar tabla de borradores con indicadores más específicos
             const tieneTablaBorradores = !!document.querySelector('table') && 
                                        (textoCompleto.includes('identificador') || 
                                         textoCompleto.includes('fecha inicio') ||
-                                        textoCompleto.includes('estado'));
+                                        textoCompleto.includes('estado')) &&
+                                       (textoCompleto.includes('borradores') || 
+                                        textoCompleto.includes('guardadas') ||
+                                        textoCompleto.includes('postulaciones'));
             
-            return urlEsBorradores || tieneTextoBorradores || tieneBotonNuevaPostulacion || tieneTablaBorradores;
+            return tieneTextoBorradores || tieneBotonNuevaPostulacion || tieneTablaBorradores;
         });
     }
 
@@ -648,7 +647,13 @@ export class MVPHibrido {
         // Asegurar que estemos en la URL objetivo autenticados (si la navegación de login nos movió)
         if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
             console.log(` Reafirmando URL objetivo autenticado: ${this.formUrl}`);
-            await this.navegarAURLEspecifica(this.formUrl);
+            // Solo navegar si realmente no estamos en la URL objetivo
+            const urlActual = this.page!.url();
+            if (!urlActual.includes('Postulador.aspx') || urlActual.includes('Borradores')) {
+                await this.navegarAURLEspecifica(this.formUrl);
+            } else {
+                console.log('✅ Ya estamos en el formulario real, no es necesario navegar nuevamente');
+            }
         }
         
         // Esperar estado estable antes de leer título/URL para evitar "Execution context was destroyed"
@@ -685,24 +690,59 @@ export class MVPHibrido {
         }
     }
 
+    private async activarContenidoDinamico(): Promise<void> {
+        console.log('⏳ Activando contenido dinámico...');
+        
+        // Hacer scroll para activar contenido dinámico
+        await this.page!.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+        });
+        await this.page!.waitForTimeout(1000);
+        
+        await this.page!.evaluate(() => {
+            window.scrollTo(0, 0);
+        });
+        await this.page!.waitForTimeout(1000);
+        
+        // Verificar si hay campos disponibles
+        const camposDisponibles = await this.page!.evaluate(() => {
+            const inputs = document.querySelectorAll('input:not([type="hidden"]), select, textarea');
+            const desplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
+            return {
+                inputs: inputs.length,
+                desplegables: desplegables.length
+            };
+        });
+        
+        // Si no hay campos, esperar un poco más
+        if (camposDisponibles.inputs === 0 && camposDisponibles.desplegables === 0) {
+            console.log('⏳ Esperando carga de campos...');
+            await this.page!.waitForTimeout(3000);
+        }
+    }
+
     private async procesarFormularioHibrido(): Promise<void> {
         console.log('🔄 Iniciando procesamiento híbrido...');
         
-        //  VERIFICAR PRIMERO SI ESTAMOS EN BORRADORES
+        // Verificar si estamos en borradores o en el formulario real
         const detector = new DetectorEstructura(this.page!);
         const esBorradores = await detector.esPaginaBorradores();
         
         if (esBorradores) {
             console.log('📁 PÁGINA DE BORRADORES DETECTADA - Navegando al formulario real...');
-            console.log(`   🔗 URL actual: ${this.page!.url()}`);
-            
             await this.navegarDeBorradoresAFormulario();
-            
-            console.log(`   🔗 URL después de navegar: ${this.page!.url()}`);
+        } else {
+            console.log('✅ Ya estamos en el formulario real');
+            // Espera adicional cuando no hay borradores para que se carguen los campos dinámicos
+            console.log('⏳ Esperando carga de campos dinámicos...');
+            await this.page!.waitForTimeout(6000);
         }
         
-        //  AHORA SÍ DETECTAR ESTRUCTURA EN EL FORMULARIO REAL
-        console.log('🔍 DETECTANDO ESTRUCTURA DEL FORMULARIO REAL...');
+        // Esperar carga completa y activar contenido dinámico
+        await this.page!.waitForLoadState('networkidle').catch(() => {});
+        await this.activarContenidoDinamico();
+        
+        // Detectar estructura del formulario
         let estructura = await detector.detectarEstructuraCompleta();
         
         // Adaptar el MVP basado en la estructura detectada
@@ -711,52 +751,27 @@ export class MVPHibrido {
         const tiempoLimitePorPaso = 3 * 60 * 1000; // 3 minutos máximo por paso
         const TOTAL_PASOS_ESPERADOS = estructura.totalPasos;
 
-        console.log(` ADAPTACIÓN AUTOMÁTICA:`);
-        console.log(`   📊 Total pasos detectados: ${TOTAL_PASOS_ESPERADOS}`);
-        console.log(`   📍 Iniciando desde paso: ${pasoActual}`);
-        console.log(`   🔧 Método detección: ${estructura.tipoDeteccion}`);
-        console.log(`   ✅ Es confirmación: ${estructura.esPaginaConfirmacion}`);
-        console.log(`   📋 Es borradores: ${estructura.esPaginaBorradores}`);
-        console.log(`   📂 Desplegables detectados: ${estructura.desplegables?.length || 0}`);
+        console.log(`📊 ESTRUCTURA DETECTADA: ${TOTAL_PASOS_ESPERADOS} pasos, método: ${estructura.tipoDeteccion}`);
         
-        // Debugging adicional para entender la detección
         if (estructura.esPaginaConfirmacion) {
-            console.log(`⚠️ INVESTIGANDO DETECCIÓN DE CONFIRMACIÓN...`);
-            const textoCompleto = await this.page!.evaluate(() => 
-                document.body.textContent?.toLowerCase().substring(0, 800) || ''
-            );
-            console.log(`   📄 Texto de la página (primeros 800 chars): "${textoCompleto}"`);
-            console.log(`   🔗 URL completa: ${this.page!.url()}`);
-        }
-
-        if (estructura.esPaginaConfirmacion) {
-            // Verificación adicional: si hay muchos desplegables, NO es confirmación
-            if (estructura.desplegables && estructura.desplegables.length > 10) {
-                console.log('⚠️ CORRECCIÓN: Muchos desplegables detectados, NO es página de confirmación');
-                estructura.esPaginaConfirmacion = false;
-            } else {
-                console.log(' PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
-                console.log(`   🔗 URL: ${this.page!.url()}`);
-                console.log(`   📊 Desplegables: ${estructura.desplegables?.length || 0}`);
-                console.log(`   📝 Total pasos: ${estructura.totalPasos}`);
-                const detallesConfirmacion = await this.procesarPasoConfirmacion();
+            console.log('📋 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
+            const detallesConfirmacion = await this.procesarPasoConfirmacion();
+        
+            // Agregar paso de confirmación a los resultados
+            const pasoConfirmacion: PasoMVP = {
+                numero: 1,
+                titulo: 'Confirmación Final',
+                url: this.page!.url(),
+                camposEncontrados: detallesConfirmacion.length,
+                camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
+                tiempoTranscurrido: 0,
+                exito: true,
+                detalles: detallesConfirmacion
+            };
             
-                // Agregar paso de confirmación a los resultados
-                const pasoConfirmacion: PasoMVP = {
-                    numero: 1,
-                    titulo: 'Confirmación Final',
-                    url: this.page!.url(),
-                    camposEncontrados: detallesConfirmacion.length,
-                    camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
-                    tiempoTranscurrido: 0,
-                    exito: true,
-                    detalles: detallesConfirmacion
-                };
-                
-                this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
-                this.resultado.pasosCompletados.push(pasoConfirmacion);
-                return; // No hay más pasos después de confirmación
-            }
+            this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
+            this.resultado.pasosCompletados.push(pasoConfirmacion);
+            return; // No hay más pasos después de confirmación
         }
 
         // Solo procesar pasos si NO estamos en confirmación ni borradores
@@ -769,7 +784,7 @@ export class MVPHibrido {
                 console.log('-'.repeat(40));
 
             try {
-                //  NUEVO: Expandir secciones automáticamente antes de procesar
+                // Expandir secciones automáticamente antes de procesar
                 await this.expandirSeccionesAutomaticamente();
                 
                 const paso = await this.procesarPasoActual(pasoActual, tiempoInicioPaso);
@@ -2167,6 +2182,13 @@ export class MVPHibrido {
         console.log(` Navegando directamente a la URL: ${url}`);
         
         try {
+            // Verificar si ya estamos en la URL objetivo
+            const urlActual = this.page!.url();
+            if (urlActual === url || (urlActual.includes('Postulador.aspx') && !urlActual.includes('Borradores'))) {
+                console.log('✅ Ya estamos en la URL objetivo o en el formulario real');
+                return;
+            }
+            
             await this.page!.goto(url, {
                 waitUntil: 'domcontentloaded',
                 timeout: 30000
@@ -2185,10 +2207,10 @@ export class MVPHibrido {
                 await this.page!.waitForTimeout(5000);
                 
                 // Verificar si estamos en la página de borradores
-                const urlActual = this.page!.url();
-                console.log(`📍 URL después del clic: ${urlActual}`);
+                const urlDespuesClic = this.page!.url();
+                console.log(`📍 URL después del clic: ${urlDespuesClic}`);
                 
-                if (urlActual.includes('PostuladorBorradores.aspx')) {
+                if (urlDespuesClic.includes('PostuladorBorradores.aspx')) {
                     console.log('📋 Estamos en página de borradores, navegando al formulario real...');
                     await this.navegarDeBorradoresAFormulario();
                 } else {
