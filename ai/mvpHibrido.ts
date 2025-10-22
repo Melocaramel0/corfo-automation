@@ -410,8 +410,6 @@ export class DetectorEstructura {
         }
     }
 
-
-
     //  NUEVO: Validar completitud del paso actual
     async validarCompletitudPaso(): Promise<boolean> {
         console.log('✅ Validando completitud del paso actual...');
@@ -478,7 +476,7 @@ export class DetectorEstructura {
 /**
  * MVP HÍBRIDO: Análisis + Autocompletado en Una Sola Ejecución
  * 
- * Objetivo: Completar formularios CORFO en 15-20 minutos (vs 60+ del análisis profundo)
+ * Objetivo: Completar formularios CORFO en 15-20 minutos 
  * Estrategia: Extracción + Completado simultáneo de campos
  * Seguridad: NO envía formularios (solo testing)
  */
@@ -489,8 +487,9 @@ export interface ResultadoMVP {
     mensaje: string;
     tiempoEjecucion: number;
     estadisticas: EstadisticasMVP;
-    pasos: any[];
     titulo?: string;
+    tituloProyecto?: string;
+    codigoProyecto?: string;
     urlInicial?: string;
     fechaEjecucion?: string;
     tiempoTotal?: number;
@@ -553,8 +552,9 @@ export class MVPHibrido {
                 velocidadCamposPorSegundo: 0,
                 tiempoPromedioPorPaso: 0
             },
-            pasos: [],
             titulo: '',
+            tituloProyecto: '',
+            codigoProyecto: '',
             urlInicial: '',
             fechaEjecucion: new Date().toISOString(),
             tiempoTotal: 0,
@@ -654,12 +654,35 @@ export class MVPHibrido {
         // Esperar estado estable antes de leer título/URL para evitar "Execution context was destroyed"
         await this.page!.waitForLoadState('domcontentloaded').catch(() => {});
         await this.page!.waitForLoadState('networkidle').catch(() => {});
-
-        this.resultado.urlInicial = this.page?.url() || '';
-        this.resultado.titulo = await this.page?.title() || '';
         
-        console.log(`📋 Formulario accedido: ${this.resultado.titulo}`);
-        console.log(`🔗 URL: ${this.resultado.urlInicial}`);
+        // NO capturar título y URL aquí, se hará después de navegar al formulario real
+    }
+
+    private async extraerInformacionProyecto(): Promise<void> {
+        try {
+            console.log('🔍 Extrayendo información del proyecto...');
+            
+            const informacion = await this.page!.evaluate(() => {
+                const tituloElement = document.getElementById('Titulo');
+                const codigoElement = document.getElementById('SubTitulo');
+                
+                return {
+                    tituloProyecto: tituloElement ? tituloElement.textContent?.trim() || '' : '',
+                    codigoProyecto: codigoElement ? codigoElement.textContent?.trim() || '' : ''
+                };
+            });
+            
+            this.resultado.tituloProyecto = informacion.tituloProyecto;
+            this.resultado.codigoProyecto = informacion.codigoProyecto;
+            
+            console.log(`📝 Título del proyecto: ${this.resultado.tituloProyecto}`);
+            console.log(`🔢 Código del proyecto: ${this.resultado.codigoProyecto}`);
+            
+        } catch (error) {
+            console.warn('⚠️ No se pudo extraer la información del proyecto:', error);
+            this.resultado.tituloProyecto = 'No disponible';
+            this.resultado.codigoProyecto = 'No disponible';
+        }
     }
 
     private async procesarFormularioHibrido(): Promise<void> {
@@ -940,7 +963,7 @@ export class MVPHibrido {
     private async extraerYCompletarCampos(): Promise<DetallePasoMVP[]> {
         const detalles: DetallePasoMVP[] = [];
         
-        console.log(`   🔍 INICIANDO EXTRACCIÓN MEJORADA DE CAMPOS...`);
+        console.log(`   🔍 INICIANDO EXTRACCIÓN  DE CAMPOS...`);
         
         //  PASO 1: Procesar desplegables primero (campos ocultos)
         console.log(`   📂 Procesando desplegables y campos ocultos...`);
@@ -1118,9 +1141,6 @@ export class MVPHibrido {
             return [];
         }
     }
-
-    
-
 
     //  NUEVO: Método para esperar y capturar campos dinámicos
     private async esperarYCapturarCamposDinamicos(): Promise<void> {
@@ -2573,6 +2593,10 @@ export class MVPHibrido {
         const pasosCompletados = this.resultado.pasosCompletados || [];
         const tiempoTotal = this.resultado.tiempoTotal || 0;
         
+        // Sincronizar tiempoEjecucion con tiempoTotal
+        this.resultado.tiempoEjecucion = tiempoTotal;
+        
+        // Calcular estadísticas basadas en pasosCompletados
         this.resultado.estadisticas.totalPasos = pasosCompletados.length;
         this.resultado.estadisticas.totalCampos = pasosCompletados.reduce(
             (total, paso) => total + paso.camposEncontrados, 0
@@ -2584,7 +2608,7 @@ export class MVPHibrido {
             ? Math.round((this.resultado.estadisticas.camposCompletados / this.resultado.estadisticas.totalCampos) * 100)
             : 0;
         this.resultado.estadisticas.velocidadCamposPorSegundo = tiempoTotal > 0
-            ? Number((this.resultado.estadisticas.totalCampos / (tiempoTotal / 1000)).toFixed(2))
+            ? Number((this.resultado.estadisticas.camposCompletados / (tiempoTotal / 1000)).toFixed(2))
             : 0;
         this.resultado.estadisticas.tiempoPromedioPorPaso = this.resultado.estadisticas.totalPasos > 0
             ? Math.round(tiempoTotal / this.resultado.estadisticas.totalPasos)
