@@ -484,14 +484,13 @@ export class DetectorEstructura {
 export interface ResultadoMVP {
     exito: boolean;
     mensaje: string;
-    tiempoEjecucion: number;
     estadisticas: EstadisticasMVP;
     titulo?: string;
     tituloProyecto?: string;
     codigoProyecto?: string;
     urlInicial?: string;
     fechaEjecucion?: string;
-    tiempoTotal?: number;
+    tiempoTotal: number;
     pasosCompletados?: PasoMVP[];
     errores?: string[];
 }
@@ -499,7 +498,6 @@ export interface ResultadoMVP {
 export interface PasoMVP {
     numero: number;
     titulo: string;
-    url: string;
     camposEncontrados: number;
     camposCompletados: number;
     tiempoTranscurrido: number;
@@ -542,7 +540,6 @@ export class MVPHibrido {
         this.resultado = {
             exito: false,
             mensaje: '',
-            tiempoEjecucion: 0,
             estadisticas: {
                 totalPasos: 0,
                 totalCampos: 0,
@@ -577,7 +574,6 @@ export class MVPHibrido {
             await this.inicializar();
             await this.loginYNavegacion();
             await this.procesarFormularioHibrido();
-            await this.finalizar();
 
             this.resultado.exito = true;
             console.log('✅ MVP HÍBRIDO COMPLETADO EXITOSAMENTE');
@@ -590,8 +586,12 @@ export class MVPHibrido {
             await this.limpiarRecursos();
         }
 
-        this.resultado.tiempoTotal = Date.now() - this.tiempoInicio;
+        // Calcular estadísticas y tiempo total ANTES de finalizar
+        this.resultado.tiempoTotal = Math.round((Date.now() - this.tiempoInicio) / 1000); // Convertir a segundos
         this.calcularEstadisticas();
+        
+        // Generar reporte final con estadísticas correctas
+        await this.finalizar();
 
         return this.resultado;
     }
@@ -738,6 +738,16 @@ export class MVPHibrido {
             await this.page!.waitForTimeout(6000);
         }
         
+        // Capturar título y URL del formulario real (no de borradores)
+        this.resultado.urlInicial = this.page?.url() || '';
+        this.resultado.titulo = await this.page?.title() || '';
+        
+        console.log(`📋 Formulario accedido: ${this.resultado.titulo}`);
+        console.log(`🔗 URL: ${this.resultado.urlInicial}`);
+        
+        // Extraer información específica del proyecto
+        await this.extraerInformacionProyecto();
+        
         // Esperar carga completa y activar contenido dinámico
         await this.page!.waitForLoadState('networkidle').catch(() => {});
         await this.activarContenidoDinamico();
@@ -761,10 +771,9 @@ export class MVPHibrido {
             const pasoConfirmacion: PasoMVP = {
                 numero: 1,
                 titulo: 'Confirmación Final',
-                url: this.page!.url(),
                 camposEncontrados: detallesConfirmacion.length,
                 camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
-                tiempoTranscurrido: 0,
+                tiempoTranscurrido: 0, // Confirmación es instantánea
                 exito: true,
                 detalles: detallesConfirmacion
             };
@@ -828,7 +837,6 @@ export class MVPHibrido {
 
     private async procesarPasoActual(numeroPaso: number, tiempoInicio: number): Promise<PasoMVP> {
         const titulo = await this.obtenerTituloPaso();
-        const url = this.page!.url();
 
         console.log(`📝 Paso ${numeroPaso}: "${titulo}"`);
 
@@ -847,12 +855,11 @@ export class MVPHibrido {
             campos = await this.extraerYCompletarCampos();
         }
 
-        const tiempoTranscurrido = Date.now() - tiempoInicio;
+        const tiempoTranscurrido = Math.round((Date.now() - tiempoInicio) / 1000); // Convertir a segundos
 
         const paso: PasoMVP = {
             numero: numeroPaso,
             titulo: titulo,
-            url: url,
             camposEncontrados: campos.length,
             camposCompletados: campos.filter(c => c.completado).length,
             tiempoTranscurrido: tiempoTranscurrido,
@@ -862,7 +869,7 @@ export class MVPHibrido {
 
         console.log(`   📊 Campos encontrados: ${campos.length}`);
         console.log(`   ✅ Campos completados: ${campos.filter(c => c.completado).length}`);
-        console.log(`   ⏱️ Tiempo: ${(tiempoTranscurrido / 1000).toFixed(1)}s`);
+        console.log(`   ⏱️ Tiempo: ${tiempoTranscurrido}s`);
 
         if (esConfirmacion) {
             console.log('🎉 VERIFICACIÓN FINAL COMPLETADA');
@@ -2613,12 +2620,9 @@ export class MVPHibrido {
 
     private calcularEstadisticas(): void {
         const pasosCompletados = this.resultado.pasosCompletados || [];
-        const tiempoTotal = this.resultado.tiempoTotal || 0;
+        const tiempoTotal = this.resultado.tiempoTotal;
         
-        // Sincronizar tiempoEjecucion con tiempoTotal
-        this.resultado.tiempoEjecucion = tiempoTotal;
-        
-        // Calcular estadísticas basadas en pasosCompletados
+        // Calcular estadísticas basadas en pasosCompletados reales
         this.resultado.estadisticas.totalPasos = pasosCompletados.length;
         this.resultado.estadisticas.totalCampos = pasosCompletados.reduce(
             (total, paso) => total + paso.camposEncontrados, 0
@@ -2626,12 +2630,18 @@ export class MVPHibrido {
         this.resultado.estadisticas.camposCompletados = pasosCompletados.reduce(
             (total, paso) => total + paso.camposCompletados, 0
         );
+        
+        // Calcular porcentaje de éxito basado en campos completados vs encontrados
         this.resultado.estadisticas.porcentajeExito = this.resultado.estadisticas.totalCampos > 0 
             ? Math.round((this.resultado.estadisticas.camposCompletados / this.resultado.estadisticas.totalCampos) * 100)
             : 0;
+        
+        // Calcular velocidad basada en campos completados (tiempoTotal ya está en segundos)
         this.resultado.estadisticas.velocidadCamposPorSegundo = tiempoTotal > 0
-            ? Number((this.resultado.estadisticas.camposCompletados / (tiempoTotal / 1000)).toFixed(2))
+            ? Number((this.resultado.estadisticas.camposCompletados / tiempoTotal).toFixed(2))
             : 0;
+        
+        // Calcular tiempo promedio por paso (ya está en segundos)
         this.resultado.estadisticas.tiempoPromedioPorPaso = this.resultado.estadisticas.totalPasos > 0
             ? Math.round(tiempoTotal / this.resultado.estadisticas.totalPasos)
             : 0;
@@ -2658,7 +2668,7 @@ export async function ejecutarMVPHibrido(configuracionNombre: string = 'demo'): 
     
     console.log('\n📈 RESUMEN FINAL MVP HÍBRIDO');
     console.log('===============================');
-    console.log(`⏱️ Tiempo total: ${((resultado.tiempoTotal || resultado.tiempoEjecucion * 1000) / 1000 / 60).toFixed(1)} minutos`);
+    console.log(`⏱️ Tiempo total: ${resultado.tiempoTotal} segundos (${(resultado.tiempoTotal / 60).toFixed(1)} minutos)`);
     console.log(`📊 Pasos completados: ${resultado.estadisticas.totalPasos}`);
     console.log(`📝 Campos encontrados: ${resultado.estadisticas.totalCampos}`);
     console.log(`✅ Campos completados: ${resultado.estadisticas.camposCompletados}`);
