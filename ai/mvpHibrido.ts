@@ -1438,6 +1438,9 @@ export class MVPHibrido {
                 const dataTipoControl = el.getAttribute('data-tipo-control') || '';
                 const dataAdjuntoId = el.getAttribute('data-adjuntoid') || '';
                 
+                //  NUEVO: Atributo para detectar campos numéricos con inputmask
+                const dataInputmask = el.getAttribute('data-inputmask') || '';
+                
                 //  NUEVO: Detectar campos de email basándose en contexto (solo para inputs de texto)
                 if (type === 'text' || type === 'input') {
                     const contextoCompleto = `${id} ${name} ${placeholder} ${dataCodigo} ${dataOriginalTitle} ${title}`.toLowerCase();
@@ -1446,6 +1449,11 @@ export class MVPHibrido {
                         contextoCompleto.includes('electronico')) {
                         type = 'email';
                     }
+                }
+                
+                //  NUEVO: Detectar campos numéricos con inputmask integer
+                if (type === 'text' && dataInputmask && dataInputmask.includes('integer')) {
+                    type = 'number';
                 }
 
                 // Verificar si el elemento está realmente disponible
@@ -1628,6 +1636,8 @@ export class MVPHibrido {
                     dataTamanoMaximo: dataTamanoMaximo,
                     dataTipoControl: dataTipoControl,
                     dataAdjuntoId: dataAdjuntoId,
+                    //  NUEVO: Atributo para detectar campos numéricos con inputmask
+                    dataInputmask: dataInputmask,
                     opciones: opciones,
                     esMultiple: el.multiple || false,
                     debug: {
@@ -2005,6 +2015,7 @@ export class MVPHibrido {
         const tipo = info.tipo.toLowerCase();
         const dataCodigo = (info.dataCodigo || '').toLowerCase();
         const placeholder = (info.placeholder || '').toLowerCase();
+        const dataInputmask = (info.dataInputmask || '').toLowerCase();
         
         //  Mapeo inteligente basado en etiqueta y data-codigo
         const contextoCompleto = `${etiqueta} ${dataCodigo} ${placeholder}`.toLowerCase();
@@ -2073,6 +2084,11 @@ export class MVPHibrido {
             return 'No aplica';
         } else if (contextoCompleto.includes('pueblo originario')) {
             return 'No';
+        }
+        
+        //  NUEVO: Detectar campos numéricos con inputmask integer
+        if (dataInputmask && dataInputmask.includes('integer')) {
+            return '50000000'; // Valor numérico para campos con inputmask integer
         }
         
         //  Mapeo por tipo de campo
