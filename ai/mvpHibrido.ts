@@ -1662,6 +1662,20 @@ export class MVPHibrido {
             const opciones = info.opciones || [];
             const esMultiple = info.esMultiple || false;
 
+            //  VERIFICAR SI EL CAMPO ES EDITABLE (NO READONLY/DISABLED)
+            const esEditable = await elemento.evaluate((el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => {
+                // Verificar atributos readonly y disabled
+                const tieneReadonly = el.hasAttribute('readonly') || ('readOnly' in el && (el as HTMLInputElement | HTMLTextAreaElement).readOnly === true);
+                const tieneDisabled = el.hasAttribute('disabled') || el.disabled === true;
+                
+                return !tieneReadonly && !tieneDisabled;
+            });
+
+            if (!esEditable) {
+                console.log(`     ⏭️ Campo omitido (readonly/disabled): "${etiqueta}"`);
+                return null;
+            }
+
             //  MANEJO ESPECÍFICO DE SELECTS
             if (tipo === 'select') {
                 return await this.completarSelectRobusto(elemento, info);
