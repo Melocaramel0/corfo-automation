@@ -176,11 +176,18 @@ export class DetectorEstructura {
             const textoCompleto = document.body.textContent?.toLowerCase() || '';
             const url = window.location.href.toLowerCase();
             
-            // CRITERIO MUY ESTRICTO: Solo es confirmación si tiene contadores Y no tiene campos de entrada
-            const tieneInputsActivos = document.querySelectorAll('input:not([type="hidden"]), select, textarea').length;
+            // 🔴 MEJORA: Contar solo campos EDITABLES (no readonly, no disabled)
+            const camposEditables = Array.from(document.querySelectorAll('input:not([type="hidden"]), select, textarea')).filter(campo => {
+                const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                // Select no tiene readOnly, solo verificar disabled
+                const isReadOnly = (element as HTMLInputElement | HTMLTextAreaElement).readOnly || element.hasAttribute('readonly');
+                return !isReadOnly && !element.disabled;
+            });
             
-            // Si hay inputs activos, NO puede ser página de confirmación
-            if (tieneInputsActivos > 0) {
+            const tieneInputsEditables = camposEditables.length;
+            
+            // Si hay inputs editables, NO puede ser página de confirmación
+            if (tieneInputsEditables > 0) {
                 return false;
             }
             
@@ -226,12 +233,12 @@ export class DetectorEstructura {
             // Solo considerar confirmación si:
             // 1. URL específica de confirmación O
             // 2. Tiene texto específico de confirmación O
-            // 3. Tiene contadores Y no tiene inputs activos Y tiene botón de envío
+            // 3. Tiene contadores Y no tiene inputs editables Y tiene botón de envío
             const tieneTextoConfirmacion = indicadoresConfirmacion.some(indicador => 
                 textoCompleto.includes(indicador)
             );
 
-            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && tieneInputsActivos === 0 && tieneBotonEnvio);
+            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && tieneInputsEditables === 0 && tieneBotonEnvio);
         });
     }
 
@@ -514,6 +521,23 @@ export interface DetallePasoMVP {
     razonFallo?: string;
 }
 
+/**
+ * Interfaz para el resultado del manejo de modal de confirmación
+ */
+export interface ResultadoModal {
+    aparecio: boolean;
+    botonPresionado: 'no' | 'si' | 'ninguno';
+    camposFaltantes: boolean; // true si se presionó "No" (hay campos faltantes)
+}
+
+/**
+ * Interfaz para el resultado de la navegación al siguiente paso
+ */
+export interface ResultadoNavegacion {
+    navegoExitosamente: boolean;
+    resultadoModal: ResultadoModal;
+}
+
 export interface EstadisticasMVP {
     totalPasos: number;
     totalCampos: number;
@@ -534,9 +558,14 @@ export class MVPHibrido {
     private resultado: ResultadoMVP;
     private formUrl: string = '';
     private archivosSubidosEnSesion: Set<string> = new Set(); // Para evitar subidas duplicadas
+    private camposProcesadosEnPasoActual: Set<string> = new Set(); // 🔴 NUEVO: Para trackear campos procesados en iteraciones
+    private headless: boolean = false; // Modo headless para ejecución desde interfaz
+    private credenciales: { usuario: string; password: string } | null = null; // Credenciales dinámicas
 
-    constructor(configuracion: ConfiguracionAgente) {
+    constructor(configuracion: ConfiguracionAgente, headless: boolean = false, credenciales?: { usuario: string; password: string }) {
         this.configuracion = configuracion;
+        this.headless = headless;
+        this.credenciales = credenciales || null;
         this.resultado = {
             exito: false,
             mensaje: '',
@@ -570,7 +599,13 @@ export class MVPHibrido {
         this.tiempoInicio = Date.now();
 
         try {
-            this.formUrl = await this.solicitarUrlPorConsola();
+            // Solo pedir URL por consola si no fue configurada previamente
+            if (!this.formUrl) {
+                this.formUrl = await this.solicitarUrlPorConsola();
+            } else {
+                console.log(`📋 URL del formulario configurada: ${this.formUrl}`);
+            }
+            
             await this.inicializar();
             await this.loginYNavegacion();
             await this.procesarFormularioHibrido();
@@ -599,8 +634,14 @@ export class MVPHibrido {
     private async inicializar(): Promise<void> {
         console.log('🔧 Inicializando navegador...');
         
+        if (this.headless) {
+            console.log('👻 Modo headless activado (navegador oculto)');
+        } else {
+            console.log('👁️ Modo visible activado (navegador visible)');
+        }
+        
         this.browser = await chromium.launch({
-            headless: false,
+            headless: this.headless,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
@@ -735,7 +776,7 @@ export class MVPHibrido {
             console.log('✅ Ya estamos en el formulario real');
             // Espera adicional cuando no hay borradores para que se carguen los campos dinámicos
             console.log('⏳ Esperando carga de campos dinámicos...');
-            await this.page!.waitForTimeout(6000);
+            await this.page!.waitForTimeout(7000);
         }
         
         // Capturar título y URL del formulario real (no de borradores)
@@ -793,9 +834,7 @@ export class MVPHibrido {
                 console.log('-'.repeat(40));
 
             try {
-                // Expandir secciones automáticamente antes de procesar
-                await this.expandirSeccionesAutomaticamente();
-                
+                // 🔴 NUEVO: procesarPasoActual ahora maneja la navegación internamente con sistema de iteraciones
                 const paso = await this.procesarPasoActual(pasoActual, tiempoInicioPaso);
                 this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
                 this.resultado.pasosCompletados.push(paso);
@@ -805,18 +844,15 @@ export class MVPHibrido {
                     console.log('⚠️ Límite de tiempo por paso alcanzado, pasando al siguiente');
                 }
 
-                //  NUEVO: Validar completitud antes de avanzar
-                const esCompleto = await detector.validarCompletitudPaso();
-                if (!esCompleto) {
-                    console.log('⚠️ Paso no completado al 100%, reintentando autocompletado...');
-                    await this.reintentarAutocompletado();
-                }
-
-                hayMasPasos = await this.navegarAlSiguientePaso();
+                // Si procesarPasoActual completó exitosamente, avanzar al siguiente paso
+                pasoActual++;
+                await this.page!.waitForTimeout(2000);
                 
-                if (hayMasPasos) {
-                    pasoActual++;
-                    await this.page!.waitForTimeout(2000);
+                // Verificar si llegamos a una página especial
+                const estructuraActual = await detector.detectarEstructuraCompleta();
+                if (estructuraActual.esPaginaConfirmacion || estructuraActual.esPaginaBorradores) {
+                    console.log('📋 Página especial detectada, finalizando loop...');
+                    hayMasPasos = false;
                 }
 
             } catch (error) {
@@ -824,8 +860,13 @@ export class MVPHibrido {
                 this.resultado.errores = this.resultado.errores || [];
                 this.resultado.errores.push(`Paso ${pasoActual}: ${(error as Error).message}`);
                 
-                hayMasPasos = await this.navegarAlSiguientePaso();
-                if (hayMasPasos) pasoActual++;
+                // Intentar avanzar al siguiente paso en caso de error
+                const resultadoNavegacion = await this.navegarAlSiguientePaso();
+                if (resultadoNavegacion.navegoExitosamente) {
+                    pasoActual++;
+                } else {
+                    hayMasPasos = false;
+                }
             }
             }
         } else {
@@ -835,41 +876,127 @@ export class MVPHibrido {
         console.log(`\n✅ Procesamiento híbrido completado: ${(this.resultado.pasosCompletados?.length || 0)} pasos`);
     }
 
+    /**
+     * Procesa un paso del formulario con sistema de reintentos para campos faltantes
+     * Implementa loop de hasta 3 iteraciones cuando el modal indica campos faltantes
+     */
     private async procesarPasoActual(numeroPaso: number, tiempoInicio: number): Promise<PasoMVP> {
         const titulo = await this.obtenerTituloPaso();
 
         console.log(`📝 Paso ${numeroPaso}: "${titulo}"`);
 
+        // 🔴 NUEVO: Limpiar Set de campos procesados para nuevo paso
+        this.camposProcesadosEnPasoActual.clear();
+
         //  DETECCIÓN AUTOMÁTICA DE TIPO DE PASO
         const detector = new DetectorEstructura(this.page!);
         const esConfirmacion = await detector.esPaginaConfirmacion();
 
-        let campos: DetallePasoMVP[] = [];
+        let todosCamposProcesados: DetallePasoMVP[] = [];
         
         if (esConfirmacion) {
             console.log(' PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
-            campos = await this.procesarPasoConfirmacion();
+            todosCamposProcesados = await this.procesarPasoConfirmacion();
         } else {
+            // 🔴 NUEVO: Sistema iterativo para completar campos faltantes
             console.log(`🔄 Procesando paso ${numeroPaso} - Autocompletando campos`);
             await this.expandirSeccionesAutomaticamente();
-            campos = await this.extraerYCompletarCampos();
+            
+            // Primera iteración: Completar campos iniciales
+            let camposIteracion = await this.extraerYCompletarCampos();
+            todosCamposProcesados.push(...camposIteracion);
+            
+            console.log(`   📊 Primera iteración: ${camposIteracion.length} campos procesados`);
+            
+            // 🔴 NUEVO: Iteraciones ilimitadas basadas en aparición del modal
+            // Ya no usamos MAX_ITERACIONES fijo, sino que iteramos hasta que el modal no aparezca
+            const MAX_ITERACIONES_SEGURIDAD = 10; // Solo por seguridad para evitar loops infinitos
+            let iteracionActual = 1;
+            let hayMasCamposFaltantes = false;
+            let navegoExitosamenteDentroDelLoop = false;
+            
+            do {
+                console.log(`\n   ➡️ Verificando completitud del paso (Iteración ${iteracionActual})...`);
+                
+                // Intentar navegar al siguiente paso
+                const resultadoNavegacion = await this.navegarAlSiguientePaso();
+                
+                if (!resultadoNavegacion.navegoExitosamente) {
+                    console.log(`   ⚠️ No se pudo navegar al siguiente paso`);
+                    break;
+                }
+                
+                // 🔴 CLAVE: Verificar si el modal indicó campos faltantes
+                if (resultadoNavegacion.resultadoModal.camposFaltantes) {
+                    console.log(`\n   🔄 ITERACIÓN ${iteracionActual + 1}: Procesando campos faltantes detectados...`);
+                    
+                    iteracionActual++;
+                    
+                    // 🔴 NUEVO: Solo salir si alcanzamos límite de seguridad (prevenir loops infinitos)
+                    if (iteracionActual > MAX_ITERACIONES_SEGURIDAD) {
+                        console.log(`   ⚠️ Límite de seguridad alcanzado (${MAX_ITERACIONES_SEGURIDAD} iteraciones)`);
+                        console.log(`   📝 Posible loop infinito detectado, forzando salida...`);
+                        hayMasCamposFaltantes = false;
+                        break;
+                    }
+                    
+                    // Esperar a que el sistema nos posicione en los campos faltantes
+                    await this.page!.waitForTimeout(2000);
+                    
+                    // 🔴 CORRECCIÓN CRÍTICA: Procesar campos independientemente de si son "nuevos" o no
+                    // El modal apareció = hay campos faltantes, debemos intentar completarlos
+                    const camposFaltantes = await this.extraerYCompletarCampos();
+                    
+                    console.log(`   📊 Campos procesados en esta iteración: ${camposFaltantes.length}`);
+                    todosCamposProcesados.push(...camposFaltantes);
+                    
+                    // 🔴 CAMBIO FUNDAMENTAL: Continuar iterando SIEMPRE que el modal aparezca
+                    // No importa si encontramos campos nuevos o no, si el modal aparece = hay problemas
+                    hayMasCamposFaltantes = true;
+                    
+                    console.log(`   ⏭️ Modal apareció, continuando iteraciones...`);
+                } else {
+                    // Modal no apareció o se confirmó exitosamente dentro del loop
+                    console.log(`   ✅ Paso completado exitosamente - Todos los campos obligatorios OK`);
+                    navegoExitosamenteDentroDelLoop = true;
+                    hayMasCamposFaltantes = false;
+                }
+                
+            } while (hayMasCamposFaltantes && iteracionActual <= MAX_ITERACIONES_SEGURIDAD);
+            
+            console.log(`\n   📊 RESUMEN PASO ${numeroPaso}:`);
+            console.log(`      🔄 Iteraciones realizadas: ${iteracionActual}`);
+            console.log(`      📝 Total campos procesados: ${todosCamposProcesados.length}`);
+            console.log(`      ✅ Campos completados: ${todosCamposProcesados.filter(c => c.completado).length}`);
+            
+            // 🔴 CRÍTICO: Solo intentar navegar si NO navegamos exitosamente dentro del loop
+            if (!navegoExitosamenteDentroDelLoop) {
+                console.log(`\n   ⚠️ FORZANDO AVANCE - Se alcanzó límite de iteraciones, intentando avanzar de todas formas...`);
+                const navegacionFinal = await this.navegarAlSiguienteParaAvanzar();
+                
+                if (navegacionFinal) {
+                    console.log(`   ✅ Navegación forzada exitosa (puede haber campos faltantes)`);
+                } else {
+                    console.log(`   ❌ No se pudo avanzar al siguiente paso después de ${iteracionActual} iteraciones`);
+                }
+            } else {
+                console.log(`   ✅ Ya navegó exitosamente dentro del loop, continuando...`);
+            }
         }
 
-        const tiempoTranscurrido = Math.round((Date.now() - tiempoInicio) / 1000); // Convertir a segundos
+        const tiempoTranscurrido = Math.round((Date.now() - tiempoInicio) / 1000);
 
         const paso: PasoMVP = {
             numero: numeroPaso,
             titulo: titulo,
-            camposEncontrados: campos.length,
-            camposCompletados: campos.filter(c => c.completado).length,
+            camposEncontrados: todosCamposProcesados.length,
+            camposCompletados: todosCamposProcesados.filter(c => c.completado).length,
             tiempoTranscurrido: tiempoTranscurrido,
-            exito: campos.length > 0 || esConfirmacion,
-            detalles: campos
+            exito: todosCamposProcesados.length > 0 || esConfirmacion,
+            detalles: todosCamposProcesados
         };
 
-        console.log(`   📊 Campos encontrados: ${campos.length}`);
-        console.log(`   ✅ Campos completados: ${campos.filter(c => c.completado).length}`);
-        console.log(`   ⏱️ Tiempo: ${tiempoTranscurrido}s`);
+        console.log(`   ⏱️ Tiempo total paso: ${tiempoTranscurrido}s`);
 
         if (esConfirmacion) {
             console.log('🎉 VERIFICACIÓN FINAL COMPLETADA');
@@ -982,33 +1109,29 @@ export class MVPHibrido {
         return detalles;
     }
 
+    /**
+     * Extrae y completa campos del formulario
+     * Usa this.camposProcesadosEnPasoActual para trackear campos entre iteraciones
+     * @returns Array de detalles de campos procesados en esta iteración
+     */
     private async extraerYCompletarCampos(): Promise<DetallePasoMVP[]> {
         const detalles: DetallePasoMVP[] = [];
         
-        console.log(`   🔍 INICIANDO EXTRACCIÓN  DE CAMPOS...`);
+        const camposYaProcesadosInicio = this.camposProcesadosEnPasoActual.size;
+        
+        if (camposYaProcesadosInicio > 0) {
+            console.log(`   🔄 REINTENTANDO EXTRACCIÓN - Campos ya procesados: ${camposYaProcesadosInicio}`);
+        } else {
+            console.log(`   🔍 INICIANDO EXTRACCIÓN  DE CAMPOS...`);
+        }
         
         //  PASO 1: Procesar desplegables primero (campos ocultos)
         console.log(`   📂 Procesando desplegables y campos ocultos...`);
         await this.expandirSeccionesAutomaticamente();
         
-        //  PASO 2: Hacer scroll para activar contenido dinámico
-        console.log(`   📜 Haciendo scroll para activar contenido dinámico...`);
-        await this.page!.evaluate(async () => {
-            await new Promise<void>((resolve) => {
-                let totalHeight = 0;
-                const distance = 200;
-                const timer = setInterval(() => {
-                    const scrollHeight = document.body.scrollHeight;
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
-                    if (totalHeight >= scrollHeight) {
-                        clearInterval(timer);
-                        window.scrollTo(0, 0); // Volver al inicio
-                        setTimeout(resolve, 1000);
-                    }
-                }, 100);
-            });
-        });
+        //  PASO 2: Hacer scroll PROGRESIVO para activar contenido dinámico
+        console.log(`   📜 Haciendo scroll progresivo para activar contenido dinámico...`);
+        await this.scrollProgresivoParaActivarContenido();
 
         //  PASO 3: Buscar TODOS los campos de forma simplificada
         console.log(`   🔍 Buscando campos en el paso actual...`);
@@ -1019,7 +1142,8 @@ export class MVPHibrido {
         //  PASO 6: Procesar cada campo encontrado con detección dinámica
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
         
-        const camposProcesados = new Set<string>(); // Para evitar duplicados
+        // 🔴 NUEVO: Usar la propiedad de clase para mantener estado entre iteraciones
+        const camposProcesados = this.camposProcesadosEnPasoActual;
         let intentos = 0;
         const maxIntentos = 3; // Máximo 3 iteraciones para detectar campos dinámicos
         
@@ -1162,6 +1286,35 @@ export class MVPHibrido {
             console.log('   ⚠️ Error obteniendo campos:', (error as Error).message);
             return [];
         }
+    }
+
+    /**
+     * Realiza un scroll progresivo y suave para activar contenido dinámico
+     * Este scroll es más lento y controlado para evitar perder campos
+     */
+    private async scrollProgresivoParaActivarContenido(): Promise<void> {
+        await this.page!.evaluate(async () => {
+            await new Promise<void>((resolve) => {
+                let currentPosition = 0;
+                const scrollHeight = document.body.scrollHeight;
+                const distance = 100; // Distancia más pequeña para scroll más suave
+                const delay = 150; // Delay más largo para dar tiempo a que cargue contenido
+                
+                const timer = setInterval(() => {
+                    // Scroll suave
+                    window.scrollBy({ top: distance, behavior: 'smooth' });
+                    currentPosition += distance;
+                    
+                    // Si llegamos al final, volver arriba suavemente
+                    if (currentPosition >= scrollHeight) {
+                        clearInterval(timer);
+                        // Volver al inicio con scroll suave
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setTimeout(resolve, 1500); // Esperar más tiempo al final
+                    }
+                }, delay);
+            });
+        });
     }
 
     //  NUEVO: Método para esperar y capturar campos dinámicos
@@ -1451,8 +1604,8 @@ export class MVPHibrido {
                     }
                 }
                 
-                //  NUEVO: Detectar campos numéricos con inputmask integer
-                if (type === 'text' && dataInputmask && dataInputmask.includes('integer')) {
+                //  NUEVO: Detectar campos numéricos con inputmask integer o decimal
+                if (type === 'text' && dataInputmask && (dataInputmask.includes('integer') || dataInputmask.includes('decimal'))) {
                     type = 'number';
                 }
 
@@ -1593,7 +1746,8 @@ export class MVPHibrido {
                     }));
                 }
 
-                // Detección mejorada de campos obligatorios
+                // 🔴 MEJORA: Detección más agresiva de campos obligatorios
+                // Incluir verificación de validación de HTML5 y más patrones
                 const esObligatorio = el.hasAttribute('required') || 
                                     el.getAttribute('aria-required') === 'true' ||
                                     el.getAttribute('aria-invalid') === 'true' ||
@@ -1602,8 +1756,15 @@ export class MVPHibrido {
                                     className.includes('obligatorio') ||
                                     className.includes('is-required') ||
                                     className.includes('form-required') ||
+                                    className.includes('ng-invalid') || // Angular validation
+                                    className.includes('error') || // Generic error class
                                     (etiqueta.includes('*') || etiqueta.includes('obligatorio')) ||
                                     (etiqueta.includes('(requerido)') || etiqueta.includes('(obligatorio)')) ||
+                                    // 🔴 NUEVO: Campos de direcciones son típicamente obligatorios
+                                    (etiqueta.toLowerCase().includes('numero') && etiqueta.toLowerCase().includes('direcc')) ||
+                                    (etiqueta.toLowerCase().includes('departamento') && etiqueta.toLowerCase().includes('direcc')) ||
+                                    (etiqueta.toLowerCase().includes('codigo postal')) ||
+                                    (etiqueta.toLowerCase().includes('calle')) ||
                                     // Verificar en el contenedor padre
                                     (() => {
                                         const contenedor = el.closest('div, fieldset, .form-group, .field');
@@ -1612,11 +1773,18 @@ export class MVPHibrido {
                                             const classContenedor = contenedor.className || '';
                                             return classContenedor.includes('required') || 
                                                    classContenedor.includes('mandatory') ||
+                                                   classContenedor.includes('ng-invalid') ||
                                                    textoContenedor.includes('*') ||
                                                    textoContenedor.includes('obligatorio');
                                         }
                                         return false;
-                                    })();
+                                    })() ||
+                                    // 🔴 NUEVO: Si el campo tiene validación de patrón, probablemente es obligatorio
+                                    el.hasAttribute('pattern') ||
+                                    el.hasAttribute('minlength') ||
+                                    el.hasAttribute('maxlength') ||
+                                    // 🔴 NUEVO: En contexto CORFO, asumir que campos numéricos son obligatorios por defecto
+                                    (type === 'number' && !el.readOnly && !el.disabled);
 
                 return {
                     tipo: type,
@@ -1710,7 +1878,46 @@ export class MVPHibrido {
             if (tipo === 'radio') {
                 const isChecked = await elemento.isChecked();
                 if (!isChecked) {
-                    await elemento.click();
+                    // 🔴 MEJORA: Manejo robusto para radio buttons con tooltips
+                    try {
+                        // Intentar cerrar tooltips activos antes del click
+                        await this.page!.evaluate(() => {
+                            // Cerrar todos los tooltips visibles
+                            const tooltips = document.querySelectorAll('[role="tooltip"], .tooltip, [id^="tooltip"]');
+                            tooltips.forEach(tooltip => {
+                                if (tooltip instanceof HTMLElement) {
+                                    tooltip.style.display = 'none';
+                                    tooltip.remove();
+                                }
+                            });
+                        });
+                        
+                        await this.page!.waitForTimeout(300);
+                        
+                        // Intentar click normal primero
+                        await elemento.click({ timeout: 5000 });
+                    } catch (error) {
+                        // Si falla, usar force:true para forzar el click
+                        console.log(`     ⚠️ Click normal falló, forzando click en radio button...`);
+                        try {
+                            await elemento.click({ force: true, timeout: 3000 });
+                        } catch (forceError) {
+                            // Si aún falla, usar JavaScript click
+                            console.log(`     ⚠️ Force click falló, usando JavaScript click...`);
+                            await elemento.evaluate((el: HTMLInputElement) => el.click());
+                        }
+                    }
+                    
+                    // 🔴 NUEVO: Esperar a que aparezcan campos condicionales si existen
+                    // Muchos formularios CORFO usan data-condicional que muestra/oculta campos
+                    const tieneCondicional = await elemento.evaluate((el: HTMLInputElement) => {
+                        return el.hasAttribute('data-condicional') || el.hasAttribute('data-condicionalconfig');
+                    });
+                    
+                    if (tieneCondicional) {
+                        console.log(`     ⏳ Radio con campos condicionales, esperando campos dinámicos...`);
+                        await this.page!.waitForTimeout(1500); // Esperar a que aparezcan campos condicionales
+                    }
                 }
                 return 'seleccionado';
             }
@@ -1732,8 +1939,35 @@ export class MVPHibrido {
             //  MANEJO DE INPUTS NUMÉRICOS
             if (tipo === 'number') {
                 const numeroValor = typeof valor === 'string' ? valor.replace(/[^\d]/g, '') : valor;
-                await elemento.fill('');
-                await elemento.fill(numeroValor);
+                
+                // 🔴 MEJORA: Para campos con inputmask (integer o decimal), usar estrategia diferente
+                const tieneInputmask = info.dataInputmask && (info.dataInputmask.includes('integer') || info.dataInputmask.includes('decimal'));
+                const esDecimal = info.dataInputmask && info.dataInputmask.includes('decimal');
+                
+                if (tieneInputmask) {
+                    // Estrategia para campos con inputmask:
+                    // 1. Click para activar el campo
+                    await elemento.click();
+                    await this.page!.waitForTimeout(100);
+                    
+                    // 2. Limpiar con selectAll + delete
+                    await elemento.press('Control+A');
+                    await elemento.press('Backspace');
+                    await this.page!.waitForTimeout(100);
+                    
+                    // 3. Escribir carácter por carácter con type() para que inputmask lo procese
+                    // Para decimales, agregar coma y decimales
+                    const valorFinal = esDecimal ? `${numeroValor},00` : numeroValor;
+                    await elemento.type(valorFinal, { delay: 50 });
+                    await this.page!.waitForTimeout(200);
+                    
+                    console.log(`     🔢 Campo inputmask ${esDecimal ? 'decimal' : 'integer'} completado: ${valorFinal}`);
+                } else {
+                    // Estrategia normal para campos sin inputmask
+                    await elemento.fill('');
+                    await elemento.fill(numeroValor);
+                }
+                
                 return numeroValor;
             }
 
@@ -1756,22 +1990,29 @@ export class MVPHibrido {
         try {
             const etiqueta = info.etiqueta || '';
             
+            // 🔴 MEJORA: Generar ID único más robusto para el campo
+            const campoId = `${info.dataCodigo || info.id || info.name || ''}__${etiqueta}`;
+            
             //  NUEVO: Verificar si este campo de archivo está asociado con un botón "Subir Archivo" visible
             const tieneBotonSubirArchivo = await this.verificarBotonSubirArchivoVisible(elemento);
             if (!tieneBotonSubirArchivo) {
+                console.log(`     ℹ️ Campo file sin botón visible, omitiendo: ${etiqueta}`);
                 return 'sin_boton_subir_archivo';
             }
             
-            //  NUEVO: Verificar si ya subimos un archivo para este campo en esta sesión
-            const campoId = `${info.dataCodigo || info.name || info.id}`;
-            if (this.archivosSubidosEnSesion.has(campoId)) {
-                return 'archivo_ya_subido_en_sesion';
-            }
-            
-            //  NUEVO: Verificar si ya hay un archivo subido en la página
+            // 🔴 MEJORA: Verificar si YA HAY un archivo subido mirando el DOM real
             const yaTieneArchivo = await this.verificarArchivoYaSubido(elemento);
             if (yaTieneArchivo) {
+                console.log(`     ✅ Campo file ya tiene archivo subido: ${etiqueta}`);
+                // Agregar al Set para no reprocesar
+                this.archivosSubidosEnSesion.add(campoId);
                 return 'archivo_ya_subido';
+            }
+            
+            //  Verificar si ya subimos un archivo para este campo en esta sesión
+            if (this.archivosSubidosEnSesion.has(campoId)) {
+                console.log(`     ℹ️ Campo file ya procesado en esta sesión: ${etiqueta}`);
+                return 'archivo_ya_subido_en_sesion';
             }
             
             // Buscar archivo PDF disponible
@@ -2062,7 +2303,18 @@ export class MVPHibrido {
             return '50000000'; // Valor más realista para montos
         } else if (contextoCompleto.includes('duración') || contextoCompleto.includes('duracion') || contextoCompleto.includes('meses')) {
             return CAMPOS_CORFO_MAPPING.DURACION_PROYECTO;
-        } else if (contextoCompleto.includes('dirección') || contextoCompleto.includes('direccion') || contextoCompleto.includes('domicilio')) {
+        } 
+        // 🔴 NUEVO: Detección específica para campos de dirección (ANTES de la detección genérica de dirección)
+        else if ((contextoCompleto.includes('numero') || contextoCompleto.includes('número')) && contextoCompleto.includes('direcc')) {
+            return '100'; // Número de calle corto
+        } else if (contextoCompleto.includes('departamento') && contextoCompleto.includes('direcc')) {
+            return '100'; // Número de departamento corto
+        } else if (contextoCompleto.includes('codigo') && contextoCompleto.includes('postal')) {
+            return '8320000'; // Código postal realista de Chile
+        } else if (contextoCompleto.includes('block') || contextoCompleto.includes('villa') || contextoCompleto.includes('población') || contextoCompleto.includes('poblacion')) {
+            return 'Block A'; // Valor para block/villa
+        }
+        else if (contextoCompleto.includes('dirección') || contextoCompleto.includes('direccion') || contextoCompleto.includes('domicilio')) {
             return CAMPOS_CORFO_MAPPING.DIRECCION_CALLE;
         } else if (contextoCompleto.includes('comuna') || contextoCompleto.includes('ciudad')) {
             return CAMPOS_CORFO_MAPPING.COMUNA;
@@ -2545,7 +2797,74 @@ export class MVPHibrido {
         }
     }
 
-    private async navegarAlSiguientePaso(): Promise<boolean> {
+    /**
+     * Navega al siguiente paso de manera definitiva, presionando "Sí" si aparece modal
+     * Este método se usa después de completar todas las iteraciones de campos faltantes
+     * @returns true si navegó exitosamente
+     */
+    private async navegarAlSiguienteParaAvanzar(): Promise<boolean> {
+        console.log('➡️ Navegación final: Avanzando al siguiente paso...');
+        
+        const selectores = [
+            'button:has-text("SIGUIENTE")',
+            'button:has-text("Siguiente")',
+            'input[value*="iguiente"]',
+            'input[value*="IGUIENTE"]',
+            'button:has-text("CONTINUAR")',
+            'button:has-text("Continuar")',
+            'button[type="submit"]:not([value*="Enviar"]):not([value*="ENVIAR"])',
+            'a:has-text("Siguiente")',
+            'a:has-text("SIGUIENTE")',
+            '.btn-next',
+            '[class*="next"]'
+        ];
+
+        for (const selector of selectores) {
+            try {
+                const boton = await this.page!.$(selector);
+                if (boton && await boton.isVisible()) {
+                    const texto = await boton.textContent() || '';
+                    const value = await boton.getAttribute('value') || '';
+                    
+                    // Evitar botones de envío final
+                    if (texto.toLowerCase().includes('enviar') || 
+                        value.toLowerCase().includes('enviar') ||
+                        texto.toLowerCase().includes('finalizar')) {
+                        continue;
+                    }
+                    
+                    console.log(`   🖱️ Haciendo clic en: "${texto || value}"`);
+                    
+                    await boton.scrollIntoViewIfNeeded();
+                    await this.page!.waitForTimeout(500);
+                    
+                    await boton.click();
+                    await this.page!.waitForTimeout(2000);
+                    
+                    // 🔴 NUEVO: Si aparece modal, presionar "Sí, estoy seguro" para forzar avance
+                    const modalConfirmado = await this.confirmarModalParaAvanzar();
+                    if (modalConfirmado) {
+                        await this.page!.waitForTimeout(2000);
+                    }
+                    
+                    console.log('   ✅ Navegación final exitosa');
+                    return true;
+                }
+            } catch (error) {
+                console.log(`   ⚠️ Error con selector ${selector}:`, (error as Error).message);
+                continue;
+            }
+        }
+
+        console.log('   ❌ No se encontró botón para siguiente paso');
+        return false;
+    }
+
+    /**
+     * Intenta navegar al siguiente paso y retorna información sobre el modal si aparece
+     * @returns ResultadoNavegacion con información sobre si navegó y el resultado del modal
+     */
+    private async navegarAlSiguientePaso(): Promise<ResultadoNavegacion> {
         console.log('➡️ Intentando navegar al siguiente paso...');
         
         const selectores = [
@@ -2585,14 +2904,17 @@ export class MVPHibrido {
                     await boton.click();
                     await this.page!.waitForTimeout(2000);
                     
-                    // Manejar modal de confirmación si aparece
-                    const modalManejado = await this.manejarModalConfirmacion();
-                    if (modalManejado) {
+                    // 🔴 NUEVO: Capturar resultado del modal
+                    const resultadoModal = await this.manejarModalConfirmacion();
+                    if (resultadoModal.aparecio) {
                         await this.page!.waitForTimeout(2000);
                     }
                     
                     console.log('   ✅ Navegación exitosa');
-                    return true;
+                    return {
+                        navegoExitosamente: true,
+                        resultadoModal: resultadoModal
+                    };
                 }
             } catch (error) {
                 console.log(`   ⚠️ Error con selector ${selector}:`, (error as Error).message);
@@ -2601,40 +2923,147 @@ export class MVPHibrido {
         }
 
         console.log('   ❌ No se encontró botón para siguiente paso');
-        return false;
+        return {
+            navegoExitosamente: false,
+            resultadoModal: {
+                aparecio: false,
+                botonPresionado: 'ninguno',
+                camposFaltantes: false
+            }
+        };
     }
 
-    private async manejarModalConfirmacion(): Promise<boolean> {
+    /**
+     * Confirma el modal presionando "Sí, estoy seguro" para forzar avance al siguiente paso
+     * Se usa después de completar todas las iteraciones de campos faltantes
+     * @returns true si se confirmó el modal
+     */
+    private async confirmarModalParaAvanzar(): Promise<boolean> {
         try {
             await this.page!.waitForTimeout(1000);
             
-            const selectoresConfirmar = [
+            const selectoresSi = [
                 'button:has-text("Sí, estoy seguro")',
                 'button:has-text("Sí")',
-                'button:has-text("OK")',
-                'button:has-text("Aceptar")',
-                'button:has-text("Continuar")',
+                'button:has-text("SI")',
                 '.btn-primary:has-text("Sí")',
                 '.btn-success:has-text("Sí")',
                 '.swal2-confirm',
-                '.swal2-actions button'
+                'button[class*="confirm"]',
+                'button[class*="primary"]'
             ];
             
-            for (const selector of selectoresConfirmar) {
-                const boton = await this.page!.$(selector);
-                if (boton && await boton.isVisible()) {
-                    console.log(`   ✅ Confirmando modal: ${selector}`);
-                    await boton.click();
-                    await this.page!.waitForTimeout(2000);
-                    return true;
+            for (const selector of selectoresSi) {
+                try {
+                    const botonSi = await this.page!.$(selector);
+                    if (botonSi && await botonSi.isVisible()) {
+                        const texto = await botonSi.textContent() || '';
+                        console.log(`   ✅ Confirmando modal para avanzar: "${texto}"`);
+                        await botonSi.click();
+                        await this.page!.waitForTimeout(1500);
+                        return true;
+                    }
+                } catch (err) {
+                    continue;
                 }
             }
             
+            // Si no hay modal, está bien (significa que no había campos faltantes)
             return false;
             
         } catch (error) {
-            console.log('   ⚠️ Error manejando modal:', (error as Error).message);
+            console.log('   ⚠️ Error confirmando modal:', (error as Error).message);
             return false;
+        }
+    }
+
+    /**
+     * Maneja el modal de confirmación que aparece cuando hay campos faltantes
+     * CAMBIO IMPORTANTE: Ahora hace clic en "No" para que el sistema nos lleve a los campos faltantes
+     * @returns ResultadoModal con información sobre si apareció el modal y qué botón se presionó
+     */
+    private async manejarModalConfirmacion(): Promise<ResultadoModal> {
+        try {
+            await this.page!.waitForTimeout(1000);
+            
+            // 🔴 NUEVO: Primero buscar el botón "No" para identificar campos faltantes
+            const selectoresNo = [
+                'button:has-text("No")',
+                'button:has-text("NO")',
+                '.btn-secondary:has-text("No")',
+                '.swal2-cancel',
+                'button[class*="cancel"]',
+                'button[class*="secondary"]'
+            ];
+            
+            console.log('   🔍 Verificando si apareció modal de campos faltantes...');
+            
+            for (const selector of selectoresNo) {
+                try {
+                    const botonNo = await this.page!.$(selector);
+                    if (botonNo && await botonNo.isVisible()) {
+                        const texto = await botonNo.textContent() || '';
+                        console.log(`   ⚠️ MODAL DETECTADO - Campos obligatorios faltantes`);
+                        console.log(`   🔄 Haciendo clic en "No" para procesar campos faltantes: "${texto}"`);
+                        
+                        await botonNo.click();
+                        await this.page!.waitForTimeout(2000);
+                        
+                        return {
+                            aparecio: true,
+                            botonPresionado: 'no',
+                            camposFaltantes: true
+                        };
+                    }
+                } catch (err) {
+                    // Continuar con el siguiente selector
+                    continue;
+                }
+            }
+            
+            // Si no encontramos "No", buscar "Sí" (significa que todo está completo)
+            const selectoresSi = [
+                'button:has-text("Sí, estoy seguro")',
+                'button:has-text("Sí")',
+                '.btn-primary:has-text("Sí")',
+                '.swal2-confirm'
+            ];
+            
+            for (const selector of selectoresSi) {
+                try {
+                    const botonSi = await this.page!.$(selector);
+                    if (botonSi && await botonSi.isVisible()) {
+                        console.log(`   ✅ Modal de confirmación - Todos los campos completos, avanzando...`);
+                        await botonSi.click();
+                        await this.page!.waitForTimeout(2000);
+                        
+                        return {
+                            aparecio: true,
+                            botonPresionado: 'si',
+                            camposFaltantes: false
+                        };
+                    }
+                } catch (err) {
+                    // Continuar con el siguiente selector
+                    continue;
+                }
+            }
+            
+            // No apareció ningún modal
+            console.log('   ℹ️ No se detectó modal de confirmación');
+            return {
+                aparecio: false,
+                botonPresionado: 'ninguno',
+                camposFaltantes: false
+            };
+            
+        } catch (error) {
+            console.log('   ⚠️ Error manejando modal:', (error as Error).message);
+            return {
+                aparecio: false,
+                botonPresionado: 'ninguno',
+                camposFaltantes: false
+            };
         }
     }
 
