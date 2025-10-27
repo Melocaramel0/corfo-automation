@@ -53,7 +53,7 @@ if (!process.env.CORFO_USER || !process.env.CORFO_PASS) {
  */
 exports.CAMPOS_CORFO_MAPPING = {
     // Datos de Persona Jurídica
-    'RUT': '12345678-9',
+    'RUT': '254462950',
     'RAZON_SOCIAL': 'Empresa de Prueba SpA',
     'OBJETO_SOCIAL': 'Desarrollo de tecnologías innovadoras para el sector agrícola',
     'TELEFONO': '+56912345678',

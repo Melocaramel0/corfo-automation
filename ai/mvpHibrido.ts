@@ -534,9 +534,13 @@ export class MVPHibrido {
     private resultado: ResultadoMVP;
     private formUrl: string = '';
     private archivosSubidosEnSesion: Set<string> = new Set(); // Para evitar subidas duplicadas
+    private headless: boolean = false; // Modo headless para ejecución desde interfaz
+    private credenciales: { usuario: string; password: string } | null = null; // Credenciales dinámicas
 
-    constructor(configuracion: ConfiguracionAgente) {
+    constructor(configuracion: ConfiguracionAgente, headless: boolean = false, credenciales?: { usuario: string; password: string }) {
         this.configuracion = configuracion;
+        this.headless = headless;
+        this.credenciales = credenciales || null;
         this.resultado = {
             exito: false,
             mensaje: '',
@@ -570,7 +574,13 @@ export class MVPHibrido {
         this.tiempoInicio = Date.now();
 
         try {
-            this.formUrl = await this.solicitarUrlPorConsola();
+            // Solo pedir URL por consola si no fue configurada previamente
+            if (!this.formUrl) {
+                this.formUrl = await this.solicitarUrlPorConsola();
+            } else {
+                console.log(`📋 URL del formulario configurada: ${this.formUrl}`);
+            }
+            
             await this.inicializar();
             await this.loginYNavegacion();
             await this.procesarFormularioHibrido();
@@ -599,8 +609,14 @@ export class MVPHibrido {
     private async inicializar(): Promise<void> {
         console.log('🔧 Inicializando navegador...');
         
+        if (this.headless) {
+            console.log('👻 Modo headless activado (navegador oculto)');
+        } else {
+            console.log('👁️ Modo visible activado (navegador visible)');
+        }
+        
         this.browser = await chromium.launch({
-            headless: false,
+            headless: this.headless,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
@@ -735,7 +751,7 @@ export class MVPHibrido {
             console.log('✅ Ya estamos en el formulario real');
             // Espera adicional cuando no hay borradores para que se carguen los campos dinámicos
             console.log('⏳ Esperando carga de campos dinámicos...');
-            await this.page!.waitForTimeout(6000);
+            await this.page!.waitForTimeout(7000);
         }
         
         // Capturar título y URL del formulario real (no de borradores)

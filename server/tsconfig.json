@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../dist/server",
+    "rootDir": "..",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "./**/*.ts",
+    "../ai/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "../ui/**/*",
+    "../dist/**/*"
+  ]
+}
+

@@ -1,4 +1,4 @@
-// import { apiService } from './api' // Comentado temporalmente - no se usa en mocks
+import { apiService } from './api'
 import { 
   ValidationProcess, 
   ValidationProcessResult, 
@@ -152,104 +152,112 @@ let currentExecution: ExecutionStatus | null = null
 export const processService = {
   // Obtener lista paginada de procesos
   async getProcesses(params?: PaginationParams): Promise<PaginatedResponse<ValidationProcess>> {
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    let filteredProcesses = [...MOCK_PROCESSES]
-    
-    // Aplicar búsqueda si existe
-    if (params?.search) {
-      const searchTerm = params.search.toLowerCase()
-      filteredProcesses = filteredProcesses.filter(process =>
-        process.nombreConcurso.toLowerCase().includes(searchTerm) ||
-        process.descripcion?.toLowerCase().includes(searchTerm) ||
-        process.usuarioCreacion.toLowerCase().includes(searchTerm)
-      )
+    // Usar API real
+    try {
+      return await apiService.getPaginated<ValidationProcess>('/processes', params)
+    } catch (error) {
+      console.error('Error obteniendo procesos desde API, usando mock:', error)
+      // Fallback a mock en caso de error
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      let filteredProcesses = [...MOCK_PROCESSES]
+      
+      if (params?.search) {
+        const searchTerm = params.search.toLowerCase()
+        filteredProcesses = filteredProcesses.filter(process =>
+          process.nombreConcurso.toLowerCase().includes(searchTerm) ||
+          process.descripcion?.toLowerCase().includes(searchTerm) ||
+          process.usuarioCreacion.toLowerCase().includes(searchTerm)
+        )
+      }
+      
+      const page = params?.page || 1
+      const limit = params?.limit || 10
+      const startIndex = (page - 1) * limit
+      const endIndex = startIndex + limit
+      const paginatedData = filteredProcesses.slice(startIndex, endIndex)
+      
+      return {
+        data: paginatedData,
+        total: filteredProcesses.length,
+        page,
+        limit,
+        totalPages: Math.ceil(filteredProcesses.length / limit)
+      }
     }
-    
-    // Aplicar paginación
-    const page = params?.page || 1
-    const limit = params?.limit || 10
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedData = filteredProcesses.slice(startIndex, endIndex)
-    
-    return {
-      data: paginatedData,
-      total: filteredProcesses.length,
-      page,
-      limit,
-      totalPages: Math.ceil(filteredProcesses.length / limit)
-    }
-    
-    // En producción:
-    // return apiService.getPaginated<ValidationProcess>('/processes', params)
   },
 
   // Obtener un proceso por ID
   async getProcess(id: string): Promise<ValidationProcess | null> {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    
-    const process = MOCK_PROCESSES.find(p => p.id === id)
-    return process || null
-    
-    // En producción:
-    // const response = await apiService.get<ValidationProcess>(`/processes/${id}`)
-    // return response.data
+    try {
+      const response = await apiService.get<ValidationProcess>(`/processes/${id}`)
+      return response.data
+    } catch (error) {
+      console.error('Error obteniendo proceso desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      const process = MOCK_PROCESSES.find(p => p.id === id)
+      return process || null
+    }
   },
 
   // Crear nuevo proceso
   async createProcess(processData: Omit<ValidationProcess, 'id' | 'fechaCreacion' | 'usuarioCreacion'>): Promise<ValidationProcess> {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const newProcess: ValidationProcess = {
-      ...processData,
-      id: `${Date.now()}`,
-      fechaCreacion: new Date().toISOString(),
-      usuarioCreacion: 'current_user@corfo.cl' // En producción, obtener del contexto
+    try {
+      const response = await apiService.post<ValidationProcess>('/processes', processData)
+      return response.data
+    } catch (error) {
+      console.error('Error creando proceso desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const newProcess: ValidationProcess = {
+        ...processData,
+        id: `${Date.now()}`,
+        fechaCreacion: new Date().toISOString(),
+        usuarioCreacion: 'current_user@corfo.cl'
+      }
+      
+      MOCK_PROCESSES.unshift(newProcess)
+      return newProcess
     }
-    
-    MOCK_PROCESSES.unshift(newProcess)
-    return newProcess
-    
-    // En producción:
-    // const response = await apiService.post<ValidationProcess>('/processes', processData)
-    // return response.data
   },
 
   // Actualizar proceso existente
   async updateProcess(id: string, processData: Partial<ValidationProcess>): Promise<ValidationProcess> {
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    const index = MOCK_PROCESSES.findIndex(p => p.id === id)
-    if (index === -1) {
-      throw new Error('Proceso no encontrado')
+    try {
+      const response = await apiService.put<ValidationProcess>(`/processes/${id}`, processData)
+      return response.data
+    } catch (error) {
+      console.error('Error actualizando proceso desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      const index = MOCK_PROCESSES.findIndex(p => p.id === id)
+      if (index === -1) {
+        throw new Error('Proceso no encontrado')
+      }
+      
+      MOCK_PROCESSES[index] = {
+        ...MOCK_PROCESSES[index],
+        ...processData,
+        fechaModificacion: new Date().toISOString()
+      }
+      
+      return MOCK_PROCESSES[index]
     }
-    
-    MOCK_PROCESSES[index] = {
-      ...MOCK_PROCESSES[index],
-      ...processData,
-      fechaModificacion: new Date().toISOString()
-    }
-    
-    return MOCK_PROCESSES[index]
-    
-    // En producción:
-    // const response = await apiService.put<ValidationProcess>(`/processes/${id}`, processData)
-    // return response.data
   },
 
   // Eliminar proceso (marcar como borrado)
   async deleteProcess(id: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    const index = MOCK_PROCESSES.findIndex(p => p.id === id)
-    if (index !== -1) {
-      MOCK_PROCESSES[index].estado = 'Borrado'
+    try {
+      await apiService.delete(`/processes/${id}`)
+    } catch (error) {
+      console.error('Error eliminando proceso desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const index = MOCK_PROCESSES.findIndex(p => p.id === id)
+      if (index !== -1) {
+        MOCK_PROCESSES[index].estado = 'Borrado'
+      }
     }
-    
-    // En producción:
-    // await apiService.delete(`/processes/${id}`)
   },
 
   // Ejecutar proceso de validación
@@ -277,13 +285,14 @@ export const processService = {
 
   // Obtener resultados de un proceso
   async getProcessResults(processId: string): Promise<ValidationProcessResult[]> {
-    await new Promise(resolve => setTimeout(resolve, 400))
-    
-    return MOCK_RESULTS.filter(result => result.procesoId === processId)
-    
-    // En producción:
-    // const response = await apiService.get<ValidationProcessResult[]>(`/processes/${processId}/results`)
-    // return response.data
+    try {
+      const response = await apiService.get<ValidationProcessResult[]>(`/processes/${processId}/results`)
+      return response.data
+    } catch (error) {
+      console.error('Error obteniendo resultados desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 400))
+      return MOCK_RESULTS.filter(result => result.procesoId === processId)
+    }
   },
 
   // Exportar resultados
@@ -363,49 +372,59 @@ export const processService = {
 
   // Ejecutar proceso con monitoreo en tiempo real
   async executeProcessWithMonitoring(processId: string): Promise<string> {
-    const process = MOCK_PROCESSES.find(p => p.id === processId)
-    if (!process) {
-      throw new Error('Proceso no encontrado')
+    try {
+      console.log(`🌐 [API] Llamando a /processes/${processId}/execute-monitored`)
+      const response = await apiService.post<{executionId: string}>(`/processes/${processId}/execute-monitored`)
+      console.log(`✅ [API] Respuesta recibida:`, response.data)
+      return response.data.executionId
+    } catch (error) {
+      // Si el error tiene una respuesta del servidor, propagarlo directamente
+      if ((error as any)?.response?.data?.error) {
+        console.error('❌ [API] Error del servidor:', (error as any).response.data.error)
+        throw new Error((error as any).response.data.error)
+      }
+      
+      // Solo usar mock si NO hay backend disponible (error de red)
+      console.error('⚠️ [API] Error de conexión, intentando mock:', error)
+      const process = MOCK_PROCESSES.find(p => p.id === processId)
+      if (!process) {
+        throw new Error('Backend no disponible y proceso no encontrado en mock')
+      }
+
+      // Fallback a simulación solo si no hay backend
+      const executionId = `exec_${Date.now()}`
+      currentExecution = {
+        isRunning: true,
+        progress: 0,
+        startTime: new Date(),
+        elapsedTime: 0,
+        currentStep: 'Iniciando proceso...',
+        logs: [],
+        error: undefined
+      }
+
+      this.simulateMVPExecution(processId, executionId)
+      return executionId
     }
-
-    // Inicializar estado de ejecución
-    const executionId = `exec_${Date.now()}`
-    currentExecution = {
-      isRunning: true,
-      progress: 0,
-      startTime: new Date(),
-      elapsedTime: 0,
-      currentStep: 'Iniciando proceso...',
-      logs: [],
-      error: undefined
-    }
-
-    // Simular ejecución del MVP híbrido
-    this.simulateMVPExecution(processId, executionId)
-
-    return executionId
-    
-    // En producción:
-    // const response = await apiService.post<{executionId: string}>(`/processes/${processId}/execute-monitored`)
-    // return response.data.executionId
   },
 
   // Obtener estado actual de ejecución
-  async getExecutionStatus(_executionId: string): Promise<ExecutionStatus | null> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    if (currentExecution) {
-      // Actualizar tiempo transcurrido
-      if (currentExecution.startTime) {
-        currentExecution.elapsedTime = Date.now() - currentExecution.startTime.getTime()
+  async getExecutionStatus(executionId: string): Promise<ExecutionStatus | null> {
+    try {
+      const response = await apiService.get<ExecutionStatus>(`/executions/${executionId}/status`)
+      return response.data
+    } catch (error) {
+      console.error('Error obteniendo estado de ejecución desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      if (currentExecution) {
+        if (currentExecution.startTime) {
+          currentExecution.elapsedTime = Date.now() - currentExecution.startTime.getTime()
+        }
       }
+      
+      return currentExecution
     }
-    
-    return currentExecution
-    
-    // En producción:
-    // const response = await apiService.get<ExecutionStatus>(`/executions/${executionId}/status`)
-    // return response.data
   },
 
   // Simular ejecución del MVP híbrido (solo para desarrollo)
@@ -477,15 +496,17 @@ export const processService = {
   },
 
   // Cancelar ejecución
-  async cancelExecution(_executionId: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    if (currentExecution) {
-      currentExecution.isRunning = false
-      currentExecution.error = 'Ejecución cancelada por el usuario'
+  async cancelExecution(executionId: string): Promise<void> {
+    try {
+      await apiService.post(`/executions/${executionId}/cancel`)
+    } catch (error) {
+      console.error('Error cancelando ejecución desde API, usando mock:', error)
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      if (currentExecution) {
+        currentExecution.isRunning = false
+        currentExecution.error = 'Ejecución cancelada por el usuario'
+      }
     }
-    
-    // En producción:
-    // await apiService.post(`/executions/${executionId}/cancel`)
   }
 }

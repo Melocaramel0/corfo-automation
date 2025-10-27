@@ -8,7 +8,6 @@ import {
   Search,
   Filter,
   Download,
-  Clock,
   User,
   Calendar
 } from 'lucide-react'
@@ -76,16 +75,31 @@ export const ValidationProcesses: React.FC = () => {
   }
 
   const handleExecuteProcess = async (process: ValidationProcess) => {
+    console.log(`🎯 [Frontend] Ejecutando proceso:`, { id: process.id, nombre: process.nombreConcurso })
+    
     try {
       const executionId = await processService.executeProcessWithMonitoring(process.id)
+      console.log(`✅ [Frontend] Execution ID recibido:`, executionId)
+      
       setCurrentExecutionId(executionId)
       
-      // Obtener estado inicial
+      // Obtener estado inicial (con pequeño delay para que el backend inicialice)
+      await new Promise(resolve => setTimeout(resolve, 500))
       const status = await processService.getExecutionStatus(executionId)
       setExecutionStatus(status)
+      
+      console.log('✅ [Frontend] Ejecución iniciada correctamente:', executionId)
     } catch (error) {
-      console.error('Error ejecutando proceso:', error)
-      alert('Error al ejecutar el proceso')
+      console.error('❌ [Frontend] Error ejecutando proceso:', error)
+      
+      // Extraer mensaje de error detallado
+      const errorMessage = (error as any)?.response?.data?.error || (error as Error).message
+      
+      console.error('❌ [Frontend] Mensaje de error:', errorMessage)
+      console.error('❌ [Frontend] Proceso que intentó ejecutar:', { id: process.id, nombre: process.nombreConcurso })
+      
+      // Mostrar error al usuario
+      alert(`Error al ejecutar el proceso:\n\n${errorMessage}\n\nProceso: ${process.nombreConcurso} (ID: ${process.id})\n\nRevisa la consola del navegador (F12) y del servidor para más detalles.`)
     }
   }
 
