@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { MVPHibrido, ResultadoMVP } from '../../ai/mvpHibrido';
 import { obtenerConfiguracion } from '../../ai/configuraciones';
-import { ExecutionService } from './executionService';
+import { executionService } from './executionService';
 
 interface ValidationProcess {
   id: string;
@@ -37,10 +37,8 @@ interface PaginatedResponse<T> {
 
 export class ProcessService {
   private processesFile = path.join(__dirname, '../../data/processes.json');
-  private executionService: ExecutionService;
 
   constructor() {
-    this.executionService = new ExecutionService();
     this.initializeStorage();
   }
 
@@ -171,7 +169,13 @@ export class ProcessService {
       console.error(`❌ [executeProcessWithMonitoring] Proceso no encontrado: ${processId}`);
       const allProcesses = await this.loadProcesses();
       console.log(`📋 Procesos disponibles:`, allProcesses.map(p => ({ id: p.id, nombre: p.nombreConcurso, estado: p.estado })));
-      throw new Error('Proceso no encontrado');
+      throw new Error(`Proceso no encontrado. Por favor recarga la página y selecciona un proceso válido.`);
+    }
+
+    // Verificar que el proceso no esté borrado
+    if (process.estado === 'Borrado' || process.estado === 'Anulado') {
+      console.error(`❌ [executeProcessWithMonitoring] Proceso está ${process.estado}: ${processId}`);
+      throw new Error(`No se puede ejecutar un proceso con estado "${process.estado}". Por favor recarga la página.`);
     }
 
     console.log(`✅ [executeProcessWithMonitoring] Proceso encontrado: ${process.nombreConcurso}`);
@@ -179,6 +183,10 @@ export class ProcessService {
     // Crear ejecución y obtener ID
     const executionId = `exec_${Date.now()}`;
     console.log(`🆔 [executeProcessWithMonitoring] Execution ID creado: ${executionId}`);
+
+    // Inicializar estado de ejecución ANTES de retornar (para que el frontend pueda consultarlo inmediatamente)
+    await executionService.initializeExecution(executionId, processId);
+    console.log(`✅ [executeProcessWithMonitoring] Ejecución inicializada en ExecutionService`);
 
     // Iniciar ejecución en background (no esperar respuesta)
     this.runMVPHibridoInBackground(processId, executionId, process)
@@ -196,9 +204,8 @@ export class ProcessService {
     process: ValidationProcess
   ): Promise<void> {
     try {
-      // Inicializar estado de ejecución
-      await this.executionService.initializeExecution(executionId, processId);
-
+      // La ejecución ya fue inicializada antes de retornar el ID al frontend
+      
       // Configurar MVPHibrido con la URL del proceso
       const configuracion = obtenerConfiguracion('demo');
       
@@ -231,12 +238,12 @@ export class ProcessService {
         });
 
         // Finalizar ejecución
-        await this.executionService.completeExecution(executionId, resultado);
+        await executionService.completeExecution(executionId, resultado);
       });
 
     } catch (error) {
       console.error(`❌ Error en ejecución ${executionId}:`, error);
-      await this.executionService.failExecution(executionId, (error as Error).message);
+      await executionService.failExecution(executionId, (error as Error).message);
     }
   }
 
@@ -249,8 +256,10 @@ export class ProcessService {
       const message = args.map(arg => String(arg)).join(' ');
       logs.push(message);
       
-      // Actualizar logs en tiempo real
-      this.executionService.addLog(executionId, message);
+      // SOLUCIÓN 4: Actualizar logs de forma segura (sin crashear si falla)
+      executionService.addLog(executionId, message).catch(err => {
+        originalLog(`⚠️ Advertencia: No se pudo guardar log en disco (el proceso continúa): ${err.message}`);
+      });
       
       // Llamar al log original
       originalLog(...args);
@@ -258,6 +267,10 @@ export class ProcessService {
 
     try {
       await executeFunc();
+    } catch (error) {
+      // SOLUCIÓN 4: Capturar errores del MVP y continuar con el flujo de finalización
+      originalLog(`❌ Error durante la ejecución del MVP:`, error);
+      throw error; // Re-lanzar para que el catch externo lo maneje
     } finally {
       // Restaurar console.log original
       console.log = originalLog;
@@ -265,11 +278,40 @@ export class ProcessService {
   }
 
   private async saveExecutionResult(executionId: string, resultado: ResultadoMVP): Promise<void> {
-    const resultsDir = path.join(__dirname, '../../data/execution_results');
-    await fs.mkdir(resultsDir, { recursive: true });
+    try {
+      const resultsDir = path.join(__dirname, '../../data/execution_results');
+      await fs.mkdir(resultsDir, { recursive: true });
 
-    const resultFile = path.join(resultsDir, `${executionId}.json`);
-    await fs.writeFile(resultFile, JSON.stringify(resultado, null, 2));
+      const resultFile = path.join(resultsDir, `${executionId}.json`);
+      
+      // SOLUCIÓN 4: Guardar resultado con reintentos (igual que executions.json)
+      await this.saveFileWithRetry(resultFile, JSON.stringify(resultado, null, 2));
+    } catch (error) {
+      console.error(`❌ Error guardando resultado de ejecución ${executionId}:`, error);
+      console.error(`   Nota: El resultado está disponible en memoria pero no se pudo persistir en disco`);
+      // No lanzar error para no interrumpir el flujo
+    }
+  }
+
+  /**
+   * Guarda un archivo con reintentos para manejar bloqueos de OneDrive
+   */
+  private async saveFileWithRetry(filePath: string, content: string, attempt: number = 1): Promise<void> {
+    const maxAttempts = 3;
+    
+    try {
+      await fs.writeFile(filePath, content, { encoding: 'utf-8', flag: 'w' });
+    } catch (error: any) {
+      if (attempt < maxAttempts && (error.code === 'UNKNOWN' || error.code === 'EBUSY' || error.code === 'EPERM')) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+        console.warn(`⚠️ Error guardando archivo (intento ${attempt}/${maxAttempts}), reintentando en ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.saveFileWithRetry(filePath, content, attempt + 1);
+      } else {
+        throw error; // Re-lanzar si agotamos intentos
+      }
+    }
   }
 
   async getProcessResults(processId: string): Promise<any[]> {
@@ -312,7 +354,7 @@ export class ProcessService {
 
   async getProcessLogs(processId: string): Promise<any[]> {
     // Buscar logs de ejecuciones de este proceso
-    const executions = await this.executionService.getExecutionsByProcess(processId);
+    const executions = await executionService.getExecutionsByProcess(processId);
     
     return executions.flatMap(exec => 
       exec.logs.map((log: string, index: number) => ({

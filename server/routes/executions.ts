@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { ExecutionService } from '../services/executionService';
+import { executionService } from '../services/executionService';
 
 const router = Router();
-const executionService = new ExecutionService();
 
 /**
  * GET /api/executions/:id/status

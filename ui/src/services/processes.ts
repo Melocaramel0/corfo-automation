@@ -154,9 +154,19 @@ export const processService = {
   async getProcesses(params?: PaginationParams): Promise<PaginatedResponse<ValidationProcess>> {
     // Usar API real
     try {
-      return await apiService.getPaginated<ValidationProcess>('/processes', params)
+      console.log('🌐 [API] Llamando a GET /processes con params:', params)
+      const result = await apiService.getPaginated<ValidationProcess>('/processes', params)
+      console.log('✅ [API] Procesos obtenidos del backend:', result.data.length, 'procesos')
+      return result
     } catch (error) {
-      console.error('Error obteniendo procesos desde API, usando mock:', error)
+      console.error('❌ [API] Error obteniendo procesos desde API:', error)
+      console.error('⚠️ [API] USANDO DATOS MOCK - El backend puede no estar disponible')
+      console.error('🔍 [API] Detalles del error:', {
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+        response: (error as any)?.response?.data
+      })
+      
       // Fallback a mock en caso de error
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -375,8 +385,8 @@ export const processService = {
     try {
       console.log(`🌐 [API] Llamando a /processes/${processId}/execute-monitored`)
       const response = await apiService.post<{executionId: string}>(`/processes/${processId}/execute-monitored`)
-      console.log(`✅ [API] Respuesta recibida:`, response.data)
-      return response.data.executionId
+      console.log(`✅ [API] Respuesta recibida:`, response)
+      return response.executionId
     } catch (error) {
       // Si el error tiene una respuesta del servidor, propagarlo directamente
       if ((error as any)?.response?.data?.error) {

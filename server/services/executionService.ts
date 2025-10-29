@@ -16,12 +16,38 @@ interface ExecutionStatus {
 }
 
 export class ExecutionService {
-  private executionsFile = path.join(__dirname, '../../data/executions.json');
+  private executionsFile: string;
   private executions: Map<string, ExecutionStatus> = new Map();
+  private saveTimer: NodeJS.Timeout | null = null;
+  private pendingSave: boolean = false;
 
   constructor() {
+    // SOLUCIÓN 3: Usar directorio alternativo si está en OneDrive
+    this.executionsFile = this.getSecureDataPath();
     this.initializeStorage();
     this.loadExecutionsFromDisk();
+  }
+
+  /**
+   * Obtiene una ruta segura para guardar datos, evitando OneDrive si es posible
+   * SOLUCIÓN 3: Detectar OneDrive y usar ruta alternativa
+   */
+  private getSecureDataPath(): string {
+    const defaultPath = path.join(__dirname, '../../data/executions.json');
+    
+    // Verificar si estamos en OneDrive (Windows)
+    if (process.platform === 'win32' && defaultPath.includes('OneDrive')) {
+      console.warn('⚠️ Detectado OneDrive en la ruta. Usando directorio temporal para evitar conflictos...');
+      
+      // Usar el directorio TEMP de Windows que NO está sincronizado
+      const tempDir = process.env.TEMP || process.env.TMP || 'C:\\Temp';
+      const alternativePath = path.join(tempDir, 'corfo-automation-data', 'executions.json');
+      
+      console.log(`📂 Usando ruta alternativa: ${alternativePath}`);
+      return alternativePath;
+    }
+    
+    return defaultPath;
   }
 
   private async initializeStorage(): Promise<void> {
@@ -50,9 +76,56 @@ export class ExecutionService {
     }
   }
 
+  /**
+   * Guarda las ejecuciones en disco con reintentos y debouncing
+   * SOLUCIÓN 1: Reintentos con backoff exponencial para manejar bloqueos de OneDrive
+   * SOLUCIÓN 2: Debouncing para reducir escrituras frecuentes
+   */
   private async saveExecutionsToDisk(): Promise<void> {
+    // Implementar debouncing: esperar 500ms antes de guardar
+    this.pendingSave = true;
+    
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    
+    this.saveTimer = setTimeout(async () => {
+      if (!this.pendingSave) return;
+      
+      this.pendingSave = false;
+      await this.saveExecutionsToDiskWithRetry();
+    }, 500);
+  }
+
+  /**
+   * Guarda en disco con reintentos (hasta 5 intentos con backoff exponencial)
+   */
+  private async saveExecutionsToDiskWithRetry(attempt: number = 1): Promise<void> {
+    const maxAttempts = 5;
     const executionsArray = Array.from(this.executions.values());
-    await fs.writeFile(this.executionsFile, JSON.stringify(executionsArray, null, 2));
+    
+    try {
+      // Intentar escribir el archivo
+      await fs.writeFile(
+        this.executionsFile, 
+        JSON.stringify(executionsArray, null, 2),
+        { encoding: 'utf-8', flag: 'w' }
+      );
+    } catch (error: any) {
+      // Si es error de OneDrive/acceso y aún tenemos intentos
+      if (attempt < maxAttempts && (error.code === 'UNKNOWN' || error.code === 'EBUSY' || error.code === 'EPERM')) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Backoff exponencial, máximo 5s
+        console.warn(`⚠️ Error guardando executions.json (intento ${attempt}/${maxAttempts}), reintentando en ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.saveExecutionsToDiskWithRetry(attempt + 1);
+      } else {
+        // Si agotamos los intentos o es otro tipo de error, solo loguear (no crashear)
+        console.error(`❌ Error guardando executions.json después de ${attempt} intentos:`, error.message);
+        console.error(`   Nota: Los datos en memoria están actualizados, solo falló la persistencia en disco`);
+        // NO lanzar el error para evitar crashear el proceso principal
+      }
+    }
   }
 
   async initializeExecution(executionId: string, processId: string): Promise<void> {
@@ -141,8 +214,23 @@ export class ExecutionService {
       execution.endTime = new Date();
       execution.elapsedTime = execution.endTime.getTime() - execution.startTime.getTime();
       execution.resultado = resultado;
-      await this.saveExecutionsToDisk();
+      
+      // Forzar guardado inmediato al completar (sin debounce)
+      await this.forceSave();
     }
+  }
+
+  /**
+   * Fuerza el guardado inmediato sin debouncing
+   * Se usa cuando el proceso termina para evitar pérdida de datos
+   */
+  private async forceSave(): Promise<void> {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    this.pendingSave = false;
+    await this.saveExecutionsToDiskWithRetry();
   }
 
   async failExecution(executionId: string, errorMessage: string): Promise<void> {
@@ -153,7 +241,9 @@ export class ExecutionService {
       execution.error = errorMessage;
       execution.endTime = new Date();
       execution.elapsedTime = execution.endTime.getTime() - execution.startTime.getTime();
-      await this.saveExecutionsToDisk();
+      
+      // Forzar guardado inmediato al fallar (sin debounce)
+      await this.forceSave();
     }
   }
 
@@ -165,7 +255,9 @@ export class ExecutionService {
       execution.error = 'Ejecución cancelada por el usuario';
       execution.endTime = new Date();
       execution.elapsedTime = execution.endTime.getTime() - execution.startTime.getTime();
-      await this.saveExecutionsToDisk();
+      
+      // Forzar guardado inmediato al cancelar (sin debounce)
+      await this.forceSave();
     }
   }
 
@@ -179,4 +271,7 @@ export class ExecutionService {
       .filter(exec => exec.processId === processId);
   }
 }
+
+// Singleton: exportar una única instancia compartida
+export const executionService = new ExecutionService();
 

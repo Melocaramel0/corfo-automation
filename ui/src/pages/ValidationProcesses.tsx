@@ -63,6 +63,12 @@ export const ValidationProcesses: React.FC = () => {
         search: searchTerm 
       })
       setProcesses(response.data)
+      
+      // Verificar si son datos mock (IDs simples como '1', '2', '3')
+      if (response.data.length > 0 && response.data[0].id.length < 5) {
+        console.warn('⚠️ [Frontend] ADVERTENCIA: Mostrando datos MOCK - Backend no está disponible')
+        console.warn('💡 [Frontend] Verifica que el backend esté corriendo en puerto 3001')
+      }
     } catch (error) {
       console.error('Error cargando procesos:', error)
     } finally {
@@ -98,8 +104,12 @@ export const ValidationProcesses: React.FC = () => {
       console.error('❌ [Frontend] Mensaje de error:', errorMessage)
       console.error('❌ [Frontend] Proceso que intentó ejecutar:', { id: process.id, nombre: process.nombreConcurso })
       
-      // Mostrar error al usuario
-      alert(`Error al ejecutar el proceso:\n\n${errorMessage}\n\nProceso: ${process.nombreConcurso} (ID: ${process.id})\n\nRevisa la consola del navegador (F12) y del servidor para más detalles.`)
+      // Recargar la lista de procesos en caso de que esté desactualizada
+      console.log('🔄 [Frontend] Recargando lista de procesos...')
+      await loadProcesses()
+      
+      // Mostrar error al usuario con mensaje más amigable
+      alert(`Error al ejecutar el proceso:\n\n${errorMessage}\n\n💡 La lista de procesos se ha actualizado. Por favor, selecciona un proceso válido e intenta nuevamente.`)
     }
   }
 

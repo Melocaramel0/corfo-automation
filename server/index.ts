@@ -25,6 +25,21 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Root route
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    service: 'CORFO Automation Backend',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      processes: '/api/processes',
+      executions: '/api/executions',
+      results: '/api/results'
+    }
+  });
+});
+
 // Health check
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ 
