@@ -174,71 +174,73 @@ export class DetectorEstructura {
     async esPaginaConfirmacion(): Promise<boolean> {
         return await this.page.evaluate(() => {
             const textoCompleto = document.body.textContent?.toLowerCase() || '';
-            const url = window.location.href.toLowerCase();
             
-            // 🔴 MEJORA: Contar solo campos EDITABLES (no readonly, no disabled)
+            // 🔴 PASO 1: Verificar que NO haya campos editables (condición OBLIGATORIA)
             const camposEditables = Array.from(document.querySelectorAll('input:not([type="hidden"]), select, textarea')).filter(campo => {
                 const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-                // Select no tiene readOnly, solo verificar disabled
                 const isReadOnly = (element as HTMLInputElement | HTMLTextAreaElement).readOnly || element.hasAttribute('readonly');
-                return !isReadOnly && !element.disabled;
+                const isDisabled = element.disabled || element.hasAttribute('disabled');
+                
+                // Verificar que el campo sea realmente interactuable
+                const rect = element.getBoundingClientRect();
+                const isVisible = rect.width > 0 && rect.height > 0;
+                
+                return !isReadOnly && !isDisabled && isVisible;
             });
             
-            const tieneInputsEditables = camposEditables.length;
-            
-            // Si hay inputs editables, NO puede ser página de confirmación
-            if (tieneInputsEditables > 0) {
+            // 🔴 CRÍTICO: Si hay campos editables, NO ES confirmación (sin importar qué digan los botones)
+            if (camposEditables.length > 0) {
                 return false;
             }
             
-            // Verificar contadores específicos
-            const tieneContadoresCampos = textoCompleto.includes('campos obligatorios correctos') && 
-                                        textoCompleto.includes('campos obligatorios incorrectos');
+            // 🔴 PASO 2: Solo si NO hay campos editables, verificar indicadores de confirmación
             
-            // Si no tiene contadores, NO es confirmación
-            if (!tieneContadoresCampos) {
-                return false;
-            }
-            
-            // Verificar que NO estamos en un formulario de pasos
-            const tieneDesplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]').length;
-            if (tieneDesplegables > 0) {
-                return false; // Si hay desplegables, es un formulario de pasos, no confirmación
-            }
-
-            // Indicadores MUY específicos y más restrictivos
-            const indicadoresConfirmacion = [
-                'resumen y confirmación', 
-                'verificación final',
-                'confirmar envío final',
-                'enviar postulación'
-            ];
-
-            // Solo considerar confirmación si la URL es específica de confirmación
-            const urlEsConfirmacion = url.includes('confirmacion') || 
-                                    url.includes('resumen') || 
-                                    url.includes('verification') ||
-                                    url.includes('final') ||
-                                    url.includes('review');
-
-            // Verificar si hay botones de envío final
-            const botonesEnvio = document.querySelectorAll('button, input[type="submit"], input[type="button"]');
-            const tieneBotonEnvio = Array.from(botonesEnvio).some(boton => {
-                const texto = boton.textContent?.toLowerCase() || '';
-                const value = (boton as HTMLInputElement).value?.toLowerCase() || '';
-                return texto.includes('enviar') || texto.includes('finalizar') || 
-                       value.includes('enviar') || value.includes('finalizar');
+            // Verificar botón de navegación principal (debe decir "ENVIAR" exactamente, no "SIGUIENTE")
+            const botonesNavegacion = Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"]')).filter(boton => {
+                const texto = (boton.textContent?.trim().toLowerCase() || '').replace(/\s+/g, ' ');
+                const value = ((boton as HTMLInputElement).value?.toLowerCase() || '').trim();
+                
+                // Buscar botones que digan específicamente "enviar" o "finalizar", NO "siguiente"
+                return (texto === 'enviar' || value === 'enviar' || 
+                        texto.includes('enviar postulación') || 
+                        texto.includes('enviar formulario') ||
+                        texto === 'finalizar' || value === 'finalizar') &&
+                       !texto.includes('siguiente');
             });
             
-            // Solo considerar confirmación si:
-            // 1. URL específica de confirmación O
-            // 2. Tiene texto específico de confirmación O
-            // 3. Tiene contadores Y no tiene inputs editables Y tiene botón de envío
-            const tieneTextoConfirmacion = indicadoresConfirmacion.some(indicador => 
-                textoCompleto.includes(indicador)
-            );
-
-            return urlEsConfirmacion || tieneTextoConfirmacion || (tieneContadoresCampos && tieneInputsEditables === 0 && tieneBotonEnvio);
+            if (botonesNavegacion.length > 0) {
+                return true;
+            }
+            
+            // Verificar título del paso activo en el stepper
+            const pasoActivo = document.querySelector('.slick-current, .slick-active, .step.active, .active');
+            if (pasoActivo) {
+                const textoPaso = pasoActivo.textContent?.toLowerCase() || '';
+                if (textoPaso.includes('confirmación') || textoPaso.includes('resumen')) {
+                    return true;
+                }
+            }
+            
+            // 🔴 VERIFICACIÓN MÁS ESTRICTA: Los contadores SOLOS no son suficientes
+            // Debe cumplir MÚLTIPLES condiciones para ser confirmación
+            const tieneContadores = textoCompleto.includes('campos obligatorios correctos') && 
+                                   textoCompleto.includes('campos obligatorios incorrectos');
+            
+            if (tieneContadores) {
+                // Verificar que NO haya desplegables (los pasos normales tienen desplegables)
+                const tieneDesplegables = document.querySelectorAll('a[class*="collapse"], a[data-toggle="collapse"], [class*="accordion"]').length > 0;
+                
+                // Verificar que NO haya tablas para agregar datos
+                const tieneTablasEditables = document.querySelectorAll('table').length > 0 && 
+                                            (textoCompleto.includes('agregar') || textoCompleto.includes('añadir'));
+                
+                // Solo es confirmación si tiene contadores Y NO tiene desplegables Y NO tiene tablas editables
+                if (!tieneDesplegables && !tieneTablasEditables) {
+                    return true;
+                }
+            }
+            
+            return false;
         });
     }
 
@@ -900,7 +902,8 @@ export class MVPHibrido {
         } else {
             // 🔴 NUEVO: Sistema iterativo para completar campos faltantes
             console.log(`🔄 Procesando paso ${numeroPaso} - Autocompletando campos`);
-            await this.expandirSeccionesAutomaticamente();
+            
+            // 🔴 DESPLEGABLES DESACTIVADOS: No se procesan por ahora
             
             // Primera iteración: Completar campos iniciales
             let camposIteracion = await this.extraerYCompletarCampos();
@@ -910,7 +913,7 @@ export class MVPHibrido {
             
             // 🔴 NUEVO: Iteraciones ilimitadas basadas en aparición del modal
             // Ya no usamos MAX_ITERACIONES fijo, sino que iteramos hasta que el modal no aparezca
-            const MAX_ITERACIONES_SEGURIDAD = 10; // Solo por seguridad para evitar loops infinitos
+            const MAX_ITERACIONES_SEGURIDAD = 5; // Solo por seguridad para evitar loops infinitos
             let iteracionActual = 1;
             let hayMasCamposFaltantes = false;
             let navegoExitosamenteDentroDelLoop = false;
@@ -1125,9 +1128,8 @@ export class MVPHibrido {
             console.log(`   🔍 INICIANDO EXTRACCIÓN  DE CAMPOS...`);
         }
         
-        //  PASO 1: Procesar desplegables primero (campos ocultos)
-        console.log(`   📂 Procesando desplegables y campos ocultos...`);
-        await this.expandirSeccionesAutomaticamente();
+        //  PASO 1: Ya NO procesar desplegables aquí (se hace antes en procesarPasoActual)
+        // await this.expandirSeccionesAutomaticamente(); // REMOVIDO para evitar duplicación
         
         //  PASO 2: Hacer scroll PROGRESIVO para activar contenido dinámico
         console.log(`   📜 Haciendo scroll progresivo para activar contenido dinámico...`);
@@ -1240,11 +1242,9 @@ export class MVPHibrido {
             
             // Filtrar solo campos visibles e interactuables
             const camposValidos = [];
-            const camposArchivoEncontrados = [];
             
             for (const elemento of elementos) {
                 try {
-                    const rect = await elemento.boundingBox();
                     const isVisible = await elemento.isVisible();
                     const isEnabled = await elemento.isEnabled();
                     const tipo = await elemento.evaluate((el: Element) => (el as HTMLInputElement).type);
@@ -1260,25 +1260,57 @@ export class MVPHibrido {
                         continue; // Excluir botones "Subir Archivo"
                     }
                     
-                    // Los campos de archivo pueden estar ocultos pero son válidos
+                    // 🔴 CRÍTICO: Campos de archivo también deben verificarse
+                    // NO capturar campos file de otros pasos o áreas ocultas
                     if (tipo === 'file') {
-                        camposArchivoEncontrados.push(elemento);
-                        camposValidos.push(elemento);
+                        // Verificar que el campo file esté en un área visible/interactuable
+                        const estaEnAreaVisible = await elemento.evaluate((el: HTMLElement) => {
+                            // Buscar el contenedor del campo file
+                            const contenedor = el.closest('div, fieldset, section');
+                            if (!contenedor) return false;
+                            
+                            const rect = contenedor.getBoundingClientRect();
+                            const style = window.getComputedStyle(contenedor);
+                            
+                            // Verificar que el contenedor sea visible
+                            const isVisible = style.display !== 'none' && 
+                                           style.visibility !== 'hidden' &&
+                                           style.opacity !== '0';
+                            
+                            // Verificar que tenga tamaño (no colapsado)
+                            const hasSize = rect.width > 0 && rect.height > 0;
+                            
+                            return isVisible && hasSize;
+                        });
+                        
+                        if (estaEnAreaVisible) {
+                            camposValidos.push(elemento);
+                        }
                         continue;
                     }
                     
-                    // Verificar visibilidad y posición para otros campos
-                    if (rect && isVisible && isEnabled && 
-                        rect.y >= -200 && rect.y <= 1500 &&
-                        rect.x >= -200 && rect.x <= 1400) {
+                    // 🔴 MEJORA CRÍTICA: Capturar TODOS los campos habilitados y visibles
+                    // sin importar su posición, ya que el scroll progresivo los activó
+                    // Solo verificar que estén habilitados y sean interactuables en el DOM
+                    const esInteractuable = await elemento.evaluate((el: HTMLElement) => {
+                        const style = window.getComputedStyle(el);
+                        const rect = el.getBoundingClientRect();
+                        return style.display !== 'none' && 
+                               style.visibility !== 'hidden' && 
+                               rect.width > 0 && 
+                               rect.height > 0;
+                    });
+                    
+                    if (isEnabled && esInteractuable) {
                         camposValidos.push(elemento);
                     }
                 } catch (error) {
-                    // Si hay error verificando, incluir el elemento
+                    // Si hay error verificando, incluir el elemento de todas formas
                     camposValidos.push(elemento);
                 }
             }
             
+            console.log(`     🔍 Total de campos interactuables encontrados: ${camposValidos.length}`);
             
             return camposValidos;
             
@@ -1290,31 +1322,50 @@ export class MVPHibrido {
 
     /**
      * Realiza un scroll progresivo y suave para activar contenido dinámico
-     * Este scroll es más lento y controlado para evitar perder campos
+     * MEJORADO: Activa todo el contenido sin logging excesivo
+     * MEJORADO: Los campos se capturan después por obtenerTodosLosCampos()
      */
     private async scrollProgresivoParaActivarContenido(): Promise<void> {
-        await this.page!.evaluate(async () => {
-            await new Promise<void>((resolve) => {
-                let currentPosition = 0;
-                const scrollHeight = document.body.scrollHeight;
-                const distance = 100; // Distancia más pequeña para scroll más suave
-                const delay = 150; // Delay más largo para dar tiempo a que cargue contenido
-                
-                const timer = setInterval(() => {
-                    // Scroll suave
-                    window.scrollBy({ top: distance, behavior: 'smooth' });
-                    currentPosition += distance;
-                    
-                    // Si llegamos al final, volver arriba suavemente
-                    if (currentPosition >= scrollHeight) {
-                        clearInterval(timer);
-                        // Volver al inicio con scroll suave
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setTimeout(resolve, 1500); // Esperar más tiempo al final
-                    }
-                }, delay);
-            });
+        console.log('     📜 Activando contenido dinámico con scroll progresivo...');
+        
+        // Obtener altura inicial del documento
+        let alturaDocumento = await this.page!.evaluate(() => document.body.scrollHeight);
+        
+        let posicionActual = 0;
+        const distanciaPorScroll = 200; // Distancia por cada scroll
+        const delayEntreScrolls = 150; // Tiempo entre scrolls
+        
+        let contadorScrolls = 0;
+        
+        while (posicionActual < alturaDocumento) {
+            // Hacer scroll suave
+            await this.page!.evaluate((distance) => {
+                window.scrollBy({ top: distance, behavior: 'smooth' });
+            }, distanciaPorScroll);
+            
+            posicionActual += distanciaPorScroll;
+            contadorScrolls++;
+            
+            // Esperar a que se active contenido dinámico
+            await this.page!.waitForTimeout(delayEntreScrolls);
+            
+            // Recalcular altura por si se activó contenido nuevo
+            const nuevaAltura = await this.page!.evaluate(() => document.body.scrollHeight);
+            if (nuevaAltura > alturaDocumento) {
+                console.log(`     📏 Contenido dinámico expandido: ${alturaDocumento}px → ${nuevaAltura}px`);
+                alturaDocumento = nuevaAltura;
+            }
+        }
+        
+        console.log(`     ✅ Scroll completado (${contadorScrolls} scrolls) - Contenido activado`);
+        
+        // Scroll suave de vuelta al inicio
+        await this.page!.evaluate(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
+        
+        // Esperar a que termine el scroll
+        await this.page!.waitForTimeout(500);
     }
 
     //  NUEVO: Método para esperar y capturar campos dinámicos
@@ -1355,8 +1406,7 @@ export class MVPHibrido {
                 console.log(`     ${index + 1}. "${d.titulo}" (${estado})`);
             });
             
-            //  PASO 2: Procesar desplegables secuencialmente
-            let totalCamposProcesados = 0;
+            //  PASO 2: SOLO abrir/preparar desplegables, NO procesar campos aún
             
             for (let i = 0; i < desplegablesInfo.length; i++) {
                 const desplegable = desplegablesInfo[i];
@@ -1373,11 +1423,9 @@ export class MVPHibrido {
                     console.log(`     ✅ Desplegable ya está abierto, procesando campos...`);
                 }
                 
-                //  COMPLETAR TODOS LOS CAMPOS antes de pasar al siguiente
-                const camposCompletados = await this.extraerYCompletarCamposEnDesplegable(desplegable);
-                totalCamposProcesados += camposCompletados;
-                
-                console.log(`     ✅ Campos completados: ${camposCompletados}`);
+                //  🔴 CAMBIO: Ya NO completar campos aquí, solo abrir desplegables
+                // Los campos se completarán después en extraerYCompletarCampos()
+                console.log(`     ✅ Desplegable preparado para procesamiento`);
                 
                 //  IMPORTANTE: NO cerrar desplegables abiertos por defecto
                 // Solo cerrar si los abrimos nosotros y no es el último
@@ -1388,7 +1436,7 @@ export class MVPHibrido {
                 }
             }
             
-            console.log(`    Total campos procesados: ${totalCamposProcesados}`);
+            console.log(`    ✅ Desplegables preparados para extracción de campos`);
             
         } catch (error) {
             console.log('   ⚠️ Error procesando desplegables:', (error as Error).message);
@@ -1542,8 +1590,17 @@ export class MVPHibrido {
                     if (elemento) {
                         const info = await this.obtenerInfoCampoMejorada(elemento);
                         if (info) {
+                            // 🔴 CRÍTICO: Crear ID y verificar si ya fue procesado
+                            const campoId = `${info.etiqueta}_${info.tipo}_${info.name || info.id}`;
+                            
+                            if (this.camposProcesadosEnPasoActual.has(campoId)) {
+                                continue; // Ya procesado, saltar
+                            }
+                            
                             const valor = await this.completarCampo(elemento, info);
                             if (valor) {
+                                // 🔴 CRÍTICO: Marcar como procesado en el Set
+                                this.camposProcesadosEnPasoActual.add(campoId);
                                 camposCompletados++;
                                 console.log(`       ✅ Campo completado: ${info.etiqueta}`);
                             }
@@ -1607,6 +1664,12 @@ export class MVPHibrido {
                 //  NUEVO: Detectar campos numéricos con inputmask integer o decimal
                 if (type === 'text' && dataInputmask && (dataInputmask.includes('integer') || dataInputmask.includes('decimal'))) {
                     type = 'number';
+                }
+                
+                //  NUEVO: Detectar campos fecha con datepicker o inputmask de fecha
+                if (type === 'text' && (className.includes('datepicker') || 
+                    (dataInputmask && (dataInputmask.includes('dd/mm/yyyy') || dataInputmask.includes('dd/mm/aaaa'))))) {
+                    type = 'date';
                 }
 
                 // Verificar si el elemento está realmente disponible
@@ -1973,9 +2036,35 @@ export class MVPHibrido {
 
             //  MANEJO DE INPUTS DE FECHA
             if (tipo === 'date') {
-                await elemento.fill('');
-                await elemento.fill('2024-12-31');
-                return '2024-12-31';
+                // 🔴 MEJORA: Para campos con datepicker e inputmask dd/mm/yyyy, usar estrategia especial
+                const tieneInputmaskFecha = info.dataInputmask && 
+                    (info.dataInputmask.includes('dd/mm/yyyy') || info.dataInputmask.includes('dd/mm/aaaa'));
+                const tieneClaseDatepicker = info.className && info.className.includes('datepicker');
+                
+                if (tieneInputmaskFecha || tieneClaseDatepicker) {
+                    // Estrategia para campos datepicker con inputmask:
+                    // 1. Click para activar el campo
+                    await elemento.click();
+                    await this.page!.waitForTimeout(100);
+                    
+                    // 2. Limpiar con selectAll + delete
+                    await elemento.press('Control+A');
+                    await elemento.press('Backspace');
+                    await this.page!.waitForTimeout(100);
+                    
+                    // 3. Escribir en formato dd/mm/yyyy carácter por carácter para que inputmask lo procese
+                    const fechaFormato = '31/12/2024';
+                    await elemento.type(fechaFormato, { delay: 50 });
+                    await this.page!.waitForTimeout(200);
+                    
+                    console.log(`     📅 Campo datepicker completado: ${fechaFormato}`);
+                    return fechaFormato;
+                } else {
+                    // Estrategia normal para campos date HTML5
+                    await elemento.fill('');
+                    await elemento.fill('2024-12-31');
+                    return '2024-12-31';
+                }
             }
 
             return null;
@@ -1990,17 +2079,16 @@ export class MVPHibrido {
         try {
             const etiqueta = info.etiqueta || '';
             
-            // 🔴 MEJORA: Generar ID único más robusto para el campo
-            const campoId = `${info.dataCodigo || info.id || info.name || ''}__${etiqueta}`;
+            // 🔴 CRÍTICO: Generar ID igual al usado en procesamiento de campos para consistencia
+            const campoId = `${info.etiqueta}_${info.tipo}_${info.name || info.id}`;
             
-            //  NUEVO: Verificar si este campo de archivo está asociado con un botón "Subir Archivo" visible
-            const tieneBotonSubirArchivo = await this.verificarBotonSubirArchivoVisible(elemento);
-            if (!tieneBotonSubirArchivo) {
-                console.log(`     ℹ️ Campo file sin botón visible, omitiendo: ${etiqueta}`);
-                return 'sin_boton_subir_archivo';
+            //  1. Verificar PRIMERO si ya subimos un archivo para este campo en esta sesión
+            if (this.archivosSubidosEnSesion.has(campoId)) {
+                console.log(`     ℹ️ Campo file ya procesado en esta sesión: ${etiqueta}`);
+                return 'archivo_ya_subido_en_sesion';
             }
             
-            // 🔴 MEJORA: Verificar si YA HAY un archivo subido mirando el DOM real
+            //  2. Verificar si YA HAY un archivo subido en el DOM
             const yaTieneArchivo = await this.verificarArchivoYaSubido(elemento);
             if (yaTieneArchivo) {
                 console.log(`     ✅ Campo file ya tiene archivo subido: ${etiqueta}`);
@@ -2009,10 +2097,11 @@ export class MVPHibrido {
                 return 'archivo_ya_subido';
             }
             
-            //  Verificar si ya subimos un archivo para este campo en esta sesión
-            if (this.archivosSubidosEnSesion.has(campoId)) {
-                console.log(`     ℹ️ Campo file ya procesado en esta sesión: ${etiqueta}`);
-                return 'archivo_ya_subido_en_sesion';
+            //  3. Verificar si este campo está asociado con un botón visible
+            const tieneBotonSubirArchivo = await this.verificarBotonSubirArchivoVisible(elemento);
+            if (!tieneBotonSubirArchivo) {
+                console.log(`     ℹ️ Campo file sin botón visible, omitiendo: ${etiqueta}`);
+                return 'sin_boton_subir_archivo';
             }
             
             // Buscar archivo PDF disponible
@@ -2041,48 +2130,53 @@ export class MVPHibrido {
     //  NUEVO: Verificar si el campo de archivo está asociado con un botón "Subir Archivo" visible
     private async verificarBotonSubirArchivoVisible(elemento: any): Promise<boolean> {
         try {
-            // Buscar el contenedor del campo de archivo
-            const contenedor = await elemento.evaluateHandle((el: Element) => {
-                return el.closest('div, fieldset, .form-group, .field, .input-group');
+            // 🔴 MEJORA: Estrategia más flexible y menos restrictiva
+            
+            // 1. Verificar si el campo de archivo en sí es visible
+            const campoVisible = await elemento.evaluate((el: HTMLInputElement) => {
+                const rect = el.getBoundingClientRect();
+                return rect.width > 0 || rect.height > 0; // Campos file pueden estar ocultos
             });
             
-                                        if (contenedor) {
-                // Buscar botón "Subir Archivo" en el contenedor
-                const tieneBotonSubirArchivo = await contenedor.evaluate((container: Element) => {
-                    // Buscar botones o spans con texto "Subir Archivo"
-                    const botones = container.querySelectorAll('button, span, a, label');
+            // 2. Buscar contenedor del campo
+            const contenedor = await elemento.evaluateHandle((el: Element) => {
+                return el.closest('.form-group, .field, fieldset, div[class*="file"], div[class*="upload"], .input-group') || 
+                       el.closest('div');
+            });
+            
+            if (contenedor) {
+                // 3. Verificar si hay elementos interactivos relacionados con archivos
+                const tieneElementosArchivo = await contenedor.evaluate((container: Element) => {
+                    const texto = container.textContent?.toLowerCase() || '';
                     
-                    for (const boton of Array.from(botones)) {
-                        const texto = boton.textContent?.trim().toLowerCase() || '';
-                        if (texto.includes('subir archivo') || texto.includes('subir') || texto.includes('upload')) {
-                            // Verificar que el botón sea visible
-                            const rect = boton.getBoundingClientRect();
-                            const style = window.getComputedStyle(boton);
-                            
-                            const isVisible = style.display !== 'none' && 
-                                             style.visibility !== 'hidden' && 
-                                             style.opacity !== '0' &&
-                                             rect.width > 0 && 
-                                             rect.height > 0;
-                            
-                            if (isVisible) {
-                                return true;
-                            }
-                        }
-                    }
+                    // Buscar indicadores de campo de archivo
+                    const tieneIndicadores = texto.includes('subir archivo') || 
+                                            texto.includes('subir') ||
+                                            texto.includes('adjuntar') ||
+                                            texto.includes('archivo') ||
+                                            texto.includes('upload') ||
+                                            texto.includes('seleccionar archivo') ||
+                                            texto.includes('formato');
                     
-                                        return false;
+                    // Buscar elementos interactivos (botones, labels, spans)
+                    const elementosInteractivos = container.querySelectorAll('button, span, a, label, div[class*="btn"]');
+                    
+                    // Si hay indicadores de archivo Y elementos interactivos, es válido
+                    return tieneIndicadores && elementosInteractivos.length > 0;
                 });
                 
-                if (tieneBotonSubirArchivo) {
+                if (tieneElementosArchivo) {
                     return true;
                 }
             }
             
-            return false;
+            // 4. Estrategia de respaldo: Si es un campo tipo file, asumimos que es válido
+            // (mejor procesar de más que omitir campos válidos)
+            return true;
             
         } catch (error) {
-            return false;
+            // En caso de error, asumir que es válido (mejor intentar que omitir)
+            return true;
         }
     }
 
@@ -2090,35 +2184,54 @@ export class MVPHibrido {
     //  NUEVO: Verificar si ya hay un archivo subido
     private async verificarArchivoYaSubido(elemento: any): Promise<boolean> {
         try {
-            // Buscar el contenedor del campo de archivo
+            // 1. Verificar si el input file tiene valor (files.length > 0)
+            const tieneArchivoEnInput = await elemento.evaluate((el: HTMLInputElement) => {
+                return el.files && el.files.length > 0;
+            });
+            
+            if (tieneArchivoEnInput) {
+                return true;
+            }
+            
+            // 2. Buscar el contenedor más cercano del campo de archivo
             const contenedor = await elemento.evaluateHandle((el: Element) => {
-                return el.closest('div, fieldset, .form-group, .field, .input-group');
+                // Buscar contenedor más específico primero
+                return el.closest('.form-group, .field, .input-group, fieldset, div[class*="file"], div[class*="upload"]') || 
+                       el.closest('div');
             });
             
             if (contenedor) {
-                // Buscar texto "Archivo adjunto:" en el contenedor
+                // 3. Verificar indicadores visuales de archivo ya subido en el contenedor ESPECÍFICO
                 const tieneArchivoAdjunto = await contenedor.evaluate((container: Element) => {
                     const texto = container.textContent?.toLowerCase() || '';
-                    return texto.includes('archivo adjunto:') || 
-                           texto.includes('archivo adjunto') ||
-                           texto.includes('documento_prueba.pdf') ||
-                           texto.includes('fecha subida:');
+                    const html = container.innerHTML?.toLowerCase() || '';
+                    
+                    // Verificar múltiples indicadores de archivo subido
+                    const tieneIndicadorTexto = texto.includes('archivo adjunto:') || 
+                                               texto.includes('fecha subida:') ||
+                                               texto.includes('fecha de subida') ||
+                                               html.includes('.pdf') ||
+                                               html.includes('.docx') ||
+                                               html.includes('.xlsx');
+                    
+                    // Buscar elementos que muestren nombre de archivo
+                    const tieneNombreArchivo = container.querySelector('span[id*="nombre"], a[href*=".pdf"], a[href*=".docx"]');
+                    
+                    // Buscar iconos de archivo o basura (delete)
+                    const tieneIconoArchivo = container.querySelector('i[class*="file"], i[class*="document"], button[class*="delete"], a[class*="delete"]');
+                    
+                    // Verificar que NO sea solo el botón "Subir Archivo"
+                    const textoLimpio = texto.replace(/\s+/g, ' ').trim();
+                    const esSoloBoton = textoLimpio === 'subir archivo' || 
+                                       textoLimpio === 'seleccionar archivo' ||
+                                       textoLimpio === 'formato';
+                    
+                    return (tieneIndicadorTexto || tieneNombreArchivo || tieneIconoArchivo) && !esSoloBoton;
                 });
                 
                 if (tieneArchivoAdjunto) {
                     return true;
                 }
-            }
-            
-            //  NUEVO: Verificar también en toda la página por si el texto está fuera del contenedor
-            const tieneArchivoEnPagina = await this.page!.evaluate(() => {
-                const textoCompleto = document.body.textContent?.toLowerCase() || '';
-                return textoCompleto.includes('archivo adjunto:') || 
-                       textoCompleto.includes('documento_prueba.pdf');
-            });
-            
-            if (tieneArchivoEnPagina) {
-                return true;
             }
             
             return false;
