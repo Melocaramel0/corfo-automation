@@ -3,6 +3,7 @@ import { ConfiguracionAgente } from './tipos';
 import { obtenerConfiguracion } from './configuraciones';
 import { CAMPOS_CORFO_MAPPING } from '../scraping/extraerFormularios';
 import { CacheInteligente, FormularioCache } from './cacheInteligente';
+import { getNextReportId } from '../server/utils/getNextReportId';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -561,8 +562,9 @@ export class MVPHibrido {
     private formUrl: string = '';
     private archivosSubidosEnSesion: Set<string> = new Set(); // Para evitar subidas duplicadas
     private camposProcesadosEnPasoActual: Set<string> = new Set(); // 🔴 NUEVO: Para trackear campos procesados en iteraciones
-    private headless: boolean = false; // Modo headless para ejecución desde interfaz
+    private headless: boolean = false; // Modo headless - se configura en constructor
     private credenciales: { usuario: string; password: string } | null = null; // Credenciales dinámicas
+    private cancelado: boolean = false; // Bandera para cancelación
 
     constructor(configuracion: ConfiguracionAgente, headless: boolean = false, credenciales?: { usuario: string; password: string }) {
         this.configuracion = configuracion;
@@ -592,7 +594,7 @@ export class MVPHibrido {
 
     async ejecutar(): Promise<ResultadoMVP> {
         console.log('🚀 INICIANDO MVP HÍBRIDO - ANÁLISIS + AUTOCOMPLETADO');
-        console.log('=' .repeat(60));
+        console.log('='.repeat(60));
         console.log(' Objetivo: Completar formulario en 15-20 minutos');
         console.log('⚡ Estrategia: Extracción + Completado simultáneo');
         console.log('🛡️ Seguridad: NO envía formulario (solo testing)');
@@ -601,6 +603,14 @@ export class MVPHibrido {
         this.tiempoInicio = Date.now();
 
         try {
+            // Verificar si se canceló antes de empezar
+            if (this.cancelado) {
+                console.log('🛑 Ejecución cancelada antes de iniciar');
+                this.resultado.exito = false;
+                this.resultado.mensaje = 'Ejecución cancelada por el usuario';
+                return this.resultado;
+            }
+
             // Solo pedir URL por consola si no fue configurada previamente
             if (!this.formUrl) {
                 this.formUrl = await this.solicitarUrlPorConsola();
@@ -608,8 +618,13 @@ export class MVPHibrido {
                 console.log(`📋 URL del formulario configurada: ${this.formUrl}`);
             }
             
+            if (this.cancelado) return this.resultado;
             await this.inicializar();
+            
+            if (this.cancelado) return this.resultado;
             await this.loginYNavegacion();
+            
+            if (this.cancelado) return this.resultado;
             await this.procesarFormularioHibrido();
 
             this.resultado.exito = true;
@@ -767,6 +782,12 @@ export class MVPHibrido {
     private async procesarFormularioHibrido(): Promise<void> {
         console.log('🔄 Iniciando procesamiento híbrido...');
         
+        // Verificar cancelación
+        if (this.cancelado) {
+            console.log('🛑 Procesamiento cancelado');
+            return;
+        }
+        
         // Verificar si estamos en borradores o en el formulario real
         const detector = new DetectorEstructura(this.page!);
         const esBorradores = await detector.esPaginaBorradores();
@@ -779,6 +800,12 @@ export class MVPHibrido {
             // Espera adicional cuando no hay borradores para que se carguen los campos dinámicos
             console.log('⏳ Esperando carga de campos dinámicos...');
             await this.page!.waitForTimeout(7000);
+        }
+        
+        // Verificar cancelación después de navegación
+        if (this.cancelado) {
+            console.log('🛑 Procesamiento cancelado después de navegación');
+            return;
         }
         
         // Capturar título y URL del formulario real (no de borradores)
@@ -3180,14 +3207,28 @@ export class MVPHibrido {
         }
     }
 
+    /**
+     * Finaliza la ejecución y guarda el reporte de debugging
+     * Este reporte se guarda en data/debugg_results/ y es útil para ejecuciones manuales desde terminal
+     * NO se guarda cuando se ejecuta desde la UI (headless=true)
+     */
     private async finalizar(): Promise<void> {
-        console.log('\n📊 Generando reporte final...');
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const rutaReporte = path.join(__dirname, '../data', `mvp_hibrido_${timestamp}.json`);
-        
-        await fs.writeFile(rutaReporte, JSON.stringify(this.resultado, null, 2), 'utf-8');
-        console.log(`✅ Reporte guardado en: ${rutaReporte}`);
+        // Solo guardar reporte cuando se ejecuta desde terminal (NO headless)
+        // Cuando se ejecuta desde UI, el reporte lo guarda ProcessService
+        if (!this.headless) {
+            console.log('\n📊 Generando reporte final...');
+            
+            // Crear carpeta data/debugg_results/ si no existe
+            const debuggDir = path.join(__dirname, '../data/debugg_results');
+            await fs.mkdir(debuggDir, { recursive: true });
+            
+            // Obtener siguiente ID incremental
+            const nextId = await getNextReportId(debuggDir, 'report_');
+            const rutaReporte = path.join(debuggDir, `report_${nextId}.json`);
+            
+            await fs.writeFile(rutaReporte, JSON.stringify(this.resultado, null, 2), 'utf-8');
+            console.log(`✅ Reporte guardado en: ${rutaReporte}`);
+        }
     }
 
     private calcularEstadisticas(): void {
@@ -3217,6 +3258,17 @@ export class MVPHibrido {
         this.resultado.estadisticas.tiempoPromedioPorPaso = this.resultado.estadisticas.totalPasos > 0
             ? Math.round(tiempoTotal / this.resultado.estadisticas.totalPasos)
             : 0;
+    }
+
+    /**
+     * Detiene la ejecución actual y cierra el navegador
+     * Método público para permitir cancelación desde el exterior
+     */
+    async detener(): Promise<void> {
+        console.log('🛑 Deteniendo ejecución del MVP...');
+        this.cancelado = true;
+        await this.limpiarRecursos();
+        console.log('✅ MVP detenido correctamente');
     }
 
     private async limpiarRecursos(): Promise<void> {

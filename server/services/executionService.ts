@@ -33,7 +33,7 @@ export class ExecutionService {
    * SOLUCIÓN 3: Detectar OneDrive y usar ruta alternativa
    */
   private getSecureDataPath(): string {
-    const defaultPath = path.join(__dirname, '../../data/executions.json');
+    const defaultPath = path.join(__dirname, '../../data/logs.json');
     
     // Verificar si estamos en OneDrive (Windows)
     if (process.platform === 'win32' && defaultPath.includes('OneDrive')) {
@@ -52,9 +52,13 @@ export class ExecutionService {
 
   private async initializeStorage(): Promise<void> {
     try {
+      // Asegurar que el directorio data/ existe
+      await fs.mkdir(path.dirname(this.executionsFile), { recursive: true });
+      
+      // Verificar si el archivo existe
       await fs.access(this.executionsFile);
     } catch {
-      await fs.mkdir(path.dirname(this.executionsFile), { recursive: true });
+      // Si el archivo no existe, crearlo con array vacío
       await fs.writeFile(this.executionsFile, JSON.stringify([], null, 2));
     }
   }
@@ -105,6 +109,9 @@ export class ExecutionService {
     const executionsArray = Array.from(this.executions.values());
     
     try {
+      // Asegurar que el directorio existe antes de guardar
+      await fs.mkdir(path.dirname(this.executionsFile), { recursive: true });
+      
       // Intentar escribir el archivo
       await fs.writeFile(
         this.executionsFile, 

@@ -22,7 +22,9 @@ export interface AuthState {
 export type ProcessStatus = 
   | 'Creado' 
   | 'En configuración' 
+  | 'Procesando'
   | 'Ejecutado' 
+  | 'Fallido'
   | 'Cerrado' 
   | 'Anulado' 
   | 'Borrado'

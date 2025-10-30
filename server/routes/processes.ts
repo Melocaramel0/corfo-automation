@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ProcessService } from '../services/processService';
 
 const router = Router();
-const processService = new ProcessService();
+const processService = ProcessService.getInstance(); // Usar singleton
 
 /**
  * GET /api/processes

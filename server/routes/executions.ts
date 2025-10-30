@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { executionService } from '../services/executionService';
+import { ProcessService } from '../services/processService';
 
 const router = Router();
+const processService = ProcessService.getInstance(); // Usar singleton
 
 /**
  * GET /api/executions/:id/status
@@ -36,15 +38,21 @@ router.get('/:id/status', async (req: Request, res: Response) => {
 
 /**
  * POST /api/executions/:id/cancel
- * Cancelar una ejecución en curso
+ * Cancelar una ejecución en curso y detener el navegador
  */
 router.post('/:id/cancel', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
   try {
-    const { id } = req.params;
-    await executionService.cancelExecution(id);
+    console.log(`🛑 [POST /executions/${id}/cancel] Recibida solicitud de cancelación`);
+    
+    // Cancelar en ProcessService (esto detiene el navegador)
+    await processService.cancelExecution(id);
+    
+    console.log(`✅ [POST /executions/${id}/cancel] Ejecución cancelada exitosamente`);
     res.json({ message: 'Ejecución cancelada exitosamente' });
   } catch (error) {
-    console.error('Error cancelando ejecución:', error);
+    console.error(`❌ [POST /executions/${id}/cancel] Error:`, error);
     res.status(500).json({ error: 'Error cancelando ejecución' });
   }
 });

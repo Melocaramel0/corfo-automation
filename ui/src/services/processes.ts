@@ -386,7 +386,8 @@ export const processService = {
       console.log(`🌐 [API] Llamando a /processes/${processId}/execute-monitored`)
       const response = await apiService.post<{executionId: string}>(`/processes/${processId}/execute-monitored`)
       console.log(`✅ [API] Respuesta recibida:`, response)
-      return response.executionId
+      // El backend retorna directamente { executionId: string }, no dentro de ApiResponse
+      return (response as any).executionId
     } catch (error) {
       // Si el error tiene una respuesta del servidor, propagarlo directamente
       if ((error as any)?.response?.data?.error) {
@@ -422,7 +423,8 @@ export const processService = {
   async getExecutionStatus(executionId: string): Promise<ExecutionStatus | null> {
     try {
       const response = await apiService.get<ExecutionStatus>(`/executions/${executionId}/status`)
-      return response.data
+      // El backend retorna directamente el objeto ExecutionStatus, no dentro de ApiResponse
+      return response as any as ExecutionStatus
     } catch (error) {
       console.error('Error obteniendo estado de ejecución desde API, usando mock:', error)
       await new Promise(resolve => setTimeout(resolve, 100))

@@ -96,8 +96,82 @@ corfo-automation/
 └── data/                        # 💾 Almacenamiento
     ├── processes.json           # Procesos guardados
     ├── executions.json          # Ejecuciones activas
-    └── execution_results/       # Resultados de ejecuciones
+    ├── execution_results/       # Reportes de ejecuciones desde UI (exec_1.json, exec_2.json...)
+    └── debugg_results/          # Reportes de debugging desde terminal (report_1.json, report_2.json...)
 ```
+
+## 📊 Sistema de Reportes
+
+El sistema mantiene **dos tipos de reportes** con propósitos diferentes:
+
+### 1. Reportes de UI (`data/execution_results/`)
+
+**Propósito**: Ejecuciones monitoreadas desde la interfaz web
+
+**Características**:
+- Se generan al ejecutar procesos desde la UI
+- Incluyen metadata del servidor y tracking completo
+- Formato de nombres: `exec_1.json`, `exec_2.json`, `exec_3.json`...
+- IDs incrementales que se reinician al eliminar la carpeta
+- Carpeta se crea automáticamente si no existe
+
+**Cuándo se usan**: 
+- Ejecución desde botón "Ejecutar" en la interfaz
+- Monitoreo en tiempo real con logs y progreso
+- Gestión de múltiples ejecuciones simultáneas
+
+### 2. Reportes de Debugging (`data/debugg_results/`)
+
+**Propósito**: Ejecuciones manuales desde terminal para debugging
+
+**Características**:
+- Se generan **SOLO** al ejecutar MVP directamente desde terminal (modo no-headless)
+- **NO se generan** cuando se ejecuta desde la UI (para evitar duplicados)
+- Útiles para desarrollo y pruebas locales
+- Formato de nombres: `report_1.json`, `report_2.json`, `report_3.json`...
+- IDs incrementales independientes del sistema UI
+- Carpeta se crea automáticamente si no existe
+
+**Cuándo se usan**:
+- Desarrollo y testing local desde terminal
+- Debugging de problemas específicos
+- Pruebas rápidas sin interfaz
+- Scripts de automatización personalizados
+
+### Contadores Incrementales
+
+Cada carpeta mantiene su propio contador independiente:
+
+- Al ejecutar la primera vez → `exec_1.json` / `report_1.json`
+- Segunda ejecución → `exec_2.json` / `report_2.json`
+- Si se elimina la carpeta → contador se reinicia desde 1
+
+**Ejemplo**:
+```bash
+# Carpeta execution_results/
+exec_1.json   # Primera ejecución desde UI
+exec_2.json   # Segunda ejecución desde UI
+exec_3.json   # Tercera ejecución desde UI
+
+# Carpeta debugg_results/
+report_1.json   # Primera ejecución desde terminal
+report_2.json   # Segunda ejecución desde terminal
+report_3.json   # Tercera ejecución desde terminal
+```
+
+### Auto-creación de Almacenamiento
+
+El sistema crea automáticamente todas las carpetas y archivos necesarios:
+
+| Elemento | Se crea cuando |
+|----------|----------------|
+| `data/` | Inicio del servidor |
+| `data/debugg_results/` | Primera ejecución desde terminal |
+| `data/execution_results/` | Primera ejecución desde UI |
+| `data/processes.json` | Inicio del servidor |
+| `data/executions.json` | Inicio del servidor |
+
+✅ **Puedes eliminar estas carpetas/archivos sin problema**: el sistema los recreará automáticamente.
 
 ## 🔌 API Endpoints
 

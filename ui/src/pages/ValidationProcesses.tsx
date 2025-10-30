@@ -9,7 +9,8 @@ import {
   Filter,
   Download,
   User,
-  Calendar
+  Calendar,
+  StopCircle
 } from 'lucide-react'
 import { ValidationProcess, ExecutionStatus } from '../types'
 import { processService } from '../services/processes'
@@ -27,6 +28,7 @@ export const ValidationProcesses: React.FC = () => {
   const [showResultsModal, setShowResultsModal] = useState(false)
   const [executionStatus, setExecutionStatus] = useState<ExecutionStatus | null>(null)
   const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null)
+  const [executingProcessId, setExecutingProcessId] = useState<string | null>(null) // ID del proceso en ejecución
 
   // Cargar procesos al montar el componente
   useEffect(() => {
@@ -43,6 +45,7 @@ export const ValidationProcesses: React.FC = () => {
           
           if (status && !status.isRunning) {
             setCurrentExecutionId(null)
+            setExecutingProcessId(null) // Limpiar el proceso en ejecución
             loadProcesses() // Recargar procesos cuando termine
           }
         } catch (error) {
@@ -84,6 +87,16 @@ export const ValidationProcesses: React.FC = () => {
     console.log(`🎯 [Frontend] Ejecutando proceso:`, { id: process.id, nombre: process.nombreConcurso })
     
     try {
+      // Actualizar estado del proceso inmediatamente a "Procesando" en la UI
+      setProcesses(prevProcesses => 
+        prevProcesses.map(p => 
+          p.id === process.id ? { ...p, estado: 'Procesando' } : p
+        )
+      )
+      
+      // Marcar este proceso como el que se está ejecutando
+      setExecutingProcessId(process.id)
+      
       const executionId = await processService.executeProcessWithMonitoring(process.id)
       console.log(`✅ [Frontend] Execution ID recibido:`, executionId)
       
@@ -98,6 +111,9 @@ export const ValidationProcesses: React.FC = () => {
     } catch (error) {
       console.error('❌ [Frontend] Error ejecutando proceso:', error)
       
+      // Limpiar estado de ejecución en caso de error
+      setExecutingProcessId(null)
+      
       // Extraer mensaje de error detallado
       const errorMessage = (error as any)?.response?.data?.error || (error as Error).message
       
@@ -110,6 +126,27 @@ export const ValidationProcesses: React.FC = () => {
       
       // Mostrar error al usuario con mensaje más amigable
       alert(`Error al ejecutar el proceso:\n\n${errorMessage}\n\n💡 La lista de procesos se ha actualizado. Por favor, selecciona un proceso válido e intenta nuevamente.`)
+    }
+  }
+
+  const handleCancelExecution = async () => {
+    if (!currentExecutionId) return
+    
+    try {
+      console.log(`🛑 [Frontend] Cancelando ejecución:`, currentExecutionId)
+      await processService.cancelExecution(currentExecutionId)
+      
+      setExecutionStatus(null)
+      setCurrentExecutionId(null)
+      setExecutingProcessId(null) // Limpiar el proceso en ejecución
+      
+      console.log('✅ [Frontend] Ejecución cancelada correctamente')
+      
+      // Recargar procesos para actualizar estados
+      await loadProcesses()
+    } catch (error) {
+      console.error('❌ [Frontend] Error cancelando ejecución:', error)
+      alert('Error al cancelar la ejecución')
     }
   }
 
@@ -213,6 +250,7 @@ export const ValidationProcesses: React.FC = () => {
               processService.cancelExecution(currentExecutionId)
               setCurrentExecutionId(null)
               setExecutionStatus(null)
+              setExecutingProcessId(null)
             }
           }}
         />
@@ -291,15 +329,25 @@ export const ValidationProcesses: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
-                      {/* Ejecutar */}
-                      <button
-                        onClick={() => handleExecuteProcess(process)}
-                        disabled={executionStatus?.isRunning}
-                        className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Ejecutar proceso"
-                      >
-                        <Play className="w-4 h-4" />
-                      </button>
+                      {/* Ejecutar o Detener */}
+                      {executionStatus?.isRunning && executingProcessId === process.id ? (
+                        <button
+                          onClick={handleCancelExecution}
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Detener proceso"
+                        >
+                          <StopCircle className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleExecuteProcess(process)}
+                          disabled={executionStatus?.isRunning && executingProcessId !== process.id}
+                          className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Ejecutar proceso"
+                        >
+                          <Play className="w-4 h-4" />
+                        </button>
+                      )}
                       
                       {/* Editar */}
                       <button

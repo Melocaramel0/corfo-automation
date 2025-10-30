@@ -3,6 +3,7 @@ import * as path from 'path';
 import { MVPHibrido, ResultadoMVP } from '../../ai/mvpHibrido';
 import { obtenerConfiguracion } from '../../ai/configuraciones';
 import { executionService } from './executionService';
+import { getNextReportId } from '../utils/getNextReportId';
 
 interface ValidationProcess {
   id: string;
@@ -36,18 +37,31 @@ interface PaginatedResponse<T> {
 }
 
 export class ProcessService {
+  private static instance: ProcessService;
   private processesFile = path.join(__dirname, '../../data/processes.json');
+  private activeMVPInstances: Map<string, MVPHibrido> = new Map(); // Guardar instancias activas
 
-  constructor() {
+  private constructor() {
     this.initializeStorage();
+  }
+
+  // Singleton: siempre retorna la misma instancia
+  public static getInstance(): ProcessService {
+    if (!ProcessService.instance) {
+      ProcessService.instance = new ProcessService();
+    }
+    return ProcessService.instance;
   }
 
   private async initializeStorage(): Promise<void> {
     try {
+      // Asegurar que el directorio data/ existe
+      await fs.mkdir(path.dirname(this.processesFile), { recursive: true });
+      
+      // Verificar si el archivo existe
       await fs.access(this.processesFile);
     } catch {
-      // Si no existe, crear archivo con array vacío
-      await fs.mkdir(path.dirname(this.processesFile), { recursive: true });
+      // Si el archivo no existe, crearlo con array vacío
       await fs.writeFile(this.processesFile, JSON.stringify([], null, 2));
     }
   }
@@ -62,6 +76,8 @@ export class ProcessService {
   }
 
   private async saveProcesses(processes: ValidationProcess[]): Promise<void> {
+    // Asegurar que el directorio existe antes de guardar
+    await fs.mkdir(path.dirname(this.processesFile), { recursive: true });
     await fs.writeFile(this.processesFile, JSON.stringify(processes, null, 2));
   }
 
@@ -218,6 +234,10 @@ export class ProcessService {
       // Modo headless (navegador oculto == true) cuando se ejecuta desde interfaz
       const mvp = new MVPHibrido(configuracion, true, credenciales);
 
+      // Guardar instancia activa para poder cancelarla después
+      this.activeMVPInstances.set(executionId, mvp);
+      console.log(`✅ [ProcessService] Instancia MVP guardada para ${executionId}. Total activas: ${this.activeMVPInstances.size}`);
+
       // Inyectar URL del formulario
       (mvp as any).formUrl = process.rutaFormulario;
 
@@ -225,7 +245,7 @@ export class ProcessService {
       console.log(`📋 URL del formulario: ${process.rutaFormulario}`);
 
       // Ejecutar MVP y capturar logs en tiempo real
-      this.captureLogs(executionId, async () => {
+      await this.captureLogs(executionId, async () => {
         const resultado: ResultadoMVP = await mvp.ejecutar();
 
         // Guardar resultado
@@ -239,11 +259,63 @@ export class ProcessService {
 
         // Finalizar ejecución
         await executionService.completeExecution(executionId, resultado);
+        
+        // Limpiar instancia activa
+        this.activeMVPInstances.delete(executionId);
       });
 
     } catch (error) {
       console.error(`❌ Error en ejecución ${executionId}:`, error);
       await executionService.failExecution(executionId, (error as Error).message);
+      
+      // Actualizar estado del proceso a Fallido
+      await this.updateProcess(processId, { 
+        estado: 'Fallido',
+        fechaModificacion: new Date().toISOString()
+      });
+      
+      // Limpiar instancia activa en caso de error
+      this.activeMVPInstances.delete(executionId);
+    }
+  }
+
+  /**
+   * Cancela una ejecución activa y detiene el navegador
+   */
+  async cancelExecution(executionId: string): Promise<void> {
+    console.log(`🛑 [ProcessService] Cancelando ejecución: ${executionId}`);
+    console.log(`🛑 [ProcessService] Instancias activas: ${this.activeMVPInstances.size}`);
+    console.log(`🛑 [ProcessService] IDs activos:`, Array.from(this.activeMVPInstances.keys()));
+    
+    // Obtener el estado de ejecución para encontrar el processId
+    const executionStatus = await executionService.getExecutionStatus(executionId);
+    const processId = executionStatus?.processId;
+    
+    // Obtener la instancia activa del MVP
+    const mvpInstance = this.activeMVPInstances.get(executionId);
+    
+    if (mvpInstance) {
+      console.log(`🛑 [ProcessService] Deteniendo navegador...`);
+      // Detener el navegador de Playwright
+      await (mvpInstance as any).detener();
+      
+      // Limpiar instancia
+      this.activeMVPInstances.delete(executionId);
+      console.log(`✅ [ProcessService] Navegador detenido y limpiado`);
+    } else {
+      console.log(`⚠️ [ProcessService] No se encontró instancia activa para ${executionId}`);
+    }
+    
+    // Marcar ejecución como cancelada en el servicio
+    await executionService.cancelExecution(executionId);
+    
+    // Actualizar estado del proceso a Creado (vuelve al estado inicial)
+    if (processId) {
+      await this.updateProcess(processId, { 
+        estado: 'Creado',
+        fechaModificacion: new Date().toISOString()
+      });
+      console.log(`✅ [ProcessService] Estado del proceso ${processId} actualizado a "Creado"`);
     }
   }
 
@@ -277,15 +349,24 @@ export class ProcessService {
     }
   }
 
+  /**
+   * Guarda el resultado de una ejecución desde la UI
+   * Este reporte se guarda en data/execution_results/ con metadata del servidor
+   * para ejecuciones monitoreadas desde la interfaz web
+   */
   private async saveExecutionResult(executionId: string, resultado: ResultadoMVP): Promise<void> {
     try {
       const resultsDir = path.join(__dirname, '../../data/execution_results');
       await fs.mkdir(resultsDir, { recursive: true });
 
-      const resultFile = path.join(resultsDir, `${executionId}.json`);
+      // Obtener siguiente ID incremental para reportes de UI
+      const nextId = await getNextReportId(resultsDir, 'exec_');
+      const resultFile = path.join(resultsDir, `exec_${nextId}.json`);
       
-      // SOLUCIÓN 4: Guardar resultado con reintentos (igual que executions.json)
+      // Guardar resultado con reintentos para manejar bloqueos de OneDrive
       await this.saveFileWithRetry(resultFile, JSON.stringify(resultado, null, 2));
+      
+      console.log(`✅ Resultado de ejecución guardado: exec_${nextId}.json`);
     } catch (error) {
       console.error(`❌ Error guardando resultado de ejecución ${executionId}:`, error);
       console.error(`   Nota: El resultado está disponible en memoria pero no se pudo persistir en disco`);

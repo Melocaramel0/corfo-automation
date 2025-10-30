@@ -144,18 +144,6 @@ const LoginForm: React.FC = () => {
             </div>
           </div>
         </form>
-
-        {/* Información de credenciales de prueba */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">
-            Credenciales de Prueba
-          </h3>
-          <div className="text-xs text-blue-700 space-y-1">
-            <div><strong>Admin:</strong> 15124928-0 / Admin#2025</div>
-            <div><strong>QA:</strong> 11111111-1 / Qa#2025</div>
-            <div><strong>User:</strong> 22222222-2 / User#2025</div>
-          </div>
-        </div>
       </div>
     </div>
   )
