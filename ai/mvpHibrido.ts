@@ -79,24 +79,26 @@ export class DetectorEstructura {
             console.log('   📋 Paso de introducción detectado');
         }
 
+        //  NUEVO: Detectar si es paso con botón AGREGAR+
+        const esPasoConAgregar = await this.esPasoConBotonAgregar();
+        if (esPasoConAgregar) {
+            console.log('   📋 Paso con botón AGREGAR+ detectado');
+        }
+
+        //  NUEVO: Detectar si es paso Presupuesto
+        const esPasoPresupuesto = await this.esPasoPresupuesto();
+        if (esPasoPresupuesto) {
+            console.log('   📋 Paso Presupuesto con tabs detectado');
+        }
+
         //  NUEVO: Detectar desplegables
         estructura.desplegables = await this.detectarDesplegables();
-
-        console.log(`📊 ESTRUCTURA DETECTADA:`);
-        console.log(`   📈 Método: ${estructura.tipoDeteccion} (${estructura.confianza}% confianza)`);
-        console.log(`   📋 Total pasos: ${estructura.totalPasos}`);
-        console.log(`   📍 Paso actual: ${estructura.pasoActual}`);
-        console.log(`    Es confirmación: ${estructura.esPaginaConfirmacion}`);
-        console.log(`   📁 Es borradores: ${estructura.esPaginaBorradores}`);
-        console.log(`   📂 Desplegables encontrados: ${estructura.desplegables?.length || 0}`);
 
         return estructura;
     }
 
     private async detectarPorSlickSlider(): Promise<Partial<EstructuraFormularioDetectada>> {
         try {
-            console.log('🔍 Detectando estructura por Slick Slider...');
-            
             const resultado = await this.page.evaluate(() => {
                 // DETECCIÓN ESPECÍFICA PARA SLICK-SLIDER (CORFO)
                 const slickSliders = document.querySelectorAll('.slick-slider, .carousel.slick-initialized');
@@ -172,72 +174,42 @@ export class DetectorEstructura {
     }
 
 
+    /**
+     * Detecta si estamos en el paso final de confirmación
+     * Criterio principal: Presencia del botón "Enviar" (id="BotonEnviar") en lugar de "Siguiente"
+     */
     async esPaginaConfirmacion(): Promise<boolean> {
         return await this.page.evaluate(() => {
-            const textoCompleto = document.body.textContent?.toLowerCase() || '';
-            
-            // 🔴 PASO 1: Verificar que NO haya campos editables (condición OBLIGATORIA)
-            const camposEditables = Array.from(document.querySelectorAll('input:not([type="hidden"]), select, textarea')).filter(campo => {
-                const element = campo as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-                const isReadOnly = (element as HTMLInputElement | HTMLTextAreaElement).readOnly || element.hasAttribute('readonly');
-                const isDisabled = element.disabled || element.hasAttribute('disabled');
-                
-                // Verificar que el campo sea realmente interactuable
-                const rect = element.getBoundingClientRect();
-                const isVisible = rect.width > 0 && rect.height > 0;
-                
-                return !isReadOnly && !isDisabled && isVisible;
-            });
-            
-            // 🔴 CRÍTICO: Si hay campos editables, NO ES confirmación (sin importar qué digan los botones)
-            if (camposEditables.length > 0) {
-                return false;
-            }
-            
-            // 🔴 PASO 2: Solo si NO hay campos editables, verificar indicadores de confirmación
-            
-            // Verificar botón de navegación principal (debe decir "ENVIAR" exactamente, no "SIGUIENTE")
-            const botonesNavegacion = Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"]')).filter(boton => {
-                const texto = (boton.textContent?.trim().toLowerCase() || '').replace(/\s+/g, ' ');
-                const value = ((boton as HTMLInputElement).value?.toLowerCase() || '').trim();
-                
-                // Buscar botones que digan específicamente "enviar" o "finalizar", NO "siguiente"
-                return (texto === 'enviar' || value === 'enviar' || 
-                        texto.includes('enviar postulación') || 
-                        texto.includes('enviar formulario') ||
-                        texto === 'finalizar' || value === 'finalizar') &&
-                       !texto.includes('siguiente');
-            });
-            
-            if (botonesNavegacion.length > 0) {
-                return true;
-            }
-            
-            // Verificar título del paso activo en el stepper
-            const pasoActivo = document.querySelector('.slick-current, .slick-active, .step.active, .active');
-            if (pasoActivo) {
-                const textoPaso = pasoActivo.textContent?.toLowerCase() || '';
-                if (textoPaso.includes('confirmación') || textoPaso.includes('resumen')) {
-                    return true;
+            // 🔴 DETECCIÓN PRINCIPAL: Botón "Enviar" con id="BotonEnviar"
+            const botonEnviar = document.querySelector('#BotonEnviar, a[id*="BotonEnviar"], button[id*="BotonEnviar"]');
+            if (botonEnviar) {
+                const rect = botonEnviar.getBoundingClientRect();
+                const esVisible = rect.width > 0 && rect.height > 0;
+                if (esVisible) {
+                    return true; // Si hay botón Enviar visible, ES confirmación
                 }
             }
             
-            // 🔴 VERIFICACIÓN MÁS ESTRICTA: Los contadores SOLOS no son suficientes
-            // Debe cumplir MÚLTIPLES condiciones para ser confirmación
-            const tieneContadores = textoCompleto.includes('campos obligatorios correctos') && 
-                                   textoCompleto.includes('campos obligatorios incorrectos');
+            // 🔴 VERIFICACIÓN SECUNDARIA: Si hay botón AGREGAR+, NO es confirmación
+            const botonesAgregar = Array.from(document.querySelectorAll('button, a, input[type="button"]'));
+            const tieneBotonAgregar = botonesAgregar.some(boton => {
+                const texto = (boton.textContent?.trim() || '').toLowerCase();
+                const id = boton.id?.toLowerCase() || '';
+                const rect = boton.getBoundingClientRect();
+                const esVisible = rect.width > 0 && rect.height > 0;
+                return esVisible && (texto.includes('agregar') || id.includes('agregar'));
+            });
             
-            if (tieneContadores) {
-                // Verificar que NO haya desplegables (los pasos normales tienen desplegables)
-                const tieneDesplegables = document.querySelectorAll('a[class*="collapse"], a[data-toggle="collapse"], [class*="accordion"]').length > 0;
-                
-                // Verificar que NO haya tablas para agregar datos
-                const tieneTablasEditables = document.querySelectorAll('table').length > 0 && 
-                                            (textoCompleto.includes('agregar') || textoCompleto.includes('añadir'));
-                
-                // Solo es confirmación si tiene contadores Y NO tiene desplegables Y NO tiene tablas editables
-                if (!tieneDesplegables && !tieneTablasEditables) {
-                    return true;
+            if (tieneBotonAgregar) {
+                return false;
+            }
+            
+            // 🔴 VERIFICACIÓN TERCIARIA: Si hay tabs de presupuesto, NO es confirmación
+            const tabsContainer = document.querySelector('ul[id*="ul_tb_cuentas_"]');
+            if (tabsContainer) {
+                const tabs = tabsContainer.querySelectorAll('li a[data-toggle="tab"][data-cuenta]');
+                if (tabs.length > 0) {
+                    return false;
                 }
             }
             
@@ -326,8 +298,6 @@ export class DetectorEstructura {
 
     //  NUEVO: Detectar desplegables en el formulario - VERSIÓN FINAL (SOLO VISIBLES EN PASO ACTUAL)
     async detectarDesplegables(): Promise<Desplegable[]> {
-        console.log('🔍 Detectando desplegables (solo visibles en paso actual)...');
-        
         try {
             const desplegables = await this.page.evaluate(() => {
                 const desplegables: Desplegable[] = [];
@@ -406,11 +376,6 @@ export class DetectorEstructura {
                 return desplegables;
             });
             
-            console.log(`   ✅ Desplegables detectados: ${desplegables.length}`);
-            desplegables.forEach((d: Desplegable) => {
-                console.log(`     📂 "${d.titulo}" - ${d.isOpen ? 'Abierto' : 'Cerrado'} - Sub-desplegables: ${d.subDesplegablesCount}`);
-            });
-            
             return desplegables;
             
         } catch (error) {
@@ -480,6 +445,97 @@ export class DetectorEstructura {
             return false;
         }
     }
+
+    //  NUEVO: Detectar si el paso requiere hacer clic en botón AGREGAR+
+    async esPasoConBotonAgregar(): Promise<boolean> {
+        console.log('   🔍 Verificando si es paso con botón AGREGAR+...');
+        
+        try {
+            const resultado = await this.page.evaluate(() => {
+            // Verificar label duración
+            const labels = Array.from(document.querySelectorAll('label'));
+            let labelEncontrado = '';
+            const tieneLabelDuracion = labels.some(label => {
+                const texto = label.textContent?.toLowerCase() || '';
+                if (texto.includes('duración') || texto.includes('duracion')) {
+                    labelEncontrado = label.textContent?.trim() || '';
+                    return true;
+                }
+                return false;
+            });
+            
+            // Verificar campo disabled visible
+            const camposDisabled = Array.from(document.querySelectorAll('input[disabled], select[disabled]'));
+            let campoDisabledEncontrado = '';
+            const tieneCampoDisabled = camposDisabled.some(campo => {
+                const rect = campo.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const el = campo as HTMLInputElement | HTMLSelectElement;
+                    campoDisabledEncontrado = `${el.tagName} id="${el.id}" value="${el.value}"`;
+                    return true;
+                }
+                return false;
+            });
+            
+            // Verificar botón AGREGAR+ visible
+            const botones = Array.from(document.querySelectorAll('button, a, input[type="button"]'));
+            let botonEncontrado = '';
+            const tieneBotonAgregar = botones.some(boton => {
+                const texto = (boton.textContent?.trim() || '').toLowerCase();
+                const id = boton.id?.toLowerCase() || '';
+                const rect = boton.getBoundingClientRect();
+                const esVisible = rect.width > 0 && rect.height > 0;
+                const contieneAgregar = texto.includes('agregar') || id.includes('agregar');
+                
+                if (esVisible && contieneAgregar) {
+                    botonEncontrado = `texto="${boton.textContent?.trim()}" id="${boton.id}"`;
+                    return true;
+                }
+                return false;
+            });
+            
+            // SIMPLIFICACIÓN: Solo verificar label duración + botón AGREGAR+
+            // El campo disabled puede tener readonly en lugar de disabled, así que no es confiable
+            return {
+                cumple: tieneLabelDuracion && tieneBotonAgregar,
+                tieneLabelDuracion,
+                tieneCampoDisabled,
+                tieneBotonAgregar,
+                labelEncontrado,
+                campoDisabledEncontrado,
+                botonEncontrado
+            };
+        });
+        
+            // Logging detallado para debugging
+            console.log(`   🔍 Verificando condiciones para botón AGREGAR+:`);
+            console.log(`      ✓ Label duración: ${resultado.tieneLabelDuracion} ${resultado.labelEncontrado ? `- "${resultado.labelEncontrado}"` : ''}`);
+            console.log(`      ✓ Campo disabled: ${resultado.tieneCampoDisabled} ${resultado.campoDisabledEncontrado ? `- ${resultado.campoDisabledEncontrado}` : ''}`);
+            console.log(`      ✓ Botón AGREGAR+: ${resultado.tieneBotonAgregar} ${resultado.botonEncontrado ? `- ${resultado.botonEncontrado}` : ''}`);
+            console.log(`      → Resultado final: ${resultado.cumple} (label duración + botón AGREGAR+)`);
+            
+            return resultado.cumple;
+        } catch (error) {
+            console.log(`   ⚠️ Error verificando botón AGREGAR+:`, (error as Error).message);
+            return false;
+        }
+    }
+
+    //  NUEVO: Detectar si el paso es Presupuesto con tabs dinámicos
+    async esPasoPresupuesto(): Promise<boolean> {
+        return await this.page.evaluate(() => {
+            // Buscar contenedor de tabs con patrón ul_tb_cuentas_*
+            const tabsContainer = document.querySelector('ul[id*="ul_tb_cuentas_"]');
+            
+            // Verificar que tenga tabs dentro
+            if (tabsContainer) {
+                const tabs = tabsContainer.querySelectorAll('li a[data-toggle="tab"][data-cuenta]');
+                return tabs.length > 0;
+            }
+            
+            return false;
+        });
+    }
 }
 
 /**
@@ -499,6 +555,7 @@ export interface ResultadoMVP {
     tituloProyecto?: string;
     codigoProyecto?: string;
     urlInicial?: string;
+    urlFormularioEnviado?: string;
     fechaEjecucion?: string;
     tiempoTotal: number;
     pasosCompletados?: PasoMVP[];
@@ -831,26 +888,35 @@ export class MVPHibrido {
         const tiempoLimitePorPaso = 3 * 60 * 1000; // 3 minutos máximo por paso
         const TOTAL_PASOS_ESPERADOS = estructura.totalPasos;
 
-        console.log(`📊 ESTRUCTURA DETECTADA: ${TOTAL_PASOS_ESPERADOS} pasos, método: ${estructura.tipoDeteccion}`);
+        console.log(`📊 ESTRUCTURA DETECTADA:`);
+        console.log(`   📈 Método: ${estructura.tipoDeteccion} (${estructura.confianza}% confianza)`);
+        console.log(`   📋 Total pasos: ${TOTAL_PASOS_ESPERADOS}`);
+        console.log(`   📍 Paso actual: ${pasoActual}`);
+        console.log(`    Es confirmación: ${estructura.esPaginaConfirmacion}`);
+        console.log(`   📁 Es borradores: ${estructura.esPaginaBorradores}`);
         
         if (estructura.esPaginaConfirmacion) {
-            console.log('📋 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación...');
+            console.log('📋 PÁGINA DE CONFIRMACIÓN DETECTADA - Procesando verificación y envío...');
             const detallesConfirmacion = await this.procesarPasoConfirmacion();
         
             // Agregar paso de confirmación a los resultados
             const pasoConfirmacion: PasoMVP = {
-                numero: 1,
+                numero: TOTAL_PASOS_ESPERADOS,
                 titulo: 'Confirmación Final',
                 camposEncontrados: detallesConfirmacion.length,
                 camposCompletados: detallesConfirmacion.filter(d => d.completado).length,
-                tiempoTranscurrido: 0, // Confirmación es instantánea
+                tiempoTranscurrido: 0,
                 exito: true,
                 detalles: detallesConfirmacion
             };
             
             this.resultado.pasosCompletados = this.resultado.pasosCompletados || [];
             this.resultado.pasosCompletados.push(pasoConfirmacion);
-            return; // No hay más pasos después de confirmación
+            
+            // 🔴 NUEVO: Enviar el formulario
+            await this.enviarFormularioFinal();
+            
+            return;
         }
 
         // Solo procesar pasos si NO estamos en confirmación ni borradores
@@ -859,7 +925,7 @@ export class MVPHibrido {
             
             while (hayMasPasos && pasoActual <= TOTAL_PASOS_ESPERADOS) {
                 const tiempoInicioPaso = Date.now();
-                console.log(`\n🔍 PROCESANDO PASO ${pasoActual}`);
+                console.log(`\n🔍 PROCESANDO PASO ${pasoActual} de ${TOTAL_PASOS_ESPERADOS}`);
                 console.log('-'.repeat(40));
 
             try {
@@ -879,8 +945,28 @@ export class MVPHibrido {
                 
                 // Verificar si llegamos a una página especial
                 const estructuraActual = await detector.detectarEstructuraCompleta();
-                if (estructuraActual.esPaginaConfirmacion || estructuraActual.esPaginaBorradores) {
-                    console.log('📋 Página especial detectada, finalizando loop...');
+                if (estructuraActual.esPaginaConfirmacion) {
+                    console.log('📋 Página de confirmación detectada, procesando paso final...');
+                    
+                    // Procesar el paso de confirmación (no extraemos campos)
+                    const detallesConfirmacion = await this.procesarPasoConfirmacion();
+                    const pasoConfirmacion: PasoMVP = {
+                        numero: pasoActual,
+                        titulo: 'Confirmación Final',
+                        camposEncontrados: 0,
+                        camposCompletados: 0,
+                        tiempoTranscurrido: 0,
+                        exito: true,
+                        detalles: detallesConfirmacion
+                    };
+                    this.resultado.pasosCompletados.push(pasoConfirmacion);
+                    
+                    // Hacer clic en botón "Enviar" para enviar el formulario
+                    await this.enviarFormularioFinal();
+                    
+                    hayMasPasos = false;
+                } else if (estructuraActual.esPaginaBorradores) {
+                    console.log('📋 Página de borradores detectada, finalizando loop...');
                     hayMasPasos = false;
                 }
 
@@ -920,12 +1006,29 @@ export class MVPHibrido {
         //  DETECCIÓN AUTOMÁTICA DE TIPO DE PASO
         const detector = new DetectorEstructura(this.page!);
         const esConfirmacion = await detector.esPaginaConfirmacion();
+        const esPasoPresupuesto = await detector.esPasoPresupuesto();
+        const esPasoConAgregar = await detector.esPasoConBotonAgregar();
+        
+        console.log(`   📋 Tipo de paso detectado: ${esConfirmacion ? 'CONFIRMACIÓN' : 
+            (esPasoPresupuesto ? 'PRESUPUESTO' : (esPasoConAgregar ? 'AGREGAR+' : 'NORMAL'))}`);
 
         let todosCamposProcesados: DetallePasoMVP[] = [];
         
         if (esConfirmacion) {
             console.log(' PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
             todosCamposProcesados = await this.procesarPasoConfirmacion();
+        } else if (esPasoPresupuesto) {
+            console.log(' PASO PRESUPUESTO DETECTADO - Procesando tabs de presupuesto');
+            todosCamposProcesados = await this.procesarPasoPresupuesto();
+            console.log('✅ Paso Presupuesto completado exitosamente');
+        } else if (esPasoConAgregar) {
+            console.log(' PASO CON BOTÓN AGREGAR+ DETECTADO - Procesando modal de actividades');
+            
+            // Procesar modal AGREGAR+ (ya incluye navegación al siguiente paso)
+            todosCamposProcesados = await this.procesarPasoConBotonAgregar();
+            
+            // ✅ NO procesar más campos ni navegar aquí - ya se hizo en procesarPasoConBotonAgregar()
+            console.log('✅ Modal procesado exitosamente - Listo para continuar al siguiente paso');
         } else {
             // 🔴 NUEVO: Sistema iterativo para completar campos faltantes
             console.log(`🔄 Procesando paso ${numeroPaso} - Autocompletando campos`);
@@ -1022,7 +1125,7 @@ export class MVPHibrido {
             camposEncontrados: todosCamposProcesados.length,
             camposCompletados: todosCamposProcesados.filter(c => c.completado).length,
             tiempoTranscurrido: tiempoTranscurrido,
-            exito: todosCamposProcesados.length > 0 || esConfirmacion,
+            exito: todosCamposProcesados.length > 0 || esConfirmacion || esPasoConAgregar || esPasoPresupuesto,
             detalles: todosCamposProcesados
         };
 
@@ -1035,105 +1138,293 @@ export class MVPHibrido {
         return paso;
     }
 
+    /**
+     * Envía el formulario final haciendo clic en el botón "Enviar"
+     */
+    private async enviarFormularioFinal(): Promise<void> {
+        console.log('📤 Enviando formulario final...');
+        
+        try {
+            // 1. Buscar y hacer clic en botón "Enviar"
+            const botonEnviar = await this.page!.$('#BotonEnviar');
+            
+            if (!botonEnviar) {
+                console.log('   ⚠️ No se encontró botón Enviar');
+                return;
+            }
+            
+            // Verificar si el botón está habilitado
+            const estaHabilitado = await botonEnviar.evaluate((btn: any) => {
+                return !btn.disabled && 
+                       btn.style.display !== 'none' && 
+                       btn.style.visibility !== 'hidden';
+            });
+            
+            if (!estaHabilitado) {
+                console.log('   ⚠️ Botón Enviar está deshabilitado');
+                return;
+            }
+            
+            console.log('   📤 Haciendo clic en botón Enviar...');
+            await botonEnviar.click();
+            
+            // 2. Esperar 40 segundos para que aparezca el modal de éxito
+            console.log('   ⏳ Esperando 40 segundos para modal de confirmación...');
+            await this.page!.waitForTimeout(40000);
+            
+            // 3. Buscar y hacer clic en botón "Aceptar" del modal de éxito
+            console.log('   🔍 Buscando modal de éxito...');
+            const botonAceptar = await this.buscarBotonPorTexto(['Aceptar', 'ACEPTAR', 'OK']);
+            if (botonAceptar) {
+                console.log('   ✅ Haciendo clic en botón Aceptar del modal de éxito...');
+                await botonAceptar.click();
+                await this.page!.waitForTimeout(2000);
+            }
+            
+            // 4. Cerrar modal de encuesta si aparece (manejo dinámico)
+            console.log('   🔍 Verificando si aparece modal de encuesta...');
+            await this.page!.waitForTimeout(1000);
+            
+            try {
+                // Buscar el botón de cerrar con timeout corto
+                const botonCerrarEncuesta = await this.page!.waitForSelector(
+                    'button.close[data-dismiss="modal"]',
+                    { timeout: 3000, state: 'visible' }
+                );
+                
+                if (botonCerrarEncuesta) {
+                    console.log('   ❌ Modal de encuesta detectado, cerrando...');
+                    await botonCerrarEncuesta.click();
+                    await this.page!.waitForTimeout(1000);
+                }
+            } catch (error) {
+                console.log('   ℹ️ No apareció modal de encuesta, continuando...');
+            }
+            
+            // 5. Retroceder una vez en el navegador
+            console.log('   ⬅️ Retrocediendo en el navegador...');
+            await this.page!.goBack();
+            await this.page!.waitForTimeout(2000);
+            
+            // 6. Extraer la URL actual del navegador
+            const urlFormularioEnviado = this.page!.url();
+            console.log(`   🔗 URL del formulario enviado: ${urlFormularioEnviado}`);
+            
+            // 7. Guardar la URL en el resultado
+            this.resultado.urlFormularioEnviado = urlFormularioEnviado;
+            
+            console.log('✅ Formulario enviado exitosamente');
+            
+        } catch (error) {
+            console.error('   ❌ Error enviando formulario:', (error as Error).message);
+        }
+    }
 
     private async procesarPasoConfirmacion(): Promise<DetallePasoMVP[]> {
-        console.log('📊 Analizando contadores de campos obligatorios...');
-        
+        // Ya no extraemos campos en el paso de confirmación
+        // Solo retornamos un array vacío
+        return [];
+    }
+
+    /**
+     * Procesa paso especial con botón AGREGAR+ que abre modal con campos dinámicos
+     * Reutiliza lógica existente de procesamiento de campos
+     * Incluye navegación al siguiente paso al finalizar
+     */
+    private async procesarPasoConBotonAgregar(): Promise<DetallePasoMVP[]> {
+        console.log('📋 Procesando paso con botón AGREGAR+...');
         const detalles: DetallePasoMVP[] = [];
         
         try {
-            // Buscar los contadores de campos en la página de confirmación
-            const contadores = await this.page!.evaluate(() => {
-                const resultados = {
-                    correctos: 0,
-                    incorrectos: 0,
-                    formatosIncorrectos: 0
-                };
+            // 1. Buscar y clic en AGREGAR+ (reutiliza selectores estándar)
+            const botonAgregar = await this.buscarBotonPorTexto(['AGREGAR +', 'Agregar +']);
+            if (!botonAgregar) {
+                console.log('   ⚠️ No se encontró botón AGREGAR+');
+                return detalles;
+            }
+            
+            await botonAgregar.click();
+            await this.page!.waitForTimeout(2000);
+            console.log('   ✅ Modal abierto');
+            
+            // 2. Procesar campos del modal (REUTILIZA lógica existente)
+            const camposModal = await this.extraerYCompletarCampos();
+            detalles.push(...camposModal);
+            console.log(`   📊 Campos procesados: ${camposModal.length}`);
+            
+            // 3. Buscar y clic en Enviar
+            const botonEnviar = await this.buscarBotonPorTexto(['Enviar', 'ENVIAR', 'Guardar']);
+            if (botonEnviar) {
+                await botonEnviar.click();
+                await this.page!.waitForTimeout(2000);
+                console.log('   ✅ Formulario enviado');
                 
-                // Buscar elementos que contengan los contadores
-                const elementos = document.querySelectorAll('*');
-                for (let i = 0; i < elementos.length; i++) {
-                    const elemento = elementos[i];
-                    const texto = elemento.textContent || '';
-                    
-                    // Buscar patrones como "Campos obligatorios correctos: 11"
-                    if (texto.includes('obligatorios correctos')) {
-                        const match = texto.match(/(\d+)/);
-                        if (match) resultados.correctos = parseInt(match[1]);
-                    }
-                    
-                    if (texto.includes('obligatorios incorrectos')) {
-                        const match = texto.match(/(\d+)/);
-                        if (match) resultados.incorrectos = parseInt(match[1]);
-                    }
-                    
-                    if (texto.includes('formatos incorrectos')) {
-                        const match = texto.match(/(\d+)/);
-                        if (match) resultados.formatosIncorrectos = parseInt(match[1]);
-                    }
+                // 4. Manejar modal "Proceso Exitoso" (similar a modal confirmación)
+                await this.cerrarModalConfirmacion(['Aceptar', 'ACEPTAR']);
+                
+                // 5. ✅ NAVEGAR AL SIGUIENTE PASO después de cerrar el modal
+                console.log('   ➡️ Navegando al siguiente paso después de agregar actividad...');
+                await this.page!.waitForTimeout(1500); // Esperar que se actualice la tabla
+                
+                const resultadoNavegacion = await this.navegarAlSiguientePaso();
+                if (resultadoNavegacion.navegoExitosamente) {
+                    console.log('   ✅ Navegación exitosa al siguiente paso');
+                } else {
+                    console.log('   ⚠️ No se pudo navegar al siguiente paso');
                 }
-                
-                return resultados;
-            });
-            
-            console.log(`   ✅ Campos obligatorios correctos: ${contadores.correctos}`);
-            console.log(`   ❌ Campos obligatorios incorrectos: ${contadores.incorrectos}`);
-            console.log(`   ⚠️ Campos con formatos incorrectos: ${contadores.formatosIncorrectos}`);
-            
-            // Crear detalles para el reporte
-            detalles.push({
-                etiqueta: 'Campos obligatorios correctos',
-                tipo: 'contador',
-                valorAsignado: contadores.correctos.toString(),
-                completado: true,
-                esObligatorio: false
-            });
-            
-            detalles.push({
-                etiqueta: 'Campos obligatorios incorrectos',
-                tipo: 'contador',
-                valorAsignado: contadores.incorrectos.toString(),
-                completado: contadores.incorrectos === 0,
-                esObligatorio: false,
-                razonFallo: contadores.incorrectos > 0 ? `Hay ${contadores.incorrectos} campos incorrectos` : undefined
-            });
-            
-            detalles.push({
-                etiqueta: 'Campos con formatos incorrectos',
-                tipo: 'contador',
-                valorAsignado: contadores.formatosIncorrectos.toString(),
-                completado: contadores.formatosIncorrectos === 0,
-                esObligatorio: false,
-                razonFallo: contadores.formatosIncorrectos > 0 ? `Hay ${contadores.formatosIncorrectos} campos con formato incorrecto` : undefined
-            });
-            
-            // Calcular porcentaje de éxito
-            const totalCampos = contadores.correctos + contadores.incorrectos;
-            const porcentajeExito = totalCampos > 0 ? Math.round((contadores.correctos / totalCampos) * 100) : 0;
-            
-            console.log(`📈 RESUMEN DE VERIFICACIÓN:`);
-            console.log(`   📊 Total campos obligatorios: ${totalCampos}`);
-            console.log(`    Porcentaje de éxito: ${porcentajeExito}%`);
-            
-            if (porcentajeExito >= 90) {
-                console.log('🎉 ¡EXCELENTE! Formulario casi completamente correcto');
-            } else if (porcentajeExito >= 70) {
-                console.log('👍 BUENO: Formulario mayormente correcto');
-            } else {
-                console.log('⚠️ NECESITA MEJORAS: Muchos campos requieren corrección');
             }
             
         } catch (error) {
-            console.error('❌ Error al procesar paso de confirmación:', error);
+            console.error('   ❌ Error:', error);
+        }
+        
+        return detalles;
+    }
+
+    /**
+     * Extrae información de los tabs de presupuesto
+     * @returns Array con título y data-cuenta de cada tab
+     */
+    private async extraerTabsPresupuesto(): Promise<Array<{titulo: string, dataCuenta: string}>> {
+        return await this.page!.evaluate(() => {
+            const tabs: Array<{titulo: string, dataCuenta: string}> = [];
+            const tabsContainer = document.querySelector('ul[id*="ul_tb_cuentas_"]');
             
-            detalles.push({
-                etiqueta: 'Error en verificación',
-                tipo: 'error',
-                valorAsignado: (error as Error).message,
-                completado: false,
-                esObligatorio: false,
-                razonFallo: 'No se pudo acceder a los contadores de verificación'
+            if (tabsContainer) {
+                const tabElements = tabsContainer.querySelectorAll('li a[data-toggle="tab"][data-cuenta]');
+                
+                tabElements.forEach(tab => {
+                    const titulo = tab.getAttribute('alt') || 
+                                  tab.querySelector('h4')?.textContent?.trim() || 
+                                  '';
+                    const dataCuenta = tab.getAttribute('data-cuenta') || '';
+                    
+                    if (titulo && dataCuenta) {
+                        tabs.push({ titulo, dataCuenta });
+                    }
+                });
+            }
+            
+            return tabs;
+        });
+    }
+
+    /**
+     * Activa un tab específico de presupuesto
+     * @param dataCuenta El valor de data-cuenta del tab
+     */
+    private async activarTabPresupuesto(dataCuenta: string): Promise<void> {
+        try {
+            await this.page!.evaluate((cuenta) => {
+                const tab = document.querySelector(`a[data-toggle="tab"][data-cuenta="${cuenta}"]`);
+                if (tab) {
+                    (tab as HTMLElement).click();
+                }
+            }, dataCuenta);
+        } catch (error) {
+            console.log(`      ⚠️ Error activando tab:`, (error as Error).message);
+        }
+    }
+
+    /**
+     * Procesa paso Presupuesto con tabs dinámicos
+     * Agrega 1 item por cada tab y luego navega al siguiente paso
+     */
+    private async procesarPasoPresupuesto(): Promise<DetallePasoMVP[]> {
+        console.log('📊 Procesando paso PRESUPUESTO con tabs dinámicos...');
+        const detalles: DetallePasoMVP[] = [];
+        
+        try {
+            // 1. Extraer todas las tabs
+            const tabs = await this.extraerTabsPresupuesto();
+            console.log(`   📋 Tabs encontrados: ${tabs.length}`);
+            
+            if (tabs.length === 0) {
+                console.log('   ⚠️ No se encontraron tabs de presupuesto');
+                return detalles;
+            }
+            
+            tabs.forEach((tab, index) => {
+                console.log(`      ${index + 1}. "${tab.titulo}"`);
             });
+            
+            // 2. Procesar cada tab
+            for (let i = 0; i < tabs.length; i++) {
+                const tab = tabs[i];
+                console.log(`\n   📂 Procesando tab ${i + 1}/${tabs.length}: "${tab.titulo}"`);
+                
+                try {
+                    // Hacer clic en el tab para activarlo
+                    await this.activarTabPresupuesto(tab.dataCuenta);
+                    await this.page!.waitForTimeout(1000);
+                    
+                    // Buscar y hacer clic en AGREGAR+
+                    const botonAgregar = await this.page!.$('#btnAgregar_item');
+                    if (!botonAgregar) {
+                        console.log('      ⚠️ No se encontró botón AGREGAR+ para este tab');
+                        continue;
+                    }
+                    
+                    await botonAgregar.click();
+                    await this.page!.waitForTimeout(2000);
+                    console.log('      ✅ Modal abierto');
+                    
+                    // 🔴 CRÍTICO: Limpiar Set de campos procesados para cada modal nuevo
+                    this.camposProcesadosEnPasoActual.clear();
+                    
+                    // Completar campos del modal
+                    const camposModal = await this.extraerYCompletarCampos();
+                    detalles.push(...camposModal);
+                    console.log(`      📊 Campos procesados: ${camposModal.length}`);
+                    
+                    // Verificar que hay campos completados
+                    const camposCompletados = camposModal.filter(c => c.completado).length;
+                    if (camposCompletados === 0) {
+                        console.log('      ⚠️ ADVERTENCIA: No se completaron campos en este tab');
+                    }
+                    
+                    // Buscar botón Guardar
+                    const botonGuardar = await this.buscarBotonPorTexto(['Guardar', 'GUARDAR']);
+                    if (!botonGuardar) {
+                        console.log('      ⚠️ No se encontró botón Guardar');
+                        continue;
+                    }
+                    
+                    // Verificar si el botón ya está habilitado
+                    const habilitadoInmediatamente = await botonGuardar.evaluate((btn: any) => {
+                        return !btn.disabled;
+                    });
+                    
+                    if (habilitadoInmediatamente) {
+                        console.log('      ✅ Botón Guardar ya está habilitado');
+                        await botonGuardar.click();
+                        await this.page!.waitForTimeout(2000);
+                        console.log('      ✅ Formulario guardado');
+                        
+                        // Cerrar modal de confirmación
+                        await this.cerrarModalConfirmacion(['Aceptar', 'ACEPTAR']);
+                        await this.page!.waitForTimeout(1000);
+                    } else {
+                        console.log('      ⚠️ Botón Guardar deshabilitado - Faltan campos obligatorios');
+                        console.log('      📋 Campos completados: ', camposModal.map(c => `${c.etiqueta}: ${c.completado ? '✓' : '✗'}`).join(', '));
+                    }
+                    
+                } catch (errorTab) {
+                    console.error(`      ❌ Error procesando tab "${tab.titulo}":`, (errorTab as Error).message);
+                }
+            }
+            
+            console.log(`\n   ✅ Todos los tabs procesados (${tabs.length}/${tabs.length})`);
+            
+            // 3. Navegar al siguiente paso (solo después de procesar TODOS los tabs)
+            console.log('   ➡️ Navegando al siguiente paso...');
+            const resultadoNavegacion = await this.navegarAlSiguientePaso();
+            if (resultadoNavegacion.navegoExitosamente) {
+                console.log('   ✅ Navegación exitosa al siguiente paso');
+            }
+            
+        } catch (error) {
+            console.error('   ❌ Error:', error);
         }
         
         return detalles;
@@ -1163,10 +1454,7 @@ export class MVPHibrido {
         await this.scrollProgresivoParaActivarContenido();
 
         //  PASO 3: Buscar TODOS los campos de forma simplificada
-        console.log(`   🔍 Buscando campos en el paso actual...`);
-        
         let elementos = await this.obtenerTodosLosCampos();
-        console.log(`   ✅ Campos encontrados: ${elementos.length}`);
         
         //  PASO 6: Procesar cada campo encontrado con detección dinámica
         console.log(`   🔍 Analizando ${elementos.length} elementos en total...`);
@@ -1183,7 +1471,6 @@ export class MVPHibrido {
             // Obtener elementos actuales en cada iteración
             if (intentos > 1) {
                 elementos = await this.obtenerTodosLosCampos();
-                console.log(`   🔍 Campos encontrados en iteración ${intentos}: ${elementos.length}`);
             }
             
             let camposNuevosEncontrados = 0;
@@ -1193,7 +1480,6 @@ export class MVPHibrido {
                 // Verificar si el elemento es realmente interactuable
                 const info = await this.obtenerInfoCampoMejorada(elemento);
                     if (!info) {
-                        console.log(`     ⚠️ Campo sin información válida, saltando`);
                         continue;
                     }
                     
@@ -1336,8 +1622,6 @@ export class MVPHibrido {
                     camposValidos.push(elemento);
                 }
             }
-            
-            console.log(`     🔍 Total de campos interactuables encontrados: ${camposValidos.length}`);
             
             return camposValidos;
             
@@ -1998,6 +2282,15 @@ export class MVPHibrido {
                         }
                     }
                     
+                    // 🔴 CRÍTICO: Verificar que el clic fue exitoso
+                    await this.page!.waitForTimeout(500);
+                    const quedoSeleccionado = await elemento.isChecked();
+                    
+                    if (!quedoSeleccionado) {
+                        console.log(`     ❌ Radio button NO quedó seleccionado después del clic`);
+                        return null; // Falló la selección
+                    }
+                    
                     // 🔴 NUEVO: Esperar a que aparezcan campos condicionales si existen
                     // Muchos formularios CORFO usan data-condicional que muestra/oculta campos
                     const tieneCondicional = await elemento.evaluate((el: HTMLInputElement) => {
@@ -2416,7 +2709,8 @@ export class MVPHibrido {
         const contextoCompleto = `${etiqueta} ${dataCodigo} ${placeholder}`.toLowerCase();
         
         // Detección por palabras clave específicas
-        if (contextoCompleto.includes('rut') || contextoCompleto.includes('run') || contextoCompleto.includes('identificador')) {
+        if (contextoCompleto.includes('rut') || contextoCompleto.includes('run') || 
+            contextoCompleto.includes('identificador') || contextoCompleto.includes('recurso')) {
             return CAMPOS_CORFO_MAPPING.RUT;
         } else if (contextoCompleto.includes('email') || contextoCompleto.includes('correo') || contextoCompleto.includes('mail') || 
                    contextoCompleto.includes('e-mail') || contextoCompleto.includes('electrónico') || contextoCompleto.includes('electronico')) {
@@ -2807,6 +3101,53 @@ export class MVPHibrido {
             return titulo || `Paso ${Date.now()}`;
         } catch {
             return `Paso ${Date.now()}`;
+        }
+    }
+
+    /**
+     * Helper: Busca un botón por texto en múltiples variaciones y selectores
+     * @param textos Array de textos a buscar en los botones
+     * @returns Elemento del botón encontrado o null
+     */
+    private async buscarBotonPorTexto(textos: string[]): Promise<any> {
+        for (const texto of textos) {
+            const selectores = [
+                `button:has-text("${texto}")`,
+                `a:has-text("${texto}")`,
+                `input[value*="${texto}"]`,
+                `[id*="${texto.replace(/\s+/g, '')}"]`
+            ];
+            
+            for (const selector of selectores) {
+                try {
+                    const boton = await this.page!.$(selector);
+                    if (boton && await boton.isVisible()) {
+                        return boton;
+                    }
+                } catch (error) {
+                    continue;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Helper: Cierra modal de confirmación buscando botones por texto
+     * @param textoBotones Array de textos posibles para el botón de confirmación
+     */
+    private async cerrarModalConfirmacion(textoBotones: string[]): Promise<void> {
+        try {
+            await this.page!.waitForTimeout(1000);
+            
+            const boton = await this.buscarBotonPorTexto(textoBotones);
+            if (boton) {
+                await boton.click();
+                await this.page!.waitForTimeout(1500);
+                console.log('   ✅ Modal confirmado');
+            }
+        } catch (error) {
+            console.log('   ⚠️ Error cerrando modal:', (error as Error).message);
         }
     }
 

@@ -187,11 +187,11 @@ export class ExecutionService {
   private analyzeLogForProgress(execution: ExecutionStatus, message: string): void {
     // Detectar pasos del MVP
     if (message.includes('PROCESANDO PASO')) {
-      const match = message.match(/PASO (\d+)/);
+      const match = message.match(/PASO (\d+)(?: de (\d+))?/);
       if (match) {
         const currentStep = parseInt(match[1]);
-        const estimatedTotal = 7; // Típicamente hay 7 pasos
-        execution.progress = Math.round((currentStep / estimatedTotal) * 90); // 90% para los pasos
+        const totalSteps = match[2] ? parseInt(match[2]) : 7; // Fallback a 7 si no se detecta
+        execution.progress = Math.round((currentStep / totalSteps) * 90); // 90% para los pasos
         execution.currentStep = message;
       }
     } else if (message.includes('Iniciando navegador')) {
