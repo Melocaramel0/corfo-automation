@@ -285,7 +285,7 @@ CORFO_PASS=tu_password
 # Azure OpenAI (para generación de PDF)
 AZURE_OPENAI_API_KEY=tu_clave_api
 AZURE_OPENAI_ENDPOINT=https://tu-recurso.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-3
 ```
 
 ### Instalación
