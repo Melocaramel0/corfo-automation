@@ -104,7 +104,7 @@ La aplicación está configurada para integrarse con el backend existente:
 '/api' -> 'http://localhost:8000'
 ```
 
-Para conectar con el MVP híbrido existente:
+Para conectar con Agente Orquestador existente:
 
 1. El backend debe exponer endpoints REST en puerto 8000
 2. Los servicios en `src/services/` están preparados para la integración

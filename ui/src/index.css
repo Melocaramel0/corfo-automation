@@ -8,7 +8,8 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: #FBFBFB;
+    color: #1C1C1C;
   }
 }
 
@@ -18,35 +19,81 @@
   }
   
   .btn-primary {
-    @apply btn bg-corfo-600 text-white hover:bg-corfo-700 focus:ring-corfo-500;
+    @apply btn text-white;
+    background-color: #0F69B4;
+  }
+  .btn-primary:hover {
+    background-color: #0C5A9A;
+  }
+  .btn-primary:focus {
+    --tw-ring-color: #0F69B4;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+    @apply btn;
+    background-color: #CFCFCF;
+    color: #1C1C1C;
+  }
+  .btn-secondary:hover {
+    background-color: #7F7F7F;
+  }
+  .btn-secondary:focus {
+    --tw-ring-color: #3F3F3F;
   }
   
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply btn text-white;
+    background-color: #EB3C46;
+  }
+  .btn-danger:hover {
+    background-color: #D9353F;
+  }
+  .btn-danger:focus {
+    --tw-ring-color: #EB3C46;
   }
   
   .btn-success {
-    @apply btn bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+    @apply btn text-white;
+    background-color: #2AD6A4;
+  }
+  .btn-success:hover {
+    background-color: #78D6BB;
+  }
+  .btn-success:focus {
+    --tw-ring-color: #2AD6A4;
   }
   
   .input {
-    @apply block w-full rounded-lg border border-gray-300 px-3 py-2 placeholder-gray-400 focus:border-corfo-500 focus:outline-none focus:ring-1 focus:ring-corfo-500;
+    @apply block w-full rounded-lg px-3 py-2 focus:outline-none focus:ring-1;
+    border-color: #CFCFCF;
+    border-width: 1px;
+  }
+  .input:focus {
+    border-color: #0F69B4;
+    --tw-ring-color: #0F69B4;
+  }
+  .input::placeholder {
+    color: #7F7F7F;
   }
   
   .input-error {
-    @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+    border-color: #FC7C83;
+  }
+  .input-error:focus {
+    border-color: #EB3C46;
+    --tw-ring-color: #EB3C46;
   }
   
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-medium mb-1;
+    color: #3F3F3F;
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    @apply rounded-lg shadow-sm p-6;
+    background-color: #FFFFFF;
+    border-color: #F3F3F3;
+    border-width: 1px;
   }
   
   .badge {
@@ -54,22 +101,32 @@
   }
   
   .badge-success {
-    @apply badge bg-green-100 text-green-800;
+    @apply badge;
+    background-color: #DDF5EE;
+    color: #2AD6A4;
   }
   
   .badge-warning {
-    @apply badge bg-yellow-100 text-yellow-800;
+    @apply badge;
+    background-color: #FFF7E3;
+    color: #F5B100;
   }
   
   .badge-error {
-    @apply badge bg-red-100 text-red-800;
+    @apply badge;
+    background-color: #FFF1F2;
+    color: #EB3C46;
   }
   
   .badge-info {
-    @apply badge bg-blue-100 text-blue-800;
+    @apply badge;
+    background-color: #F1F7FB;
+    color: #0F69B4;
   }
   
   .badge-gray {
-    @apply badge bg-gray-100 text-gray-800;
+    @apply badge;
+    background-color: #F3F3F3;
+    color: #3F3F3F;
   }
 }

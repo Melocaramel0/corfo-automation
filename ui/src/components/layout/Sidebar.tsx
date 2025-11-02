@@ -4,8 +4,8 @@ import {
   CheckCircle2, 
   Settings, 
   Home, 
-  Shield,
-  ChevronRight 
+  ChevronRight,
+  ChevronRight as ArrowRight
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import clsx from 'clsx'
@@ -47,7 +47,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { hasPermission } = useAuth()
+  const { hasPermission, user } = useAuth()
   const location = useLocation()
 
   // Filtrar items según permisos
@@ -66,32 +66,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       )}
 
       {/* Sidebar */}
-      <div className={clsx(
-        'fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      )}>
+      <div 
+        className={clsx(
+          'fixed top-16 left-0 bottom-0 z-30 w-64 shadow-lg transition-transform duration-300 ease-in-out',
+          'lg:static lg:top-auto lg:h-full',
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+        style={{ backgroundColor: '#221E7C' }}
+      >
         <div className="flex flex-col h-full">
-          {/* Header del sidebar */}
-          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-corfo-600" />
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">CORFO</h1>
-                <p className="text-xs text-gray-500">Automation</p>
-              </div>
-            </div>
-            
-            {/* Botón cerrar para móvil */}
+          {/* Botón cerrar para móvil */}
+          <div className="px-4 py-3 lg:hidden border-b border-white/10">
             <button
               onClick={onClose}
-              className="lg:hidden p-1 rounded-md hover:bg-gray-100"
+              className="p-1 rounded-md hover:bg-white/10 text-white"
             >
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           </div>
 
           {/* Navegación */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-1">
             {visibleItems.map((item) => {
               const isActive = location.pathname === item.path || 
                               (item.path !== '/' && location.pathname.startsWith(item.path))
@@ -102,19 +97,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   to={item.path}
                   onClick={() => onClose()}
                   className={clsx(
-                    'flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors',
+                    'flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative',
                     isActive
-                      ? 'bg-corfo-100 text-corfo-700 border-r-2 border-corfo-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-white/10 text-white'
+                      : 'text-white hover:bg-white/5'
                   )}
                 >
                   <div className="flex items-center space-x-3">
                     <item.icon className={clsx(
                       'h-5 w-5',
-                      isActive ? 'text-corfo-600' : 'text-gray-400'
+                      isActive ? 'text-corfo-500' : 'text-white'
                     )} />
                     <span>{item.label}</span>
                   </div>
+                  
+                  {isActive && (
+                    <ArrowRight className="h-4 w-4 text-white" />
+                  )}
                   
                   {item.badge && (
                     <span className="badge badge-info">
@@ -126,16 +125,38 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             })}
           </nav>
 
-          {/* Footer del sidebar */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="bg-blue-50 rounded-lg p-3">
-              <p className="text-xs text-blue-600 font-medium">
-                Sistema de Validación
-              </p>
-              <p className="text-xs text-blue-500 mt-1">
-                Automatización de formularios CORFO
-              </p>
-            </div>
+          {/* Footer del sidebar con información del usuario */}
+          <div className="p-4 border-t border-white/10">
+            {user && (
+              <div className="space-y-3">
+                <p className="text-xs text-white/70 font-medium">
+                  {user.role || 'Usuario'}
+                </p>
+                <div className="flex items-center space-x-3">
+                  {/* Círculo con iniciales */}
+                  <div className="h-10 w-10 rounded-full bg-corfo-200 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-semibold text-corfoDark-sidebar">
+                      {user.name
+                        ?.split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .substring(0, 2)
+                        .toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">
+                      {user.name || 'Usuario'}
+                    </p>
+                    {user.email && (
+                      <p className="text-xs text-white/70 truncate">
+                        {user.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

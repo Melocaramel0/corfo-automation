@@ -55,10 +55,10 @@ const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-corfoGray-90">
           ¡Bienvenido, {user?.name}!
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-corfoGray-60">
           Sistema de Validación Automática de Formularios CORFO
         </p>
       </div>
@@ -68,11 +68,11 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <CheckCircle2 className="h-8 w-8 text-corfo-600" />
+              <CheckCircle2 className="h-8 w-8 text-corfo-500" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Procesos</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalProcesos}</p>
+              <p className="text-sm font-medium text-corfoGray-60">Total Procesos</p>
+              <p className="text-2xl font-semibold text-corfoGray-90">{stats.totalProcesos}</p>
             </div>
           </div>
         </div>
@@ -80,11 +80,11 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-corfoAqua-100" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Ejecutados</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.procesosEjecutados}</p>
+              <p className="text-sm font-medium text-corfoGray-60">Ejecutados</p>
+              <p className="text-2xl font-semibold text-corfoGray-90">{stats.procesosEjecutados}</p>
             </div>
           </div>
         </div>
@@ -92,11 +92,11 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Clock className="h-8 w-8 text-yellow-600" />
+              <Clock className="h-8 w-8 text-corfoYellow-100" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">En Configuración</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.procesosEnConfiguracion}</p>
+              <p className="text-sm font-medium text-corfoGray-60">En Configuración</p>
+              <p className="text-2xl font-semibold text-corfoGray-90">{stats.procesosEnConfiguracion}</p>
             </div>
           </div>
         </div>
@@ -104,11 +104,11 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
+              <AlertTriangle className="h-8 w-8 text-corfoRed-500" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Con Errores</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.procesosConErrores}</p>
+              <p className="text-sm font-medium text-corfoGray-60">Con Errores</p>
+              <p className="text-2xl font-semibold text-corfoGray-90">{stats.procesosConErrores}</p>
             </div>
           </div>
         </div>
@@ -120,32 +120,32 @@ const Dashboard: React.FC = () => {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <CheckCircle2 className="h-6 w-6 text-corfo-600" />
-              <h3 className="text-lg font-medium text-gray-900">
+              <CheckCircle2 className="h-6 w-6 text-corfo-500" />
+              <h3 className="text-lg font-medium text-corfoGray-90">
                 Procesos de Validación
               </h3>
             </div>
             <Link
               to="/processes"
-              className="text-corfo-600 hover:text-corfo-700 text-sm font-medium flex items-center space-x-1"
+              className="text-corfo-500 hover:text-corfo-600 text-sm font-medium flex items-center space-x-1"
             >
               <span>Ver todos</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
           
-          <p className="text-gray-600 mb-4">
+          <p className="text-corfoGray-60 mb-4">
             Gestiona y ejecuta validaciones automáticas de formularios CORFO
           </p>
           
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Última ejecución:</span>
-              <span className="text-gray-900">{stats.ultimaEjecucion}</span>
+              <span className="text-corfoGray-60">Última ejecución:</span>
+              <span className="text-corfoGray-90">{stats.ultimaEjecucion}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Tiempo promedio:</span>
-              <span className="text-gray-900">{stats.tiempoPromedioEjecucion}</span>
+              <span className="text-corfoGray-60">Tiempo promedio:</span>
+              <span className="text-corfoGray-90">{stats.tiempoPromedioEjecucion}</span>
             </div>
           </div>
           
@@ -207,30 +207,30 @@ const Dashboard: React.FC = () => {
 
       {/* Actividad reciente */}
       <div className="card">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <h3 className="text-lg font-medium text-corfoGray-90 mb-4">
           Actividad Reciente
         </h3>
         
         <div className="space-y-4">
           {recentActivity.map((activity) => (
-            <div key={activity.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+            <div key={activity.id} className="flex items-center space-x-4 p-3 bg-corfoGray-10 rounded-lg">
               <div className={`flex-shrink-0 w-2 h-2 rounded-full ${
-                activity.status === 'success' ? 'bg-green-400' :
-                activity.status === 'error' ? 'bg-red-400' : 'bg-blue-400'
+                activity.status === 'success' ? 'bg-corfoAqua-100' :
+                activity.status === 'error' ? 'bg-corfoRed-500' : 'bg-corfo-500'
               }`} />
               
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-corfoGray-90">
                   {activity.action}
                 </p>
-                <p className="text-sm text-gray-500 truncate">
+                <p className="text-sm text-corfoGray-60 truncate">
                   {activity.process}
                 </p>
               </div>
               
               <div className="text-right">
-                <p className="text-sm text-gray-500">{activity.user}</p>
-                <p className="text-xs text-gray-400">{activity.time}</p>
+                <p className="text-sm text-corfoGray-60">{activity.user}</p>
+                <p className="text-xs text-corfoGray-60">{activity.time}</p>
               </div>
             </div>
           ))}

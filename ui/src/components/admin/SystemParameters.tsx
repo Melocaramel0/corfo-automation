@@ -41,13 +41,13 @@ export function SystemParameters() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-corfoGray-0 rounded-lg shadow-sm border p-6">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-6 bg-corfoGray-40 rounded w-1/3 mb-4"></div>
           <div className="space-y-4">
-            <div className="h-4 bg-gray-200 rounded"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-4 bg-corfoGray-40 rounded"></div>
+            <div className="h-4 bg-corfoGray-40 rounded w-3/4"></div>
+            <div className="h-4 bg-corfoGray-40 rounded w-1/2"></div>
           </div>
         </div>
       </div>
@@ -56,19 +56,19 @@ export function SystemParameters() {
 
   if (!data) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <p className="text-gray-500">Error al cargar los parámetros del sistema</p>
+      <div className="bg-corfoGray-0 rounded-lg shadow-sm border p-6">
+        <p className="text-corfoGray-60">Error al cargar los parámetros del sistema</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className="bg-corfoGray-0 rounded-lg shadow-sm border">
       <div className="p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-xl font-semibold text-corfoGray-90 mb-2">
           Parámetros del Sistema
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-corfoGray-60 mb-6">
           Configuración de perfiles de usuario y bases de datos.
         </p>
 
@@ -76,48 +76,48 @@ export function SystemParameters() {
           {/* Perfiles de Usuario */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <Users className="w-5 h-5 text-gray-500" />
-              <h3 className="font-medium text-gray-900">Perfiles de Usuario:</h3>
+              <Users className="w-5 h-5 text-corfoGray-60" />
+              <h3 className="font-medium text-corfoGray-90">Perfiles de Usuario:</h3>
             </div>
             
             <div className="space-y-3 ml-7">
               <div className="flex items-center justify-between">
-                <span className="text-gray-700">Administrador</span>
+                <span className="text-corfoGray-80">Administrador</span>
                 <div className="flex items-center space-x-2">
                   {data.userProfiles.admin ? (
-                    <Check className="w-5 h-5 text-green-500" />
+                    <Check className="w-5 h-5 text-corfoAqua-100" />
                   ) : (
-                    <X className="w-5 h-5 text-red-500" />
+                    <X className="w-5 h-5 text-corfoRed-500" />
                   )}
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-corfoGray-60">
                     {data.userProfiles.admin ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-gray-700">Usuario de QA</span>
+                <span className="text-corfoGray-80">Usuario de QA</span>
                 <div className="flex items-center space-x-2">
                   {data.userProfiles.qaUser ? (
-                    <Check className="w-5 h-5 text-green-500" />
+                    <Check className="w-5 h-5 text-corfoAqua-100" />
                   ) : (
-                    <X className="w-5 h-5 text-red-500" />
+                    <X className="w-5 h-5 text-corfoRed-500" />
                   )}
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-corfoGray-60">
                     {data.userProfiles.qaUser ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-gray-700">Usuario Final</span>
+                <span className="text-corfoGray-80">Usuario Final</span>
                 <div className="flex items-center space-x-2">
                   {data.userProfiles.finalUser ? (
-                    <Check className="w-5 h-5 text-green-500" />
+                    <Check className="w-5 h-5 text-corfoAqua-100" />
                   ) : (
-                    <X className="w-5 h-5 text-red-500" />
+                    <X className="w-5 h-5 text-corfoRed-500" />
                   )}
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-corfoGray-60">
                     {data.userProfiles.finalUser ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
@@ -128,14 +128,14 @@ export function SystemParameters() {
           {/* Configuración de Base de Datos */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <Database className="w-5 h-5 text-gray-500" />
-              <h3 className="font-medium text-gray-900">Configuración de BD:</h3>
+              <Database className="w-5 h-5 text-corfoGray-60" />
+              <h3 className="font-medium text-corfoGray-90">Configuración de BD:</h3>
             </div>
             
             <div className="space-y-3 ml-7">
               <div className="flex items-center justify-between">
-                <span className="text-gray-700">Conexión a</span>
-                <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                <span className="text-corfoGray-80">Conexión a</span>
+                <span className="font-mono text-sm bg-corfoGray-20 px-2 py-1 rounded">
                   '{data.database.connection}'
                 </span>
               </div>
@@ -145,12 +145,12 @@ export function SystemParameters() {
           {/* Versión del Sistema */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <Info className="w-5 h-5 text-gray-500" />
-              <h3 className="font-medium text-gray-900">Versión del Sistema:</h3>
+              <Info className="w-5 h-5 text-corfoGray-60" />
+              <h3 className="font-medium text-corfoGray-90">Versión del Sistema:</h3>
             </div>
             
             <div className="ml-7">
-              <span className="text-lg font-semibold text-blue-600">
+              <span className="text-lg font-semibold text-corfo-500">
                 {data.version}
               </span>
             </div>
@@ -158,18 +158,18 @@ export function SystemParameters() {
         </div>
 
         {/* Botones de acción */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className="mt-8 pt-6 border-t border-corfoGray-20">
           <div className="flex justify-end space-x-3">
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="px-4 py-2 text-sm font-medium text-corfoGray-80 bg-corfoGray-0 border border-corfoGray-40 rounded-md hover:bg-corfoGray-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-corfo-500"
             >
               Recargar
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-corfo-500 border border-transparent rounded-md hover:bg-corfo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-corfo-500 disabled:opacity-50"
             >
               {saving ? 'Guardando...' : 'Guardar Cambios'}
             </button>

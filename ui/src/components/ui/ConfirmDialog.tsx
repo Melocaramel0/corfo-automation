@@ -29,22 +29,22 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'danger':
-        return <Trash2 className="h-6 w-6 text-red-600" />
+        return <Trash2 className="h-6 w-6 text-corfoRed-500" />
       case 'warning':
-        return <AlertTriangle className="h-6 w-6 text-yellow-600" />
+        return <AlertTriangle className="h-6 w-6 text-corfoYellow-100" />
       default:
-        return <AlertTriangle className="h-6 w-6 text-blue-600" />
+        return <AlertTriangle className="h-6 w-6 text-corfo-500" />
     }
   }
 
   const getIconBgColor = () => {
     switch (type) {
       case 'danger':
-        return 'bg-red-100'
+        return 'bg-corfoRed-20'
       case 'warning':
-        return 'bg-yellow-100'
+        return 'bg-corfoYellow-25'
       default:
-        return 'bg-blue-100'
+        return 'bg-corfo-20'
     }
   }
 
@@ -85,7 +85,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-corfoGray-0 p-6 text-left align-middle shadow-xl transition-all">
                 <div className="flex items-start space-x-4">
                   <div className={`flex-shrink-0 rounded-full p-2 ${getIconBgColor()}`}>
                     {getIcon()}
@@ -94,13 +94,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                   <div className="flex-1">
                     <Dialog.Title
                       as="h3"
-                      className="text-lg font-medium leading-6 text-gray-900"
+                      className="text-lg font-medium leading-6 text-corfoGray-90"
                     >
                       {title}
                     </Dialog.Title>
                     
                     <div className="mt-2">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-corfoGray-60">
                         {message}
                       </p>
                     </div>
@@ -108,7 +108,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
                   <button
                     onClick={onClose}
-                    className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+                    className="flex-shrink-0 text-corfoGray-60 hover:text-corfoGray-80"
                   >
                     <X className="h-5 w-5" />
                   </button>

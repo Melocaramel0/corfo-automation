@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, LogIn, Shield } from 'lucide-react'
+import { Eye, EyeOff, LogIn } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatRut, validateRut, getRutErrorMessage } from '../../utils/rut'
 
@@ -52,18 +52,22 @@ const LoginForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-corfo-50 to-corfo-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-corfo-100 to-corfo-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-corfo-600 rounded-full flex items-center justify-center">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="mx-auto flex items-center justify-center">
+            <img 
+              src="/images/Logo_Corfo.png" 
+              alt="CORFO Logo" 
+              className="h-16 object-contain"
+            />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-corfoGray-90">
             Sistema CORFO
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Validación Automática de Formularios
+          <p className="mt-2 text-sm text-corfoGray-60">
+            Validador de Formularios
           </p>
         </div>
 
@@ -86,7 +90,7 @@ const LoginForm: React.FC = () => {
                   maxLength={12}
                 />
                 {errors.rut && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-corfoRed-500">
                     {errors.rut.message}
                   </p>
                 )}
@@ -111,14 +115,14 @@ const LoginForm: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-corfoGray-60" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400" />
+                      <Eye className="h-5 w-5 text-corfoGray-60" />
                     )}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-sm text-corfoRed-500">
                     {errors.password.message}
                   </p>
                 )}

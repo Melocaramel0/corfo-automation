@@ -261,14 +261,14 @@ export const ValidationProcesses: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const statusColors = {
-      'Creado': 'bg-blue-100 text-blue-800',
-      'En configuración': 'bg-yellow-100 text-yellow-800',
-      'Ejecutado': 'bg-green-100 text-green-800',
-      'Cerrado': 'bg-gray-100 text-gray-800',
-      'Anulado': 'bg-red-100 text-red-800',
-      'Borrado': 'bg-red-100 text-red-800'
+      'Creado': 'bg-corfo-20 text-corfo-500',
+      'En configuración': 'bg-corfoYellow-25 text-corfoYellow-100',
+      'Ejecutado': 'bg-corfoAqua-25 text-corfoAqua-100',
+      'Cerrado': 'bg-corfoGray-20 text-corfoGray-80',
+      'Anulado': 'bg-corfoRed-20 text-corfoRed-500',
+      'Borrado': 'bg-corfoRed-20 text-corfoRed-500'
     }
-    return statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+    return statusColors[status as keyof typeof statusColors] || 'bg-corfoGray-20 text-corfoGray-80'
   }
 
   const formatDate = (dateString: string) => {
@@ -283,10 +283,10 @@ export const ValidationProcesses: React.FC = () => {
     <div className="p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Procesos de Validación</h1>
+        <h1 className="text-2xl font-bold text-corfoGray-90">Procesos de Validación</h1>
         <button
           onClick={handleCreateProcess}
-          className="flex items-center px-4 py-2 bg-corfo-600 text-white rounded-lg hover:bg-corfo-700 transition-colors"
+          className="flex items-center px-4 py-2 bg-corfo-500 text-white rounded-lg hover:bg-corfo-600 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
           Crear Nuevo Concurso
@@ -296,11 +296,11 @@ export const ValidationProcesses: React.FC = () => {
       {/* Barra de búsqueda */}
       <div className="flex gap-4 mb-6">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-corfoGray-60 w-4 h-4" />
           <input
             type="text"
             placeholder="Buscar por nombre del concurso, descripción o creador..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-corfo-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-corfoGray-40 rounded-lg focus:ring-2 focus:ring-corfo-500 focus:border-transparent"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -308,7 +308,7 @@ export const ValidationProcesses: React.FC = () => {
         </div>
         <button
           onClick={handleSearch}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="px-4 py-2 bg-corfoGray-20 text-corfoGray-80 rounded-lg hover:bg-corfoGray-40 transition-colors"
         >
           <Filter className="w-4 h-4" />
         </button>
@@ -328,50 +328,50 @@ export const ValidationProcesses: React.FC = () => {
       )}
 
       {/* Tabla de procesos */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-corfoGray-0 rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-corfoGray-20">
+          <thead className="bg-corfoGray-10">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-corfoGray-60 uppercase tracking-wider">
                 Concurso
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-corfoGray-60 uppercase tracking-wider">
                 Creador
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-corfoGray-60 uppercase tracking-wider">
                 Fecha de Creación
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-corfoGray-60 uppercase tracking-wider">
                 Estado
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-corfoGray-60 uppercase tracking-wider">
                 Acciones
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-corfoGray-0 divide-y divide-corfoGray-20">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={5} className="px-6 py-4 text-center text-corfoGray-60">
                   Cargando procesos...
                 </td>
               </tr>
             ) : filteredProcesses.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={5} className="px-6 py-4 text-center text-corfoGray-60">
                   No se encontraron procesos
                 </td>
               </tr>
             ) : (
               filteredProcesses.map((process) => (
-                <tr key={process.id} className="hover:bg-gray-50">
+                <tr key={process.id} className="hover:bg-corfoGray-10">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-corfoGray-90">
                         {process.nombreConcurso}
                       </div>
                       {process.descripcion && (
-                        <div className="text-sm text-gray-500 truncate max-w-xs">
+                        <div className="text-sm text-corfoGray-60 truncate max-w-xs">
                           {process.descripcion}
                         </div>
                       )}
@@ -379,16 +379,16 @@ export const ValidationProcesses: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <User className="w-4 h-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">
+                      <User className="w-4 h-4 text-corfoGray-60 mr-2" />
+                      <span className="text-sm text-corfoGray-90">
                         {process.usuarioCreacion.split('@')[0]}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">
+                      <Calendar className="w-4 h-4 text-corfoGray-60 mr-2" />
+                      <span className="text-sm text-corfoGray-90">
                         {formatDate(process.fechaCreacion)}
                       </span>
                     </div>
@@ -408,7 +408,7 @@ export const ValidationProcesses: React.FC = () => {
                         return isRunning ? (
                           <button
                             onClick={() => handleCancelExecution(process.id)}
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                            className="p-2 text-corfoRed-500 hover:text-corfoRed-600 hover:bg-corfoRed-20 rounded-lg transition-colors"
                             title="Detener proceso"
                           >
                             <StopCircle className="w-4 h-4" />
@@ -416,7 +416,7 @@ export const ValidationProcesses: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => handleExecuteProcess(process)}
-                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                            className="p-2 text-corfoAqua-100 hover:text-corfoAqua-90 hover:bg-corfoAqua-25 rounded-lg transition-colors"
                             title="Ejecutar proceso"
                           >
                             <Play className="w-4 h-4" />
@@ -427,7 +427,7 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Editar */}
                       <button
                         onClick={() => handleEditProcess(process)}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="p-2 text-corfo-500 hover:text-corfo-600 hover:bg-corfo-20 rounded-lg transition-colors"
                         title="Editar concurso"
                       >
                         <Edit className="w-4 h-4" />
@@ -436,7 +436,7 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Ver resultados */}
                       <button
                         onClick={() => handleViewResults(process)}
-                        className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded-lg transition-colors"
+                        className="p-2 text-corfoCyan-100 hover:text-corfoCyan-90 hover:bg-corfoCyan-25 rounded-lg transition-colors"
                         title="Ver resultados"
                       >
                         <BarChart3 className="w-4 h-4" />
@@ -445,7 +445,7 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Descargar resultados */}
                       <button
                         onClick={() => handleExportResults(process)}
-                        className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded-lg transition-colors"
+                        className="p-2 text-corfo-500 hover:text-corfo-600 hover:bg-corfo-20 rounded-lg transition-colors"
                         title="Descargar resultados"
                       >
                         <Download className="w-4 h-4" />
@@ -454,7 +454,7 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Eliminar */}
                       <button
                         onClick={() => handleDeleteProcess(process)}
-                        className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                        className="p-2 text-corfoRed-500 hover:text-corfoRed-600 hover:bg-corfoRed-20 rounded-lg transition-colors"
                         title="Eliminar concurso"
                       >
                         <Trash2 className="w-4 h-4" />
