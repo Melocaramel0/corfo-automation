@@ -1,9 +1,10 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { MVPHibrido, ResultadoMVP } from '../../ai/mvpHibrido';
+import { AgenteOrquestador, ResultadoAgente } from '../../ai/agenteOrquestador';
 import { obtenerConfiguracion } from '../../ai/configuraciones';
 import { executionService } from './executionService';
 import { getNextReportId } from '../utils/getNextReportId';
+import { generarInformePDF } from '../../ai/generadorInforme';
 
 interface ValidationProcess {
   id: string;
@@ -39,7 +40,7 @@ interface PaginatedResponse<T> {
 export class ProcessService {
   private static instance: ProcessService;
   private processesFile = path.join(__dirname, '../../data/processes.json');
-  private activeMVPInstances: Map<string, MVPHibrido> = new Map(); // Guardar instancias activas
+  private activeMVPInstances: Map<string, AgenteOrquestador> = new Map(); // Guardar instancias activas
 
   private constructor() {
     this.initializeStorage();
@@ -205,7 +206,7 @@ export class ProcessService {
     console.log(`✅ [executeProcessWithMonitoring] Ejecución inicializada en ExecutionService`);
 
     // Iniciar ejecución en background (no esperar respuesta)
-    this.runMVPHibridoInBackground(processId, executionId, process)
+    this.runAgenteOrquestadorInBackground(processId, executionId, process)
       .catch(error => {
         console.error(`❌ Error en ejecución background ${executionId}:`, error);
       });
@@ -214,7 +215,7 @@ export class ProcessService {
     return executionId;
   }
 
-  private async runMVPHibridoInBackground(
+  private async runAgenteOrquestadorInBackground(
     processId: string, 
     executionId: string, 
     process: ValidationProcess
@@ -222,7 +223,7 @@ export class ProcessService {
     try {
       // La ejecución ya fue inicializada antes de retornar el ID al frontend
       
-      // Configurar MVPHibrido con la URL del proceso
+      // Configurar AgenteOrquestador con la URL del proceso
       const configuracion = obtenerConfiguracion('demo');
       
       // Credenciales dinámicas del proceso
@@ -232,21 +233,21 @@ export class ProcessService {
       } : undefined;
       
       // Modo headless (navegador oculto == true) cuando se ejecuta desde interfaz
-      const mvp = new MVPHibrido(configuracion, true, credenciales);
+      const agente = new AgenteOrquestador(configuracion, true, credenciales);
 
       // Guardar instancia activa para poder cancelarla después
-      this.activeMVPInstances.set(executionId, mvp);
-      console.log(`✅ [ProcessService] Instancia MVP guardada para ${executionId}. Total activas: ${this.activeMVPInstances.size}`);
+      this.activeMVPInstances.set(executionId, agente);
+      console.log(`✅ [ProcessService] Instancia Agente Orquestador guardada para ${executionId}. Total activas: ${this.activeMVPInstances.size}`);
 
       // Inyectar URL del formulario
-      (mvp as any).formUrl = process.rutaFormulario;
+      (agente as any).formUrl = process.rutaFormulario;
 
       console.log(`🚀 Iniciando ejecución ${executionId} para proceso ${processId}`);
       console.log(`📋 URL del formulario: ${process.rutaFormulario}`);
 
-      // Ejecutar MVP y capturar logs en tiempo real
+      // Ejecutar Agente Orquestador y capturar logs en tiempo real
       await this.captureLogs(executionId, async () => {
-        const resultado: ResultadoMVP = await mvp.ejecutar();
+        const resultado: ResultadoAgente = await agente.ejecutar();
 
         // Guardar resultado
         await this.saveExecutionResult(executionId, resultado);
@@ -291,13 +292,13 @@ export class ProcessService {
     const executionStatus = await executionService.getExecutionStatus(executionId);
     const processId = executionStatus?.processId;
     
-    // Obtener la instancia activa del MVP
-    const mvpInstance = this.activeMVPInstances.get(executionId);
+    // Obtener la instancia activa del Agente Orquestador
+    const agenteInstance = this.activeMVPInstances.get(executionId);
     
-    if (mvpInstance) {
+    if (agenteInstance) {
       console.log(`🛑 [ProcessService] Deteniendo navegador...`);
       // Detener el navegador de Playwright
-      await (mvpInstance as any).detener();
+      await (agenteInstance as any).detener();
       
       // Limpiar instancia
       this.activeMVPInstances.delete(executionId);
@@ -340,8 +341,8 @@ export class ProcessService {
     try {
       await executeFunc();
     } catch (error) {
-      // SOLUCIÓN 4: Capturar errores del MVP y continuar con el flujo de finalización
-      originalLog(`❌ Error durante la ejecución del MVP:`, error);
+      // SOLUCIÓN 4: Capturar errores del Agente Orquestador y continuar con el flujo de finalización
+      originalLog(`❌ Error durante la ejecución del Agente Orquestador:`, error);
       throw error; // Re-lanzar para que el catch externo lo maneje
     } finally {
       // Restaurar console.log original
@@ -354,7 +355,7 @@ export class ProcessService {
    * Este reporte se guarda en data/execution_results/ con metadata del servidor
    * para ejecuciones monitoreadas desde la interfaz web
    */
-  private async saveExecutionResult(executionId: string, resultado: ResultadoMVP): Promise<void> {
+  private async saveExecutionResult(executionId: string, resultado: ResultadoAgente): Promise<void> {
     try {
       const resultsDir = path.join(__dirname, '../../data/execution_results');
       await fs.mkdir(resultsDir, { recursive: true });
@@ -367,6 +368,19 @@ export class ProcessService {
       await this.saveFileWithRetry(resultFile, JSON.stringify(resultado, null, 2));
       
       console.log(`✅ Resultado de ejecución guardado: exec_${nextId}.json`);
+
+      // Generar PDF automáticamente después de guardar el JSON
+      try {
+        const informesDir = path.join(__dirname, '../../data/informes');
+        const pdfPath = path.join(informesDir, `exec_${nextId}.pdf`);
+        
+        await generarInformePDF(resultFile, pdfPath);
+        console.log(`✅ Informe PDF generado: exec_${nextId}.pdf`);
+      } catch (pdfError: any) {
+        console.error(`❌ Error generando PDF para exec_${nextId}:`, pdfError.message);
+        console.error(`   Nota: El reporte JSON está guardado, solo falló la generación del PDF`);
+        // No lanzar error para no interrumpir el flujo principal
+      }
     } catch (error) {
       console.error(`❌ Error guardando resultado de ejecución ${executionId}:`, error);
       console.error(`   Nota: El resultado está disponible en memoria pero no se pudo persistir en disco`);
@@ -410,9 +424,9 @@ export class ProcessService {
       // Obtener el archivo más reciente
       const latestFile = processFiles.sort().reverse()[0];
       const data = await fs.readFile(path.join(resultsDir, latestFile), 'utf-8');
-      const resultado: ResultadoMVP = JSON.parse(data);
+      const resultado: ResultadoAgente = JSON.parse(data);
 
-      // Convertir ResultadoMVP a formato de resultados esperado por el frontend
+      // Convertir ResultadoAgente a formato de resultados esperado por el frontend
       const results = resultado.pasosCompletados?.flatMap(paso => 
         paso.detalles.map(detalle => ({
           id: `${paso.numero}_${detalle.etiqueta}`,
@@ -440,7 +454,7 @@ export class ProcessService {
     return executions.flatMap(exec => 
       exec.logs.map((log: string, index: number) => ({
         id: `${exec.executionId}_${index}`,
-        accion: 'Ejecución MVP',
+        accion: 'Ejecución Agente Orquestador',
         descripcion: log,
         fecha: new Date().toISOString(),
         procesoId: processId

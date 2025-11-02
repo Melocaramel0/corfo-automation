@@ -305,6 +305,48 @@ export const processService = {
     }
   },
 
+  // Descargar informe PDF del proceso
+  async downloadPdfReport(processId: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/informes/proceso/${processId}/descargar`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          const errorData = await response.json().catch(() => ({ mensaje: 'PDF no encontrado' }))
+          throw new Error(errorData.mensaje || 'No se encontró un PDF generado para este proceso. Asegúrate de que el proceso haya sido ejecutado y completado exitosamente.')
+        }
+        throw new Error(`Error al descargar el PDF: ${response.statusText}`)
+      }
+
+      // Obtener el blob del PDF
+      const blob = await response.blob()
+      
+      // Obtener el nombre del archivo del header Content-Disposition o generar uno por defecto
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let nombreArchivo = 'informe.pdf'
+      
+      if (contentDisposition) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition)
+        if (matches && matches[1]) {
+          nombreArchivo = matches[1].replace(/['"]/g, '')
+        }
+      }
+      
+      // Crear link temporal para descarga
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = nombreArchivo
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error descargando PDF:', error)
+      throw error
+    }
+  },
+
   // Exportar resultados
   async exportResults(processId: string, format: 'csv' | 'json' = 'csv'): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 1000))

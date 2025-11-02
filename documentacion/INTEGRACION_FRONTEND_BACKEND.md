@@ -2,7 +2,7 @@
 
 ## 📋 Descripción
 
-Este documento describe la integración entre el frontend (UI React) y el backend (servidor Express + MVP Híbrido).
+Este documento describe la integración entre el frontend (UI React) y el backend (servidor Express +  Agente Orquestador).
 
 ## 🏗️ Arquitectura
 
@@ -28,7 +28,7 @@ Este documento describe la integración entre el frontend (UI React) y el backen
                 └───────────┬────────────┘
                             │
                 ┌───────────▼────────────┐
-                │   MVP Híbrido          │
+                │   Agente orquestador  │
                 │   - Playwright        │
                 │   - Automatización    │
                 │   - Formularios CORFO │
@@ -79,8 +79,8 @@ corfo-automation/
 │       ├── executionService.ts  # Gestión de ejecuciones
 │       └── resultsService.ts    # Gestión de resultados
 │
-├── ai/                          # 🤖 Lógica MVP Híbrido
-│   ├── mvpHibrido.ts           # Automatización CORFO
+├── ai/                          # 🤖 Lógica Agente Orquestador Híbrido
+│   ├── agenteOrquestador.ts           # Automatización CORFO
 │   ├── configuraciones.ts       # Configuraciones
 │   └── tipos.ts                # Tipos TypeScript
 │
@@ -125,7 +125,7 @@ El sistema mantiene **dos tipos de reportes** con propósitos diferentes:
 **Propósito**: Ejecuciones manuales desde terminal para debugging
 
 **Características**:
-- Se generan **SOLO** al ejecutar MVP directamente desde terminal (modo no-headless)
+- Se generan **SOLO** al ejecutar Agente directamente desde terminal (modo no-headless)
 - **NO se generan** cuando se ejecuta desde la UI (para evitar duplicados)
 - Útiles para desarrollo y pruebas locales
 - Formato de nombres: `report_1.json`, `report_2.json`, `report_3.json`...
@@ -231,10 +231,10 @@ const executionId = await processService.executeProcessWithMonitoring(processId)
 
 **Backend:**
 1. Crea registro de ejecución
-2. Inicia `MVPHibrido` en background
+2. Inicia `agenteOrquestador` en background
 3. Retorna `executionId` inmediatamente
 
-**MVP Híbrido:**
+**Agente Orquestador:**
 1. Abre Playwright
 2. Navega al formulario
 3. Realiza login
@@ -253,7 +253,7 @@ console.log(status.currentStep) // "Completando paso 3/7..."
 ```
 
 **Backend:**
-- Captura logs de `console.log` del MVP
+- Captura logs de `console.log` del AGENTE
 - Analiza logs para extraer progreso
 - Actualiza estado en tiempo real
 
@@ -265,8 +265,8 @@ const results = await processService.getProcessResults(processId)
 ```
 
 **Backend:**
-- Lee archivo de resultados del MVP
-- Convierte formato `ResultadoMVP` a formato frontend
+- Lee archivo de resultados del AGENTE
+- Convierte formato `ResultadoAgente` a formato frontend
 - Retorna array de resultados por campo
 
 ## 🎯 Características Principales
@@ -274,7 +274,7 @@ const results = await processService.getProcessResults(processId)
 ### ✅ Implementado
 
 - ✅ CRUD completo de procesos
-- ✅ Ejecución de MVP Híbrido desde frontend
+- ✅ Ejecución de Agente Orquestador desde frontend
 - ✅ Monitoreo en tiempo real con progreso
 - ✅ Captura de logs en vivo
 - ✅ Almacenamiento persistente
@@ -354,7 +354,7 @@ npm run server:dev
 2. Verificar CORS en `server/index.ts`
 3. Abrir DevTools → Network → verificar llamadas a `/api/*`
 
-### MVP Híbrido no ejecuta
+### Agente Orquestador no ejecuta
 
 1. Verificar credenciales en `.env`:
 ```bash
@@ -398,8 +398,8 @@ npm run server:dev          # Iniciar con hot-reload
 # 🎨 Frontend
 npm run client              # Iniciar frontend
 
-# 🤖 MVP Híbrido (directo)
-npm run mvp-hibrido         # Ejecutar desde consola
+# 🤖 Agente Orquestador (directo)
+npm agenteOrquestador        # Ejecutar desde consola
 ```
 
 ## 🎉 ¡Listo!

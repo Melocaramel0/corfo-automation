@@ -13,16 +13,10 @@
     "scraping": "npx ts-node scraping/extraerFormularios.ts",
     "scraping-multifase": "npx ts-node scraping/extraerFormularios.ts",
     "analisis-profundo": "npx ts-node scraping/extraerFormularios.ts -- --analisis-profundo",
-    "demo": "npx ts-node ai/demoMultiFase.ts",
-    "demo-simple": "npx ts-node ai/demoMultiFase.ts simple",
-    "test-agente": "npx ts-node ai/test-simple.ts",
-    "agente-demo": "npx ts-node ai/demo.ts",
-    "mvp-hibrido": "npx ts-node ai/mvpHibrido.ts",
-    "mvp-hibrido-velocidad": "npx ts-node ai/mvpHibrido.ts velocidad",
-    "mvp-hibrido-produccion": "npx ts-node ai/mvpHibrido.ts produccion",
-    "demo-mvp": "npx ts-node ai/demoMVP.ts",
-    "demo-mvp-help": "npx ts-node ai/demoMVP.ts --help",
-    "mvp-simple": "npx ts-node ai/mvpSimplificado.ts"
+    "agente-orquestador": "npx ts-node ai/agenteOrquestador.ts",
+    "agente-orquestador-velocidad": "npx ts-node ai/agenteOrquestador.ts velocidad",
+    "agente-orquestador-produccion": "npx ts-node ai/agenteOrquestador.ts produccion",
+    "generar-informe": "npx ts-node ai/generadorInforme.ts"
   },
   "keywords": [
     "corfo",
@@ -42,7 +36,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.18.2",
+    "md-to-pdf": "^5.2.4",
     "n8n": "^0.167.0",
+    "openai": "^6.7.0",
     "playwright": "^1.56.1",
     "typescript": "^5.8.3",
     "vite": "^7.1.12"

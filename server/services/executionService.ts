@@ -19,6 +19,7 @@ export class ExecutionService {
   private executionsFile: string;
   private executions: Map<string, ExecutionStatus> = new Map();
   private saveTimer: NodeJS.Timeout | null = null;
+  private saveTimeout: NodeJS.Timeout | null = null;
   private pendingSave: boolean = false;
 
   constructor() {
@@ -180,8 +181,25 @@ export class ExecutionService {
       // Analizar el mensaje para extraer progreso
       this.analyzeLogForProgress(execution, message);
       
-      await this.saveExecutionsToDisk();
+      // 🔴 MEJORA: Usar debounce para evitar escrituras excesivas
+      // Guardar después de 500ms de inactividad en lugar de por cada log
+      this.debounceSave();
     }
+  }
+
+  private debounceSave(): void {
+    // Limpiar timeout anterior
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    
+    // Programar guardado después de 500ms de inactividad
+    this.saveTimeout = setTimeout(() => {
+      this.saveTimeout = null;
+      this.saveExecutionsToDisk().catch(err => {
+        console.error('⚠️ Error guardando logs:', err);
+      });
+    }, 500);
   }
 
   private analyzeLogForProgress(execution: ExecutionStatus, message: string): void {
@@ -232,9 +250,14 @@ export class ExecutionService {
    * Se usa cuando el proceso termina para evitar pérdida de datos
    */
   private async forceSave(): Promise<void> {
+    // Limpiar todos los timers pendientes
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
       this.saveTimer = null;
+    }
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
     }
     this.pendingSave = false;
     await this.saveExecutionsToDiskWithRetry();

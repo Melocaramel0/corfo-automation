@@ -26,36 +26,91 @@ export const ValidationProcesses: React.FC = () => {
   const [selectedProcess, setSelectedProcess] = useState<ValidationProcess | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showResultsModal, setShowResultsModal] = useState(false)
-  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus | null>(null)
-  const [currentExecutionId, setCurrentExecutionId] = useState<string | null>(null)
-  const [executingProcessId, setExecutingProcessId] = useState<string | null>(null) // ID del proceso en ejecución
+  // Rastrear múltiples ejecuciones simultáneas: Map<processId, { executionId: string, status: ExecutionStatus }>
+  const [executions, setExecutions] = useState<Map<string, { executionId: string; status: ExecutionStatus }>>(new Map())
 
   // Cargar procesos al montar el componente
   useEffect(() => {
     loadProcesses()
   }, [])
 
-  // Polling para actualizar estado de ejecución
+  // Polling para actualizar estado de todas las ejecuciones activas
   useEffect(() => {
-    if (currentExecutionId && executionStatus?.isRunning) {
-      const interval = setInterval(async () => {
-        try {
-          const status = await processService.getExecutionStatus(currentExecutionId)
-          setExecutionStatus(status)
-          
-          if (status && !status.isRunning) {
-            setCurrentExecutionId(null)
-            setExecutingProcessId(null) // Limpiar el proceso en ejecución
-            loadProcesses() // Recargar procesos cuando termine
-          }
-        } catch (error) {
-          console.error('Error obteniendo estado de ejecución:', error)
-        }
-      }, 1000)
+    const activeExecutions = Array.from(executions.values()).filter(exec => exec.status?.isRunning)
+    
+    if (activeExecutions.length === 0) return
 
-      return () => clearInterval(interval)
-    }
-  }, [currentExecutionId, executionStatus?.isRunning])
+    const interval = setInterval(async () => {
+      try {
+        // Actualizar estado de todas las ejecuciones activas
+        const updates = await Promise.all(
+          activeExecutions.map(async ({ executionId }) => {
+            try {
+              const status = await processService.getExecutionStatus(executionId)
+              return { executionId, status }
+            } catch (error) {
+              console.error(`Error obteniendo estado de ejecución ${executionId}:`, error)
+              return null
+            }
+          })
+        )
+
+        // Actualizar el estado de las ejecuciones
+        setExecutions(prev => {
+          const newMap = new Map(prev)
+          let shouldReloadProcesses = false
+
+          updates.forEach(update => {
+            if (!update) return
+            
+            // Encontrar el processId correspondiente a este executionId
+            let processIdToUpdate: string | null = null
+            for (const [pid, exec] of prev.entries()) {
+              if (exec.executionId === update.executionId) {
+                processIdToUpdate = pid
+                break
+              }
+            }
+
+            if (processIdToUpdate) {
+              newMap.set(processIdToUpdate, {
+                executionId: update.executionId,
+                status: update.status || prev.get(processIdToUpdate)!.status
+              })
+
+              // Si la ejecución terminó, removerla y recargar procesos
+              if (update.status && !update.status.isRunning) {
+                newMap.delete(processIdToUpdate)
+                shouldReloadProcesses = true
+              }
+            }
+          })
+
+          // Recargar procesos si alguna ejecución terminó (usando función loadProcesses del scope)
+          if (shouldReloadProcesses) {
+            setTimeout(async () => {
+              try {
+                const response = await processService.getProcesses({ 
+                  page: 1, 
+                  limit: 100,
+                  search: searchTerm 
+                })
+                setProcesses(response.data)
+              } catch (error) {
+                console.error('Error recargando procesos:', error)
+              }
+            }, 500)
+          }
+
+          return newMap
+        })
+      } catch (error) {
+        console.error('Error actualizando estados de ejecución:', error)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [executions, searchTerm])
 
   const loadProcesses = async () => {
     try {
@@ -86,6 +141,15 @@ export const ValidationProcesses: React.FC = () => {
   const handleExecuteProcess = async (process: ValidationProcess) => {
     console.log(`🎯 [Frontend] Ejecutando proceso:`, { id: process.id, nombre: process.nombreConcurso })
     
+    // Verificar si este proceso ya está ejecutándose
+    if (executions.has(process.id)) {
+      const existingExec = executions.get(process.id)!
+      if (existingExec.status?.isRunning) {
+        console.log('⚠️ Este proceso ya está ejecutándose')
+        return
+      }
+    }
+    
     try {
       // Actualizar estado del proceso inmediatamente a "Procesando" en la UI
       setProcesses(prevProcesses => 
@@ -94,25 +158,30 @@ export const ValidationProcesses: React.FC = () => {
         )
       )
       
-      // Marcar este proceso como el que se está ejecutando
-      setExecutingProcessId(process.id)
-      
       const executionId = await processService.executeProcessWithMonitoring(process.id)
       console.log(`✅ [Frontend] Execution ID recibido:`, executionId)
-      
-      setCurrentExecutionId(executionId)
       
       // Obtener estado inicial (con pequeño delay para que el backend inicialice)
       await new Promise(resolve => setTimeout(resolve, 500))
       const status = await processService.getExecutionStatus(executionId)
-      setExecutionStatus(status)
+      
+      // Agregar esta ejecución al Map de ejecuciones activas
+      setExecutions(prev => {
+        const newMap = new Map(prev)
+        newMap.set(process.id, { executionId, status: status || { isRunning: true } as ExecutionStatus })
+        return newMap
+      })
       
       console.log('✅ [Frontend] Ejecución iniciada correctamente:', executionId)
     } catch (error) {
       console.error('❌ [Frontend] Error ejecutando proceso:', error)
       
-      // Limpiar estado de ejecución en caso de error
-      setExecutingProcessId(null)
+      // Remover ejecución fallida del Map
+      setExecutions(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(process.id)
+        return newMap
+      })
       
       // Extraer mensaje de error detallado
       const errorMessage = (error as any)?.response?.data?.error || (error as Error).message
@@ -129,16 +198,20 @@ export const ValidationProcesses: React.FC = () => {
     }
   }
 
-  const handleCancelExecution = async () => {
-    if (!currentExecutionId) return
+  const handleCancelExecution = async (processId: string) => {
+    const execution = executions.get(processId)
+    if (!execution || !execution.status?.isRunning) return
     
     try {
-      console.log(`🛑 [Frontend] Cancelando ejecución:`, currentExecutionId)
-      await processService.cancelExecution(currentExecutionId)
+      console.log(`🛑 [Frontend] Cancelando ejecución:`, execution.executionId)
+      await processService.cancelExecution(execution.executionId)
       
-      setExecutionStatus(null)
-      setCurrentExecutionId(null)
-      setExecutingProcessId(null) // Limpiar el proceso en ejecución
+      // Remover ejecución del Map
+      setExecutions(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(processId)
+        return newMap
+      })
       
       console.log('✅ [Frontend] Ejecución cancelada correctamente')
       
@@ -179,10 +252,10 @@ export const ValidationProcesses: React.FC = () => {
 
   const handleExportResults = async (process: ValidationProcess) => {
     try {
-      await processService.exportResults(process.id, 'json')
-    } catch (error) {
-      console.error('Error exportando resultados:', error)
-      alert('Error al exportar los resultados')
+      await processService.downloadPdfReport(process.id)
+    } catch (error: any) {
+      console.error('Error descargando informe PDF:', error)
+      alert(`Error al descargar el informe PDF:\n\n${error.message || 'Error desconocido'}`)
     }
   }
 
@@ -241,16 +314,14 @@ export const ValidationProcesses: React.FC = () => {
         </button>
       </div>
 
-      {/* Barra de progreso de ejecución */}
-      {executionStatus && executionStatus.isRunning && (
+      {/* Barra de progreso de ejecución - mostrar solo la primera ejecución activa para no saturar la UI */}
+      {Array.from(executions.values()).filter(exec => exec.status?.isRunning).length > 0 && (
         <ExecutionProgressBar 
-          executionStatus={executionStatus}
+          executionStatus={Array.from(executions.values()).find(exec => exec.status?.isRunning)?.status || null}
           onCancel={() => {
-            if (currentExecutionId) {
-              processService.cancelExecution(currentExecutionId)
-              setCurrentExecutionId(null)
-              setExecutionStatus(null)
-              setExecutingProcessId(null)
+            const firstRunning = Array.from(executions.entries()).find(([_, exec]) => exec.status?.isRunning)
+            if (firstRunning) {
+              handleCancelExecution(firstRunning[0])
             }
           }}
         />
@@ -330,24 +401,28 @@ export const ValidationProcesses: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
                       {/* Ejecutar o Detener */}
-                      {executionStatus?.isRunning && executingProcessId === process.id ? (
-                        <button
-                          onClick={handleCancelExecution}
-                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-                          title="Detener proceso"
-                        >
-                          <StopCircle className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleExecuteProcess(process)}
-                          disabled={executionStatus?.isRunning && executingProcessId !== process.id}
-                          className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Ejecutar proceso"
-                        >
-                          <Play className="w-4 h-4" />
-                        </button>
-                      )}
+                      {(() => {
+                        const execution = executions.get(process.id)
+                        const isRunning = execution?.status?.isRunning
+                        
+                        return isRunning ? (
+                          <button
+                            onClick={() => handleCancelExecution(process.id)}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Detener proceso"
+                          >
+                            <StopCircle className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleExecuteProcess(process)}
+                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-lg transition-colors"
+                            title="Ejecutar proceso"
+                          >
+                            <Play className="w-4 h-4" />
+                          </button>
+                        )
+                      })()}
                       
                       {/* Editar */}
                       <button

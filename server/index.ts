@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { processRouter } from './routes/processes';
 import { resultsRouter } from './routes/results';
 import { executionRouter } from './routes/executions';
+import { informesRouter } from './routes/informes';
 import { initStorage } from './utils/initStorage';
 
 dotenv.config();
@@ -35,7 +36,8 @@ app.get('/', (_req: Request, res: Response) => {
       health: '/api/health',
       processes: '/api/processes',
       executions: '/api/executions',
-      results: '/api/results'
+      results: '/api/results',
+      informes: '/api/informes'
     }
   });
 });
@@ -53,6 +55,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/processes', processRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/executions', executionRouter);
+app.use('/api/informes', informesRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: any) => {

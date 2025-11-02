@@ -4,6 +4,7 @@ import { obtenerConfiguracion } from './configuraciones';
 import { CAMPOS_CORFO_MAPPING } from '../scraping/extraerFormularios';
 import { CacheInteligente, FormularioCache } from './cacheInteligente';
 import { getNextReportId } from '../server/utils/getNextReportId';
+import { generarInformePDF } from './generadorInforme';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -538,19 +539,10 @@ export class DetectorEstructura {
     }
 }
 
-/**
- * MVP HÍBRIDO: Análisis + Autocompletado en Una Sola Ejecución
- * 
- * Objetivo: Completar formularios CORFO en 15-20 minutos 
- * Estrategia: Extracción + Completado simultáneo de campos
- * Seguridad: NO envía formularios (solo testing)
- */
-
-
-export interface ResultadoMVP {
+export interface ResultadoAgente {
     exito: boolean;
     mensaje: string;
-    estadisticas: EstadisticasMVP;
+    estadisticas: EstadisticasEjecucion;
     titulo?: string;
     tituloProyecto?: string;
     codigoProyecto?: string;
@@ -558,21 +550,21 @@ export interface ResultadoMVP {
     urlFormularioEnviado?: string;
     fechaEjecucion?: string;
     tiempoTotal: number;
-    pasosCompletados?: PasoMVP[];
+    pasosCompletados?: PasoEjecucion[];
     errores?: string[];
 }
 
-export interface PasoMVP {
+export interface PasoEjecucion {
     numero: number;
     titulo: string;
     camposEncontrados: number;
     camposCompletados: number;
     tiempoTranscurrido: number;
     exito: boolean;
-    detalles: DetallePasoMVP[];
+    detalles: DetallePaso[];
 }
 
-export interface DetallePasoMVP {
+export interface DetallePaso {
     etiqueta: string;
     tipo: string;
     valorAsignado: string;
@@ -598,7 +590,7 @@ export interface ResultadoNavegacion {
     resultadoModal: ResultadoModal;
 }
 
-export interface EstadisticasMVP {
+export interface EstadisticasEjecucion {
     totalPasos: number;
     totalCampos: number;
     camposCompletados: number;
@@ -610,12 +602,15 @@ export interface EstadisticasMVP {
     porcentajeCompletado?: number;
 }
 
-export class MVPHibrido {
+export class AgenteOrquestador {
+    // Configuración: Desactivar generación de PDF para ejecuciones de debugging (report_*.json)
+    private static readonly GENERAR_PDF_DEBUGGING = false; // Cambiar a true para habilitar
+    
     private browser: Browser | null = null;
     private page: Page | null = null;
     private configuracion: ConfiguracionAgente;
     private tiempoInicio: number = 0;
-    private resultado: ResultadoMVP;
+    private resultado: ResultadoAgente;
     private formUrl: string = '';
     private archivosSubidosEnSesion: Set<string> = new Set(); // Para evitar subidas duplicadas
     private camposProcesadosEnPasoActual: Set<string> = new Set(); // 🔴 NUEVO: Para trackear campos procesados en iteraciones
@@ -649,12 +644,11 @@ export class MVPHibrido {
         };
     }
 
-    async ejecutar(): Promise<ResultadoMVP> {
-        console.log('🚀 INICIANDO MVP HÍBRIDO - ANÁLISIS + AUTOCOMPLETADO');
+    async ejecutar(): Promise<ResultadoAgente> {
+        console.log('🚀 INICIANDO AGENTE ORQUESTADOR - ANÁLISIS + AUTOCOMPLETADO');
         console.log('='.repeat(60));
         console.log(' Objetivo: Completar formulario en 15-20 minutos');
         console.log('⚡ Estrategia: Extracción + Completado simultáneo');
-        console.log('🛡️ Seguridad: NO envía formulario (solo testing)');
         console.log('');
 
         this.tiempoInicio = Date.now();
@@ -685,12 +679,12 @@ export class MVPHibrido {
             await this.procesarFormularioHibrido();
 
             this.resultado.exito = true;
-            console.log('✅ MVP HÍBRIDO COMPLETADO EXITOSAMENTE');
+            console.log('✅ AGENTE ORQUESTADOR COMPLETADO EXITOSAMENTE');
 
         } catch (error) {
             this.resultado.errores = this.resultado.errores || [];
             this.resultado.errores.push((error as Error).message);
-            console.error('❌ Error en MVP híbrido:', error);
+            console.error('❌ Error en Agente Orquestador:', error);
         } finally {
             await this.limpiarRecursos();
         }
@@ -882,7 +876,7 @@ export class MVPHibrido {
         // Detectar estructura del formulario
         let estructura = await detector.detectarEstructuraCompleta();
         
-        // Adaptar el MVP basado en la estructura detectada
+        // Adaptar el agente basado en la estructura detectada
         let pasoActual = estructura.pasoActual;
         let hayMasPasos = true;
         const tiempoLimitePorPaso = 3 * 60 * 1000; // 3 minutos máximo por paso
@@ -900,7 +894,7 @@ export class MVPHibrido {
             const detallesConfirmacion = await this.procesarPasoConfirmacion();
         
             // Agregar paso de confirmación a los resultados
-            const pasoConfirmacion: PasoMVP = {
+            const pasoConfirmacion: PasoEjecucion = {
                 numero: TOTAL_PASOS_ESPERADOS,
                 titulo: 'Confirmación Final',
                 camposEncontrados: detallesConfirmacion.length,
@@ -950,7 +944,7 @@ export class MVPHibrido {
                     
                     // Procesar el paso de confirmación (no extraemos campos)
                     const detallesConfirmacion = await this.procesarPasoConfirmacion();
-                    const pasoConfirmacion: PasoMVP = {
+                    const pasoConfirmacion: PasoEjecucion = {
                         numero: pasoActual,
                         titulo: 'Confirmación Final',
                         camposEncontrados: 0,
@@ -995,7 +989,7 @@ export class MVPHibrido {
      * Procesa un paso del formulario con sistema de reintentos para campos faltantes
      * Implementa loop de hasta 3 iteraciones cuando el modal indica campos faltantes
      */
-    private async procesarPasoActual(numeroPaso: number, tiempoInicio: number): Promise<PasoMVP> {
+    private async procesarPasoActual(numeroPaso: number, tiempoInicio: number): Promise<PasoEjecucion> {
         const titulo = await this.obtenerTituloPaso();
 
         console.log(`📝 Paso ${numeroPaso}: "${titulo}"`);
@@ -1012,7 +1006,7 @@ export class MVPHibrido {
         console.log(`   📋 Tipo de paso detectado: ${esConfirmacion ? 'CONFIRMACIÓN' : 
             (esPasoPresupuesto ? 'PRESUPUESTO' : (esPasoConAgregar ? 'AGREGAR+' : 'NORMAL'))}`);
 
-        let todosCamposProcesados: DetallePasoMVP[] = [];
+        let todosCamposProcesados: DetallePaso[] = [];
         
         if (esConfirmacion) {
             console.log(' PASO DE CONFIRMACIÓN DETECTADO AUTOMÁTICAMENTE - Realizando verificación final');
@@ -1119,7 +1113,7 @@ export class MVPHibrido {
 
         const tiempoTranscurrido = Math.round((Date.now() - tiempoInicio) / 1000);
 
-        const paso: PasoMVP = {
+        const paso: PasoEjecucion = {
             numero: numeroPaso,
             titulo: titulo,
             camposEncontrados: todosCamposProcesados.length,
@@ -1220,7 +1214,7 @@ export class MVPHibrido {
         }
     }
 
-    private async procesarPasoConfirmacion(): Promise<DetallePasoMVP[]> {
+    private async procesarPasoConfirmacion(): Promise<DetallePaso[]> {
         // Ya no extraemos campos en el paso de confirmación
         // Solo retornamos un array vacío
         return [];
@@ -1231,9 +1225,9 @@ export class MVPHibrido {
      * Reutiliza lógica existente de procesamiento de campos
      * Incluye navegación al siguiente paso al finalizar
      */
-    private async procesarPasoConBotonAgregar(): Promise<DetallePasoMVP[]> {
+    private async procesarPasoConBotonAgregar(): Promise<DetallePaso[]> {
         console.log('📋 Procesando paso con botón AGREGAR+...');
-        const detalles: DetallePasoMVP[] = [];
+        const detalles: DetallePaso[] = [];
         
         try {
             // 1. Buscar y clic en AGREGAR+ (reutiliza selectores estándar)
@@ -1330,9 +1324,9 @@ export class MVPHibrido {
      * Procesa paso Presupuesto con tabs dinámicos
      * Agrega 1 item por cada tab y luego navega al siguiente paso
      */
-    private async procesarPasoPresupuesto(): Promise<DetallePasoMVP[]> {
+    private async procesarPasoPresupuesto(): Promise<DetallePaso[]> {
         console.log('📊 Procesando paso PRESUPUESTO con tabs dinámicos...');
-        const detalles: DetallePasoMVP[] = [];
+        const detalles: DetallePaso[] = [];
         
         try {
             // 1. Extraer todas las tabs
@@ -1435,8 +1429,8 @@ export class MVPHibrido {
      * Usa this.camposProcesadosEnPasoActual para trackear campos entre iteraciones
      * @returns Array de detalles de campos procesados en esta iteración
      */
-    private async extraerYCompletarCampos(): Promise<DetallePasoMVP[]> {
-        const detalles: DetallePasoMVP[] = [];
+    private async extraerYCompletarCampos(): Promise<DetallePaso[]> {
+        const detalles: DetallePaso[] = [];
         
         const camposYaProcesadosInicio = this.camposProcesadosEnPasoActual.size;
         
@@ -1500,7 +1494,7 @@ export class MVPHibrido {
                     continue;
                 }
 
-                const detalle: DetallePasoMVP = {
+                const detalle: DetallePaso = {
                     etiqueta: info.etiqueta,
                     tipo: info.tipo,
                     valorAsignado: valorAsignado || '',
@@ -2120,26 +2114,18 @@ export class MVPHibrido {
                     }));
                 }
 
-                // 🔴 MEJORA: Detección más agresiva de campos obligatorios
-                // Incluir verificación de validación de HTML5 y más patrones
+                // ✅ Detección precisa de campos obligatorios basada en estándares HTML5
+                // Solo usar criterios válidos de obligatoriedad real
                 const esObligatorio = el.hasAttribute('required') || 
                                     el.getAttribute('aria-required') === 'true' ||
-                                    el.getAttribute('aria-invalid') === 'true' ||
                                     className.includes('required') ||
                                     className.includes('mandatory') ||
                                     className.includes('obligatorio') ||
                                     className.includes('is-required') ||
                                     className.includes('form-required') ||
-                                    className.includes('ng-invalid') || // Angular validation
-                                    className.includes('error') || // Generic error class
                                     (etiqueta.includes('*') || etiqueta.includes('obligatorio')) ||
                                     (etiqueta.includes('(requerido)') || etiqueta.includes('(obligatorio)')) ||
-                                    // 🔴 NUEVO: Campos de direcciones son típicamente obligatorios
-                                    (etiqueta.toLowerCase().includes('numero') && etiqueta.toLowerCase().includes('direcc')) ||
-                                    (etiqueta.toLowerCase().includes('departamento') && etiqueta.toLowerCase().includes('direcc')) ||
-                                    (etiqueta.toLowerCase().includes('codigo postal')) ||
-                                    (etiqueta.toLowerCase().includes('calle')) ||
-                                    // Verificar en el contenedor padre
+                                    // Verificar en el contenedor padre (solo indicadores válidos)
                                     (() => {
                                         const contenedor = el.closest('div, fieldset, .form-group, .field');
                                         if (contenedor) {
@@ -2147,18 +2133,12 @@ export class MVPHibrido {
                                             const classContenedor = contenedor.className || '';
                                             return classContenedor.includes('required') || 
                                                    classContenedor.includes('mandatory') ||
-                                                   classContenedor.includes('ng-invalid') ||
+                                                   classContenedor.includes('obligatorio') ||
                                                    textoContenedor.includes('*') ||
                                                    textoContenedor.includes('obligatorio');
                                         }
                                         return false;
-                                    })() ||
-                                    // 🔴 NUEVO: Si el campo tiene validación de patrón, probablemente es obligatorio
-                                    el.hasAttribute('pattern') ||
-                                    el.hasAttribute('minlength') ||
-                                    el.hasAttribute('maxlength') ||
-                                    // 🔴 NUEVO: En contexto CORFO, asumir que campos numéricos son obligatorios por defecto
-                                    (type === 'number' && !el.readOnly && !el.disabled);
+                                    })();
 
                 return {
                     tipo: type,
@@ -3569,6 +3549,24 @@ export class MVPHibrido {
             
             await fs.writeFile(rutaReporte, JSON.stringify(this.resultado, null, 2), 'utf-8');
             console.log(`✅ Reporte guardado en: ${rutaReporte}`);
+
+            // Generar PDF automáticamente después de guardar el JSON (solo si está habilitado)
+            if (AgenteOrquestador.GENERAR_PDF_DEBUGGING) {
+                try {
+                    const informesDir = path.join(__dirname, '../data/informes');
+                    await fs.mkdir(informesDir, { recursive: true });
+                    const pdfPath = path.join(informesDir, `report_${nextId}.pdf`);
+                    
+                    await generarInformePDF(rutaReporte, pdfPath);
+                    console.log(`✅ Informe PDF generado: report_${nextId}.pdf`);
+                } catch (pdfError: any) {
+                    console.error(`❌ Error generando PDF para report_${nextId}:`, pdfError.message);
+                    console.error(`   Nota: El reporte JSON está guardado, solo falló la generación del PDF`);
+                    // No lanzar error para no interrumpir el flujo principal
+                }
+            } else {
+                console.log(`ℹ️ Generación de PDF desactivada para debugging (config: GENERAR_PDF_DEBUGGING = false)`);
+            }
         }
     }
 
@@ -3606,10 +3604,10 @@ export class MVPHibrido {
      * Método público para permitir cancelación desde el exterior
      */
     async detener(): Promise<void> {
-        console.log('🛑 Deteniendo ejecución del MVP...');
+        console.log('🛑 Deteniendo ejecución del Agente Orquestador...');
         this.cancelado = true;
         await this.limpiarRecursos();
-        console.log('✅ MVP detenido correctamente');
+        console.log('✅ Agente Orquestador detenido correctamente');
     }
 
     private async limpiarRecursos(): Promise<void> {
@@ -3622,16 +3620,16 @@ export class MVPHibrido {
     }
 }
 
-export async function ejecutarMVPHibrido(configuracionNombre: string = 'demo'): Promise<ResultadoMVP> {
-    console.log(' INICIANDO MVP HÍBRIDO CORFO');
+export async function ejecutarAgenteOrquestador(configuracionNombre: string = 'demo'): Promise<ResultadoAgente> {
+    console.log(' INICIANDO AGENTE ORQUESTADOR CORFO');
     console.log('============================');
     
     const configuracion = obtenerConfiguracion(configuracionNombre as any);
-    const mvp = new MVPHibrido(configuracion);
+    const agente = new AgenteOrquestador(configuracion);
     
-    const resultado = await mvp.ejecutar();
+    const resultado = await agente.ejecutar();
     
-    console.log('\n📈 RESUMEN FINAL MVP HÍBRIDO');
+    console.log('\n📈 RESUMEN FINAL AGENTE ORQUESTADOR');
     console.log('===============================');
     console.log(`⏱️ Tiempo total: ${resultado.tiempoTotal} segundos (${(resultado.tiempoTotal / 60).toFixed(1)} minutos)`);
     console.log(`📊 Pasos completados: ${resultado.estadisticas.totalPasos}`);
@@ -3654,18 +3652,18 @@ if (require.main === module) {
     const args = process.argv.slice(2);
     const configuracion = args[0] || 'demo';
     
-    ejecutarMVPHibrido(configuracion)
+    ejecutarAgenteOrquestador(configuracion)
         .then((resultado) => {
             if (resultado.exito) {
-                console.log('\n🎉 MVP HÍBRIDO COMPLETADO EXITOSAMENTE');
+                console.log('\n🎉 AGENTE ORQUESTADOR COMPLETADO EXITOSAMENTE');
                 process.exit(0);
             } else {
-                console.log('\n❌ MVP HÍBRIDO FALLÓ');
+                console.log('\n❌ AGENTE ORQUESTADOR FALLÓ');
                 process.exit(1);
             }
         })
         .catch((error) => {
-            console.error('❌ Error fatal en MVP híbrido:', error);
+            console.error('❌ Error fatal en Agente Orquestador:', error);
             process.exit(1);
         });
 } 

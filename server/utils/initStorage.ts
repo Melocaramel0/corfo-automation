@@ -7,10 +7,12 @@ import * as path from 'path';
 export async function initStorage(): Promise<void> {
   const dataDir = path.join(__dirname, '../../data');
   const executionResultsDir = path.join(dataDir, 'execution_results');
+  const informesDir = path.join(dataDir, 'informes');
   
   // Crear directorios
   await fs.mkdir(dataDir, { recursive: true });
   await fs.mkdir(executionResultsDir, { recursive: true });
+  await fs.mkdir(informesDir, { recursive: true });
   
   // Crear archivo de procesos si no existe
   const processesFile = path.join(dataDir, 'processes.json');
