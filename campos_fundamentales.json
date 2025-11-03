@@ -350,7 +350,10 @@
           "descripcion": "RUT del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "41"
+          "numeroReferencia": "41",
+          "etiquetasReales": [
+            "Identificador Rut"
+          ]
         },
         "NOMBRE_DIRECTOR_PROYECTO": {
           "valor": "María Elena",
@@ -359,7 +362,10 @@
           "descripcion": "Nombre(s) del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "42"
+          "numeroReferencia": "42",
+          "etiquetasReales": [
+            "Nombre"
+          ]
         },
         "PRIMER_APELLIDO_DIRECTOR_PROYECTO": {
           "valor": "Rodríguez",
@@ -368,7 +374,10 @@
           "descripcion": "Primer apellido del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "43"
+          "numeroReferencia": "43",
+          "etiquetasReales": [
+            "Apellido Paterno"
+          ]
         },
         "SEGUNDO_APELLIDO_DIRECTOR_PROYECTO": {
           "valor": "Silva",
@@ -377,7 +386,10 @@
           "descripcion": "Segundo apellido del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "44"
+          "numeroReferencia": "44",
+          "etiquetasReales": [
+            "Apellido Materno"
+          ]
         },
         "GENERO_DIRECTOR_PROYECTO": {
           "valor": "Femenino",
@@ -386,7 +398,10 @@
           "descripcion": "Género del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "45"
+          "numeroReferencia": "45",
+          "etiquetasReales": [
+            "Genero"
+          ]
         },
         "CORREO_DIRECTOR_PROYECTO": {
           "valor": "director@empresa.cl",
@@ -395,7 +410,10 @@
           "descripcion": "Correo electrónico del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "46"
+          "numeroReferencia": "46",
+          "etiquetasReales": [
+            "Mail"
+          ]
         },
         "TELEFONO_DIRECTOR_PROYECTO": {
           "valor": "+56976543210",
@@ -404,7 +422,11 @@
           "descripcion": "Número teléfono del director/encargado del proyecto",
           "activo": true,
           "esFundamental": true,
-          "numeroReferencia": "47"
+          "numeroReferencia": "47",
+          "etiquetasReales": [
+            "Telefono Fijo",
+            "Telefono Celular"
+          ]
         }
       }
     },

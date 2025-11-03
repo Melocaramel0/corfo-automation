@@ -299,41 +299,243 @@ export async function crearCompletacionConFallback(
 }
 
 /**
+ * Formatea fecha en formato español: "dd-mm-yyyy, hh:mm:ss a. m."
+ */
+function formatearFechaEspanol(fecha: string): string {
+  const date = new Date(fecha);
+  const dia = String(date.getDate()).padStart(2, '0');
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  const anio = date.getFullYear();
+  
+  let horas = date.getHours();
+  const minutos = String(date.getMinutes()).padStart(2, '0');
+  const segundos = String(date.getSeconds()).padStart(2, '0');
+  const periodo = horas >= 12 ? 'p. m.' : 'a. m.';
+  
+  if (horas > 12) horas -= 12;
+  if (horas === 0) horas = 12;
+  
+  const horasFormateadas = String(horas).padStart(2, '0');
+  
+  return `${dia}-${mes}-${anio}, ${horasFormateadas}:${minutos}:${segundos} ${periodo}`;
+}
+
+/**
+ * Extrae el código sin el prefijo "Código Proyecto:"
+ */
+function extraerCodigo(codigoProyecto?: string): string {
+  if (!codigoProyecto) return '';
+  // Remover prefijo "Código Proyecto: " si existe
+  return codigoProyecto.replace(/^Código Proyecto:\s*/i, '').trim();
+}
+
+/**
+ * Formatea el nombre del campo fundamental para mostrarlo de forma legible
+ * Basado en el formato de la imagen: "RUT DIRECTOR/ENCARGADO DEL PROYECTO"
+ */
+function formatearNombreCampo(nombre: string, categoria: string, descripcion?: string): string {
+  // Si la descripción contiene información útil, construir nombre desde ella
+  if (descripcion) {
+    let nombreFormateado = descripcion.toUpperCase();
+    
+    // Reemplazos específicos para coincidir con el formato de la imagen
+    nombreFormateado = nombreFormateado
+      .replace(/DIRECTOR\/ENCARGADO DEL PROYECTO/g, 'DIRECTOR/ENCARGADO DEL PROYECTO')
+      .replace(/RUT DEL/g, 'RUT')
+      .replace(/NOMBRE\(S\) DEL/g, 'NOMBRE(S)')
+      .replace(/PRIMER APELLIDO DEL/g, 'PRIMER APELLIDO')
+      .replace(/SEGUNDO APELLIDO DEL/g, 'SEGUNDO APELLIDO')
+      .replace(/GÉNERO DEL/g, 'GÉNERO')
+      .replace(/CORREO ELECTRÓNICO DEL/g, 'CORREO ELECTRÓNICO')
+      .replace(/NÚMERO TELÉFONO DEL/g, 'NÚMERO TELÉFONO')
+      .replace(/DIRECCIÓN -/g, 'DIRECCIÓN –')
+      .replace(/CÓDIGO POSTAL/g, 'CÓDIGO POSTAL');
+    
+    // Agregar contexto de categoría si es relevante (como en la imagen)
+    if (categoria === 'personaJuridica') {
+      nombreFormateado += ' (Persona Juridica)';
+    }
+    
+    return nombreFormateado;
+  }
+  
+  // Si no hay descripción, usar el nombre del campo
+  let nombreFormateado = nombre
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(palabra => palabra.toUpperCase())
+    .join(' ');
+  
+  // Reemplazar palabras comunes con formato mejorado
+  nombreFormateado = nombreFormateado
+    .replace(/DIRECTOR PROYECTO/g, 'DIRECTOR/ENCARGADO DEL PROYECTO')
+    .replace(/RUT /g, 'RUT ')
+    .replace(/NOMBRE /g, 'NOMBRE(S) ')
+    .replace(/PRIMER APELLIDO /g, 'PRIMER APELLIDO ')
+    .replace(/SEGUNDO APELLIDO /g, 'SEGUNDO APELLIDO ')
+    .replace(/GENERO /g, 'GÉNERO ')
+    .replace(/CORREO /g, 'CORREO ELECTRÓNICO ')
+    .replace(/TELEFONO /g, 'NÚMERO TELÉFONO ')
+    .replace(/DIRECCION /g, 'DIRECCIÓN ')
+    .replace(/CODIGO POSTAL/g, 'CÓDIGO POSTAL');
+  
+  // Agregar contexto de categoría si es relevante
+  if (categoria === 'personaJuridica') {
+    nombreFormateado += ' (Persona Juridica)';
+  }
+  
+  return nombreFormateado;
+}
+
+/**
+ * Genera tabla de campos fundamentales en formato: Número | Campo | SI/NO
+ */
+async function generarTablaCamposFundamentales(resultado: ResultadoAgente): Promise<string> {
+  try {
+    const comparacion = await compararCamposFundamentales(resultado);
+    const lineas: string[] = [];
+    
+    // Crear mapa de campos encontrados para búsqueda rápida
+    const camposEncontradosMap = new Map<string, boolean>();
+    comparacion.camposEncontrados.forEach(campo => {
+      camposEncontradosMap.set(campo.nombre, campo.completado);
+    });
+    
+    // Cargar campos fundamentales para obtener números de referencia
+    const camposFundamentalesPath = path.join(__dirname, '../campos_fundamentales.json');
+    const contenido = await fs.readFile(camposFundamentalesPath, 'utf-8');
+    const camposFundamentales: any = JSON.parse(contenido);
+    
+    // Recorrer todos los campos fundamentales y crear tabla
+    lineas.push('| Número | Campo Fundamental | SI/NO |');
+    lineas.push('|--------|-------------------|-------|');
+    
+    Object.entries(camposFundamentales.categorias).forEach(([categoria, cat]: [string, any]) => {
+      if (!cat.activo) return;
+      
+      Object.entries(cat.campos).forEach(([nombre, campo]: [string, any]) => {
+        if (!campo.activo || !campo.esFundamental) return;
+        
+        const numeroRef = campo.numeroReferencia || '';
+        const nombreCampo = formatearNombreCampo(nombre, categoria, campo.descripcion);
+        const encontrado = camposEncontradosMap.has(nombre);
+        const completado = encontrado ? camposEncontradosMap.get(nombre) : false;
+        const estado = encontrado && completado ? 'SI' : 'NO';
+        
+        lineas.push(`| ${numeroRef} | ${nombreCampo} | ${estado} |`);
+      });
+    });
+    
+    return lineas.join('\n');
+  } catch (error: any) {
+    console.warn(`⚠️ No se pudo generar tabla de campos fundamentales: ${error.message}`);
+    return 'No se pudo generar la tabla de campos fundamentales.';
+  }
+}
+
+/**
+ * Genera lista de campos obligatorios
+ */
+function generarListaCamposObligatorios(resultado: ResultadoAgente): string {
+  const camposObligatorios: Array<{ etiqueta: string; seccion: string }> = [];
+  
+  if (resultado.pasosCompletados) {
+    resultado.pasosCompletados.forEach((paso) => {
+      paso.detalles.forEach((campo) => {
+        if (campo.esObligatorio) {
+          camposObligatorios.push({
+            etiqueta: campo.etiqueta,
+            seccion: paso.titulo,
+          });
+        }
+      });
+    });
+  }
+  
+  if (camposObligatorios.length === 0) {
+    return 'No hay campos obligatorios registrados.';
+  }
+  
+  const lineas: string[] = [];
+  camposObligatorios.forEach((campo, index) => {
+    lineas.push(`${index + 1}. Campo: '${campo.etiqueta}' en Sección: '${campo.seccion}'`);
+  });
+  
+  return lineas.join('\n');
+}
+
+/**
+ * Genera lista de campos no obligatorios
+ */
+function generarListaCamposNoObligatorios(resultado: ResultadoAgente): string {
+  const camposNoObligatorios: Array<{ etiqueta: string; seccion: string }> = [];
+  
+  if (resultado.pasosCompletados) {
+    resultado.pasosCompletados.forEach((paso) => {
+      paso.detalles.forEach((campo) => {
+        if (!campo.esObligatorio) {
+          camposNoObligatorios.push({
+            etiqueta: campo.etiqueta,
+            seccion: paso.titulo,
+          });
+        }
+      });
+    });
+  }
+  
+  if (camposNoObligatorios.length === 0) {
+    return 'No hay campos no obligatorios registrados.';
+  }
+  
+  const lineas: string[] = [];
+  camposNoObligatorios.forEach((campo, index) => {
+    lineas.push(`${index + 1}. Campo: '${campo.etiqueta}' en Sección: '${campo.seccion}'`);
+  });
+  
+  return lineas.join('\n');
+}
+
+/**
  * Extrae el contexto relevante del JSON de reporte para el prompt
  */
 async function extraerContextoReporte(resultado: ResultadoAgente): Promise<string> {
   const ctx: string[] = [];
 
-  // Información general
-  if (resultado.titulo) ctx.push(`**Título**: ${resultado.titulo}`);
-  if (resultado.tituloProyecto) ctx.push(`**Proyecto**: ${resultado.tituloProyecto}`);
-  if (resultado.codigoProyecto) ctx.push(`**Código**: ${resultado.codigoProyecto}`);
+  // PARTE 1: Información del Proyecto
+  ctx.push('**PARTE 1 - INFORMACIÓN DEL PROYECTO:**');
+  if (resultado.titulo) ctx.push(`**Formulario:** ${resultado.titulo}`);
+  if (resultado.tituloProyecto) ctx.push(`**Proyecto:** ${resultado.tituloProyecto}`);
+  if (resultado.codigoProyecto) {
+    const codigo = extraerCodigo(resultado.codigoProyecto);
+    ctx.push(`**Código:** ${codigo}`);
+  }
   if (resultado.fechaEjecucion) {
-    const fecha = new Date(resultado.fechaEjecucion).toLocaleString('es-CL');
-    ctx.push(`**Fecha de Ejecución**: ${fecha}`);
+    const fecha = formatearFechaEspanol(resultado.fechaEjecucion);
+    ctx.push(`**Fecha ejecución:** ${fecha}`);
   }
-
-  // URL del formulario enviado (si existe)
   if (resultado.urlFormularioEnviado) {
-    ctx.push(`**URL del Formulario Enviado**: ${resultado.urlFormularioEnviado}`);
+    ctx.push(`**URL envío:** ${resultado.urlFormularioEnviado}`);
+  } else {
+    ctx.push(`**URL envío:** Envío no disponible`);
   }
 
-  // Calcular cantidad de campos obligatorios
-  let totalCamposObligatorios = 0;
-  if (resultado.pasosCompletados) {
-    resultado.pasosCompletados.forEach((paso) => {
-      paso.detalles.forEach((campo) => {
-        if (campo.esObligatorio) {
-          totalCamposObligatorios++;
-        }
-      });
-    });
-  }
-
-  // Estadísticas clave
+  // PARTE 2: Estadísticas clave (Análisis General)
+  ctx.push('\n**PARTE 2 - ANÁLISIS GENERAL (Estadísticas Clave):**');
   if (resultado.estadisticas) {
     const est = resultado.estadisticas;
-    ctx.push('\n**Estadísticas Generales**:');
+    
+    // Calcular cantidad de campos obligatorios
+    let totalCamposObligatorios = 0;
+    if (resultado.pasosCompletados) {
+      resultado.pasosCompletados.forEach((paso) => {
+        paso.detalles.forEach((campo) => {
+          if (campo.esObligatorio) {
+            totalCamposObligatorios++;
+          }
+        });
+      });
+    }
+    
     ctx.push(`- Total de pasos: ${est.totalPasos}`);
     ctx.push(`- Total de campos: ${est.totalCampos}`);
     ctx.push(`- Campos obligatorios: ${totalCamposObligatorios}`);
@@ -347,68 +549,15 @@ async function extraerContextoReporte(resultado: ResultadoAgente): Promise<strin
     }
   }
 
-  // Resumen de pasos
-  if (resultado.pasosCompletados && resultado.pasosCompletados.length > 0) {
-    ctx.push('\n**Resumen por Pasos**:');
-    resultado.pasosCompletados.forEach((paso) => {
-      const statusIcon = paso.exito ? '✅' : '❌';
-      ctx.push(
-        `${statusIcon} Paso ${paso.numero}: ${paso.titulo} - ` +
-        `${paso.camposCompletados}/${paso.camposEncontrados} campos (${paso.tiempoTranscurrido}s)`
-      );
-    });
-  }
+  // PARTE 3: Campos Fundamentales
+  ctx.push('\n**PARTE 3 - CAMPOS FUNDAMENTALES:**');
+  const tablaCamposFundamentales = await generarTablaCamposFundamentales(resultado);
+  ctx.push(tablaCamposFundamentales);
 
-  // Campos no completados (errores)
-  const camposNoCompletados: Array<{
-    paso: string;
-    etiqueta: string;
-    tipo: string;
-    razon: string;
-    esObligatorio: boolean;
-  }> = [];
-
-  resultado.pasosCompletados?.forEach((paso) => {
-    paso.detalles.forEach((campo) => {
-      if (!campo.completado) {
-        camposNoCompletados.push({
-          paso: `${paso.numero}. ${paso.titulo}`,
-          etiqueta: campo.etiqueta,
-          tipo: campo.tipo,
-          razon: campo.razonFallo || 'No especificado',
-          esObligatorio: campo.esObligatorio,
-        });
-      }
-    });
-  });
-
-  if (camposNoCompletados.length > 0) {
-    ctx.push('\n**Campos No Completados**:');
-    camposNoCompletados.forEach((campo) => {
-      const obligatorio = campo.esObligatorio ? '[OBLIGATORIO]' : '[OPCIONAL]';
-      ctx.push(
-        `- ${obligatorio} ${campo.etiqueta} (${campo.tipo}) en "${campo.paso}": ${campo.razon}`
-      );
-    });
-  }
-
-  // Errores generales
-  if (resultado.errores && resultado.errores.length > 0) {
-    ctx.push('\n**Errores Generales**:');
-    resultado.errores.forEach((error, idx) => {
-      ctx.push(`${idx + 1}. ${JSON.stringify(error)}`);
-    });
-  }
-
-  // Comparación con campos fundamentales
-  try {
-    const comparacion = await compararCamposFundamentales(resultado);
-    const estadisticasCamposFundamentales = generarEstadisticasComparacion(comparacion);
-    ctx.push('\n' + estadisticasCamposFundamentales);
-  } catch (error: any) {
-    console.warn(`⚠️ No se pudo realizar comparación de campos fundamentales: ${error.message}`);
-    // Continuar sin la comparación si falla
-  }
+  // PARTE 4: Campos No Obligatorios
+  ctx.push('\n**PARTE 4 - CAMPOS NO OBLIGATORIOS:**');
+  const listaCamposNoObligatorios = generarListaCamposNoObligatorios(resultado);
+  ctx.push(listaCamposNoObligatorios);
 
   return ctx.join('\n');
 }
@@ -422,46 +571,57 @@ function generarPrompt(contexto: string): string {
 A continuación te proporciono el resultado de una ejecución automatizada de un formulario CORFO.
 Tu tarea es generar un **Informe de Resumen Ejecutivo** completo y profesional en formato **Markdown**.
 
-El informe debe incluir las siguientes secciones:
+El informe debe incluir EXACTAMENTE las siguientes secciones en este orden, con líneas de separación entre ellas:
 
-## 1. RESUMEN EJECUTIVO
-- Breve introducción sobre el proceso ejecutado
-- Resultado general (éxito/fallo)
-- Métricas clave destacadas (porcentaje de éxito, tiempo total, campos completados)
+# Informe de Resumen Ejecutivo — Automatización Formulario CORFO
 
-## 2. ESTADÍSTICAS CLAVE
-- Tabla con las estadísticas principales (total de pasos, campos, campos obligatorios, éxito, tiempos)
-- Incluir la URL del formulario enviado si está disponible
+---
 
-## 3. ANÁLISIS POR PASOS
-- Para cada paso del formulario:
-  - Título y número del paso
-  - Resultados (campos completados vs encontrados)
-  - Tiempo de ejecución
-  - Estado (exitoso/con problemas)
-  - Si hubo campos no completados, mencionarlos brevemente
+## 1. INFORMACIÓN DEL PROYECTO
 
-## 4. CAMPOS PROBLEMÁTICOS
-- Lista detallada de campos que NO se pudieron completar
-- Indicar si son obligatorios u opcionales
-- Razón del fallo
-- Recomendaciones específicas para cada uno
+Usa EXACTAMENTE el formato siguiente con los datos proporcionados en la PARTE 1:
 
-## 5. ANÁLISIS DE CAMPOS FUNDAMENTALES
-- Estadísticas generales de cobertura de campos fundamentales CORFO
-- Porcentaje de campos fundamentales encontrados vs faltantes
-- Desglose por categoría (Persona Jurídica, Representante Legal, Director Proyecto, etc.)
-- Lista de campos fundamentales encontrados (indicar si fueron completados exitosamente)
-- Lista de campos fundamentales faltantes (identificar qué campos requeridos no están presentes)
-- Evaluación de completitud del formulario según estándares CORFO
-- Recomendaciones sobre campos fundamentales que deben agregarse
+**Formulario:** [valor del formulario]
+**Proyecto:** [valor del proyecto]
+**Código:** [código sin prefijo "Código Proyecto:"]
+**Fecha ejecución:** [fecha en formato dd-mm-yyyy, hh:mm:ss a. m.]
+**URL envío:** [URL como hipervínculo en markdown, o "Envío no disponible" si no hay URL]
 
-## 6. CONCLUSIONES Y RECOMENDACIONES
-- Evaluación general del proceso
-- Identificación de patrones en los fallos (si existen)
-- Recomendaciones técnicas para mejorar la tasa de éxito
-- Análisis de la cobertura de campos fundamentales
-- Próximos pasos sugeridos
+---
+
+## 2. ANÁLISIS GENERAL (Estadísticas Clave)
+
+Presenta una tabla con las estadísticas proporcionadas en la PARTE 2. Usa formato de tabla Markdown con dos columnas: "Métrica" y "Valor".
+
+| Métrica | Valor |
+|---------|-------|
+| Total de pasos | [valor] |
+| Total de campos | [valor] |
+| Campos obligatorios | [valor] |
+| Campos completados | [valor] |
+| Porcentaje de éxito | [valor]% |
+| Tiempo promedio por paso | [valor] segundos |
+| Tiempo total de ejecución | [valor] segundos |
+
+---
+
+## 3. CAMPOS FUNDAMENTALES
+
+Usa EXACTAMENTE la tabla proporcionada en la PARTE 3. La tabla ya está formateada con:
+- Columna "Número": número de referencia del campo
+- Columna "Campo Fundamental": nombre del campo
+- Columna "SI/NO": indica si el campo fue encontrado y completado (SI) o no (NO)
+
+NO modifiques la tabla, solo inclúyela tal cual se proporciona.
+
+---
+
+## 4. CAMPOS NO OBLIGATORIOS
+
+Lista los campos no obligatorios proporcionados en la PARTE 4. Usa el formato numerado:
+1. Campo: 'Nombre del Campo' en Sección: 'Nombre de la Sección'
+2. Campo: 'Otro Campo' en Sección: 'Otra Sección'
+...
 
 ---
 
@@ -471,13 +631,17 @@ ${contexto}
 
 ---
 
-**INSTRUCCIONES ADICIONALES:**
-- Usa formato Markdown profesional con encabezados, listas, tablas y énfasis donde sea apropiado
-- Sé conciso pero completo
-- Usa lenguaje técnico pero comprensible
-- Si no hubo errores, destaca el éxito del proceso
-- Si hubo errores, sé constructivo en las recomendaciones
-- Incluye emojis sutiles para mejorar la legibilidad (✅, ❌, ⚠️, 📊, 🔍, 💡)
+**INSTRUCCIONES CRÍTICAS:**
+- El título principal del documento DEBE ser: "Informe de Resumen Ejecutivo — Automatización Formulario CORFO"
+- DEBE incluir líneas de separación (---) entre cada sección principal
+- La Parte 1 DEBE usar el formato exacto con **Label:** Valor (cada línea)
+- La Parte 2 DEBE usar formato de tabla con columnas "Métrica" y "Valor"
+- La Parte 3 DEBE incluir la tabla tal cual, sin modificaciones
+- La Parte 4 DEBE usar el formato numerado con "Campo: 'X' en Sección: 'Y'"
+- NO agregues secciones adicionales
+- NO agregues análisis adicionales como "RESUMEN EJECUTIVO"
+- Sé conciso y directo
+- Usa formato Markdown profesional con encabezados y énfasis donde sea apropiado
 
 Genera el informe ahora:`;
 }
