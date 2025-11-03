@@ -139,6 +139,26 @@ router.get('/:id/results', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/processes/:id/execution-json
+ * Obtener el JSON completo de ejecución (archivo exec_*.json)
+ */
+router.get('/:id/execution-json', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const executionJson = await processService.getProcessExecutionJson(id);
+    
+    if (!executionJson) {
+      return res.status(404).json({ error: 'No se encontró archivo de ejecución para este proceso' });
+    }
+    
+    res.json(executionJson);
+  } catch (error) {
+    console.error('Error obteniendo JSON de ejecución:', error);
+    res.status(500).json({ error: 'Error obteniendo JSON de ejecución' });
+  }
+});
+
+/**
  * GET /api/processes/:id/logs
  * Obtener logs de un proceso
  */

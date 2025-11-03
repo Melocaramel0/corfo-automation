@@ -5,6 +5,7 @@ import { processRouter } from './routes/processes';
 import { resultsRouter } from './routes/results';
 import { executionRouter } from './routes/executions';
 import { informesRouter } from './routes/informes';
+import { camposFundamentalesRouter } from './routes/camposFundamentales';
 import { initStorage } from './utils/initStorage';
 
 dotenv.config();
@@ -32,13 +33,14 @@ app.get('/', (_req: Request, res: Response) => {
     service: 'CORFO Automation Backend',
     version: '1.0.0',
     status: 'running',
-    endpoints: {
-      health: '/api/health',
-      processes: '/api/processes',
-      executions: '/api/executions',
-      results: '/api/results',
-      informes: '/api/informes'
-    }
+      endpoints: {
+        health: '/api/health',
+        processes: '/api/processes',
+        executions: '/api/executions',
+        results: '/api/results',
+        informes: '/api/informes',
+        camposFundamentales: '/api/campos-fundamentales'
+      }
   });
 });
 
@@ -56,6 +58,7 @@ app.use('/api/processes', processRouter);
 app.use('/api/results', resultsRouter);
 app.use('/api/executions', executionRouter);
 app.use('/api/informes', informesRouter);
+app.use('/api/campos-fundamentales', camposFundamentalesRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: any) => {

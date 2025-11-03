@@ -72,5 +72,20 @@ router.get('/:id/logs', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/executions/active
+ * Obtener todas las ejecuciones activas
+ */
+router.get('/active', async (req: Request, res: Response) => {
+  try {
+    const activeExecutions = await executionService.getAllActiveExecutions();
+    console.log(`📊 [GET /executions/active] ${activeExecutions.length} ejecuciones activas encontradas`);
+    res.json(activeExecutions);
+  } catch (error) {
+    console.error('❌ [GET /executions/active] Error:', error);
+    res.status(500).json({ error: 'Error obteniendo ejecuciones activas' });
+  }
+});
+
 export { router as executionRouter };
 

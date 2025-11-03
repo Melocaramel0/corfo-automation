@@ -347,39 +347,102 @@ export const processService = {
     }
   },
 
+  // Obtener el JSON completo de ejecución (archivo exec_*.json)
+  async getExecutionJson(processId: string): Promise<any> {
+    try {
+      console.log(`[getExecutionJson] Obteniendo JSON para proceso: ${processId}`)
+      
+      // Usar axios directamente porque el backend retorna directamente el JSON (no ApiResponse)
+      // El apiService.get() espera ApiResponse<T> pero este endpoint retorna directamente el objeto
+      const axios = (await import('axios')).default
+      const apiInstance = axios.create({
+        baseURL: '/api',
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      // Agregar token si existe
+      const token = localStorage.getItem('auth_token')
+      if (token) {
+        apiInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await apiInstance.get(`/processes/${processId}/execution-json`)
+      
+      // El backend retorna directamente el JSON en response.data
+      const jsonData = response.data
+      
+      console.log(`[getExecutionJson] JSON obtenido:`, {
+        hasData: !!jsonData,
+        type: typeof jsonData,
+        keys: jsonData ? Object.keys(jsonData).slice(0, 10) : [],
+        isArray: Array.isArray(jsonData),
+        fechaEjecucion: jsonData?.fechaEjecucion,
+        hasPasos: !!jsonData?.pasosCompletados,
+        pasosCount: jsonData?.pasosCompletados?.length || 0
+      })
+      
+      return jsonData
+    } catch (error: any) {
+      console.error('[getExecutionJson] Error obteniendo JSON de ejecución desde API:', error)
+      console.error('[getExecutionJson] Detalles del error:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        url: error?.config?.url
+      })
+      
+      // Si es un 404, el archivo no existe
+      if (error?.response?.status === 404) {
+        console.warn('[getExecutionJson] Archivo de ejecución no encontrado (404)')
+      }
+      
+      return null
+    }
+  },
+
   // Exportar resultados
   async exportResults(processId: string, format: 'csv' | 'json' = 'csv'): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const results = await this.getProcessResults(processId)
-    const process = await this.getProcess(processId)
-    
-    if (format === 'csv') {
-      const csvContent = this.convertToCSV(results)
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `resultados_${process?.nombreConcurso || processId}_${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-    } else {
-      const jsonContent = JSON.stringify(results, null, 2)
-      const blob = new Blob([jsonContent], { type: 'application/json' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `resultados_${process?.nombreConcurso || processId}_${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+    try {
+      const process = await this.getProcess(processId)
+      
+      if (format === 'json') {
+        // Para JSON, descargar el archivo completo de ejecución
+        const executionJson = await this.getExecutionJson(processId)
+        if (!executionJson) {
+          throw new Error('No se encontró archivo de ejecución para descargar')
+        }
+        
+        const jsonContent = JSON.stringify(executionJson, null, 2)
+        const blob = new Blob([jsonContent], { type: 'application/json' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `exec_${processId}_${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } else {
+        // Para CSV, usar resultados transformados
+        const results = await this.getProcessResults(processId)
+        const csvContent = this.convertToCSV(results)
+        const blob = new Blob([csvContent], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `resultados_${process?.nombreConcurso || processId}_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Error exportando:', error)
+      throw error
     }
-    
-    // En producción:
-    // await apiService.downloadFile(`/processes/${processId}/export?format=${format}`, `resultados_${processId}.${format}`)
   },
 
   // Convertir resultados a CSV
@@ -458,6 +521,31 @@ export const processService = {
 
       this.simulateMVPExecution(processId, executionId)
       return executionId
+    }
+  },
+
+  // Obtener todas las ejecuciones activas
+  async getActiveExecutions(): Promise<ExecutionStatus[]> {
+    try {
+      const axios = (await import('axios')).default
+      const apiInstance = axios.create({
+        baseURL: '/api',
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      const token = localStorage.getItem('auth_token')
+      if (token) {
+        apiInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      }
+      
+      const response = await apiInstance.get('/executions/active')
+      return response.data || []
+    } catch (error) {
+      console.error('[getActiveExecutions] Error obteniendo ejecuciones activas:', error)
+      return []
     }
   },
 

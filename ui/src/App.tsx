@@ -7,6 +7,7 @@ import AppLayout from './components/layout/AppLayout'
 import Dashboard from './pages/Dashboard'
 import { ValidationProcesses } from './pages/ValidationProcesses'
 import { Administration } from './pages/Administration'
+import { CamposFundamentales } from './pages/CamposFundamentales'
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -43,6 +44,9 @@ function App() {
         
         {/* Procesos de validación */}
         <Route path="processes" element={<ValidationProcesses />} />
+        
+        {/* Campos Fundamentales */}
+        <Route path="campos-fundamentales" element={<CamposFundamentales />} />
         
         {/* Administración (solo Admin) */}
         <Route 

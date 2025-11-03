@@ -300,6 +300,11 @@ export class ExecutionService {
     return Array.from(this.executions.values())
       .filter(exec => exec.processId === processId);
   }
+
+  async getAllActiveExecutions(): Promise<ExecutionStatus[]> {
+    return Array.from(this.executions.values())
+      .filter(exec => exec.isRunning);
+  }
 }
 
 // Singleton: exportar una única instancia compartida

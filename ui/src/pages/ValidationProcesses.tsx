@@ -29,10 +29,94 @@ export const ValidationProcesses: React.FC = () => {
   // Rastrear múltiples ejecuciones simultáneas: Map<processId, { executionId: string, status: ExecutionStatus }>
   const [executions, setExecutions] = useState<Map<string, { executionId: string; status: ExecutionStatus }>>(new Map())
 
-  // Cargar procesos al montar el componente
+  // Cargar procesos al montar el componente y restaurar ejecuciones activas
   useEffect(() => {
     loadProcesses()
+    restoreActiveExecutions()
   }, [])
+
+  // Restaurar ejecuciones activas desde el backend al cargar la página
+  const restoreActiveExecutions = async () => {
+    try {
+      console.log('[restoreActiveExecutions] Verificando ejecuciones activas...')
+      
+      // Obtener todas las ejecuciones activas desde el backend
+      const activeExecutions = await processService.getActiveExecutions()
+      console.log(`[restoreActiveExecutions] Ejecuciones activas encontradas:`, activeExecutions.length)
+      
+      if (activeExecutions.length === 0) {
+        // Si no hay ejecuciones activas en el backend, limpiar localStorage
+        localStorage.removeItem('activeExecutions')
+        return
+      }
+      
+      // Restaurar ejecuciones en el estado
+      const restoredExecutions = new Map<string, { executionId: string; status: ExecutionStatus }>()
+      
+      activeExecutions.forEach((execStatus: ExecutionStatus & { executionId?: string }) => {
+        // El backend puede retornar executionId en el objeto o necesitamos buscarlo
+        // Normalmente executionId está en el objeto ExecutionStatus
+        const executionId = (execStatus as any).executionId || execStatus.executionId || ''
+        const processId = (execStatus as any).processId || ''
+        
+        if (executionId && processId && execStatus.isRunning) {
+          restoredExecutions.set(processId, {
+            executionId,
+            status: execStatus
+          })
+          console.log(`[restoreActiveExecutions] Restaurada ejecución ${executionId} para proceso ${processId}`)
+        }
+      })
+      
+      // Actualizar estado con ejecuciones restauradas
+      if (restoredExecutions.size > 0) {
+        console.log(`[restoreActiveExecutions] Restaurando ${restoredExecutions.size} ejecuciones activas`)
+        setExecutions(restoredExecutions)
+        
+        // Actualizar localStorage
+        const stored: Record<string, any> = {}
+        restoredExecutions.forEach((exec, pid) => {
+          stored[pid] = exec
+        })
+        localStorage.setItem('activeExecutions', JSON.stringify(stored))
+      }
+    } catch (error) {
+      console.error('[restoreActiveExecutions] Error restaurando ejecuciones:', error)
+      // Si falla, intentar restaurar desde localStorage como fallback
+      const storedExecutions = localStorage.getItem('activeExecutions')
+      if (storedExecutions) {
+        try {
+          const parsed = JSON.parse(storedExecutions)
+          const restoredExecutions = new Map<string, { executionId: string; status: ExecutionStatus }>()
+          
+          await Promise.all(
+            Object.entries(parsed).map(async ([pid, exec]: [string, any]) => {
+              if (exec.status?.isRunning && exec.executionId) {
+                // Verificar que sigue activa en el backend
+                try {
+                  const status = await processService.getExecutionStatus(exec.executionId)
+                  if (status && status.isRunning) {
+                    restoredExecutions.set(pid, { executionId: exec.executionId, status })
+                  }
+                } catch {
+                  // Si no existe, no restaurar
+                }
+              }
+            })
+          )
+          
+          if (restoredExecutions.size > 0) {
+            setExecutions(restoredExecutions)
+          } else {
+            // Si ninguna sigue activa, limpiar localStorage
+            localStorage.removeItem('activeExecutions')
+          }
+        } catch {
+          // Ignorar errores de parseo
+        }
+      }
+    }
+  }
 
   // Polling para actualizar estado de todas las ejecuciones activas
   useEffect(() => {
@@ -73,18 +157,31 @@ export const ValidationProcesses: React.FC = () => {
             }
 
             if (processIdToUpdate) {
-              newMap.set(processIdToUpdate, {
-                executionId: update.executionId,
-                status: update.status || prev.get(processIdToUpdate)!.status
-              })
+              // Asegurar que siempre tenemos un status válido (no null)
+              const existingExec = prev.get(processIdToUpdate)
+              const newStatus = update.status || existingExec?.status
+              
+              if (newStatus) {
+                newMap.set(processIdToUpdate, {
+                  executionId: update.executionId,
+                  status: newStatus
+                })
 
-              // Si la ejecución terminó, removerla y recargar procesos
-              if (update.status && !update.status.isRunning) {
-                newMap.delete(processIdToUpdate)
-                shouldReloadProcesses = true
+                // Si la ejecución terminó, removerla y recargar procesos
+                if (!newStatus.isRunning) {
+                  newMap.delete(processIdToUpdate)
+                  shouldReloadProcesses = true
+                }
               }
             }
           })
+
+          // Actualizar localStorage con el estado actual
+          const stored: Record<string, any> = {}
+          newMap.forEach((exec, pid) => {
+            stored[pid] = exec
+          })
+          localStorage.setItem('activeExecutions', JSON.stringify(stored))
 
           // Recargar procesos si alguna ejecución terminó (usando función loadProcesses del scope)
           if (shouldReloadProcesses) {
@@ -168,7 +265,16 @@ export const ValidationProcesses: React.FC = () => {
       // Agregar esta ejecución al Map de ejecuciones activas
       setExecutions(prev => {
         const newMap = new Map(prev)
-        newMap.set(process.id, { executionId, status: status || { isRunning: true } as ExecutionStatus })
+        const executionData = { executionId, status: status || { isRunning: true } as ExecutionStatus }
+        newMap.set(process.id, executionData)
+        
+        // Guardar en localStorage como backup
+        const stored: Record<string, any> = {}
+        newMap.forEach((exec, pid) => {
+          stored[pid] = exec
+        })
+        localStorage.setItem('activeExecutions', JSON.stringify(stored))
+        
         return newMap
       })
       
@@ -259,11 +365,19 @@ export const ValidationProcesses: React.FC = () => {
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, processId?: string) => {
+    // Si el proceso está ejecutándose, mostrar amarillo
+    if (processId) {
+      const execution = executions.get(processId)
+      if (execution?.status?.isRunning) {
+        return 'bg-corfoYellow-25 text-corfoYellow-100'
+      }
+    }
+    
     const statusColors = {
-      'Creado': 'bg-corfo-20 text-corfo-500',
+      'Creado': 'bg-corfoGray-20 text-corfoGray-80',
       'En configuración': 'bg-corfoYellow-25 text-corfoYellow-100',
-      'Ejecutado': 'bg-corfoAqua-25 text-corfoAqua-100',
+      'Ejecutado': 'bg-corfoAqua-50 text-corfoAqua-100', // Verde más visible de la paleta CORFO
       'Cerrado': 'bg-corfoGray-20 text-corfoGray-80',
       'Anulado': 'bg-corfoRed-20 text-corfoRed-500',
       'Borrado': 'bg-corfoRed-20 text-corfoRed-500'
@@ -315,17 +429,22 @@ export const ValidationProcesses: React.FC = () => {
       </div>
 
       {/* Barra de progreso de ejecución - mostrar solo la primera ejecución activa para no saturar la UI */}
-      {Array.from(executions.values()).filter(exec => exec.status?.isRunning).length > 0 && (
-        <ExecutionProgressBar 
-          executionStatus={Array.from(executions.values()).find(exec => exec.status?.isRunning)?.status || null}
-          onCancel={() => {
-            const firstRunning = Array.from(executions.entries()).find(([_, exec]) => exec.status?.isRunning)
-            if (firstRunning) {
-              handleCancelExecution(firstRunning[0])
-            }
-          }}
-        />
-      )}
+      {(() => {
+        const firstRunningExec = Array.from(executions.values()).find(exec => exec.status?.isRunning)
+        const firstRunningStatus = firstRunningExec?.status
+        
+        return firstRunningStatus ? (
+          <ExecutionProgressBar 
+            executionStatus={firstRunningStatus}
+            onCancel={() => {
+              const firstRunning = Array.from(executions.entries()).find(([_, exec]) => exec.status?.isRunning)
+              if (firstRunning) {
+                handleCancelExecution(firstRunning[0])
+              }
+            }}
+          />
+        ) : null
+      })()}
 
       {/* Tabla de procesos */}
       <div className="bg-corfoGray-0 rounded-lg shadow overflow-hidden">
@@ -394,8 +513,11 @@ export const ValidationProcesses: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className={getStatusColor(process.estado)}>
-                      {process.estado}
+                    <Badge className={getStatusColor(process.estado, process.id)}>
+                      {(() => {
+                        const execution = executions.get(process.id)
+                        return execution?.status?.isRunning ? 'Ejecutando...' : process.estado
+                      })()}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -53,7 +53,7 @@ const Badge: React.FC<BadgeProps> = ({
   
   const variantClasses = {
     default: 'bg-corfoGray-20 text-corfoGray-80',
-    success: 'bg-corfoAqua-25 text-corfoAqua-100',
+    success: 'bg-corfoAqua-50 text-corfoAqua-100', // Verde más visible para estado "Ejecutado"
     warning: 'bg-corfoYellow-25 text-corfoYellow-100',
     error: 'bg-corfoRed-20 text-corfoRed-500',
     info: 'bg-corfo-20 text-corfo-500',
@@ -66,13 +66,14 @@ const Badge: React.FC<BadgeProps> = ({
     lg: 'px-3 py-1 text-sm',
   }
   
+  // Si se proporciona className personalizado, priorizarlo completamente sobre el variant
+  // Si no hay className, usar el variant
+  const classesToUse = className && className.trim() !== ''
+    ? clsx(baseClasses, sizeClasses[size], className)
+    : clsx(baseClasses, variantClasses[variant], sizeClasses[size])
+  
   return (
-    <span className={clsx(
-      baseClasses,
-      variantClasses[variant],
-      sizeClasses[size],
-      className
-    )}>
+    <span className={classesToUse}>
       {children}
     </span>
   )

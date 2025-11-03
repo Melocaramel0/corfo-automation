@@ -233,7 +233,7 @@ export class ProcessService {
       } : undefined;
       
       // Modo headless (navegador oculto == true) cuando se ejecuta desde interfaz
-      const agente = new AgenteOrquestador(configuracion, true, credenciales);
+      const agente = new AgenteOrquestador(configuracion, false, credenciales);
 
       // Guardar instancia activa para poder cancelarla después
       this.activeMVPInstances.set(executionId, agente);
@@ -451,7 +451,7 @@ export class ProcessService {
     // Buscar logs de ejecuciones de este proceso
     const executions = await executionService.getExecutionsByProcess(processId);
     
-    return executions.flatMap(exec => 
+    const executionLogs = executions.flatMap(exec => 
       exec.logs.map((log: string, index: number) => ({
         id: `${exec.executionId}_${index}`,
         accion: 'Ejecución Agente Orquestador',
@@ -460,6 +460,97 @@ export class ProcessService {
         procesoId: processId
       }))
     );
+
+    // Agregar logs del resumen final desde el JSON de ejecución
+    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    try {
+      const files = await fs.readdir(resultsDir);
+      const processFiles = files.filter(f => f.includes(processId));
+      
+      if (processFiles.length > 0) {
+        const latestFile = processFiles.sort().reverse()[0];
+        const data = await fs.readFile(path.join(resultsDir, latestFile), 'utf-8');
+        const resultado: ResultadoAgente = JSON.parse(data);
+        
+        // Agregar resumen final como log
+        if (resultado.estadisticas) {
+          const resumenLog = {
+            id: `${processId}_resumen_final`,
+            accion: 'Resumen Final',
+            descripcion: `⏱️ Tiempo total: ${Math.round(resultado.tiempoTotal / 60)} minutos | 📊 Pasos completados: ${resultado.estadisticas.totalPasos} | 📝 Campos encontrados: ${resultado.estadisticas.totalCampos} | ✅ Campos completados: ${resultado.estadisticas.camposCompletados} | 🎯 Porcentaje de éxito: ${resultado.estadisticas.porcentajeExito}% | ⚡ Velocidad: ${resultado.estadisticas.velocidadCamposPorSegundo.toFixed(2)} campos/segundo`,
+            fecha: resultado.fechaEjecucion || new Date().toISOString(),
+            procesoId: processId
+          };
+          executionLogs.push(resumenLog);
+        }
+      }
+    } catch {
+      // Si no hay archivo, continuar sin resumen
+    }
+
+    return executionLogs;
+  }
+
+  async getProcessExecutionJson(processId: string): Promise<any> {
+    // Obtener el JSON completo del archivo exec_*.json
+    // Estrategia: usar siempre el archivo más reciente (por fecha de ejecución en el JSON o fecha de modificación)
+    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    
+    try {
+      const files = await fs.readdir(resultsDir);
+      const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
+      
+      if (jsonFiles.length === 0) {
+        console.log(`[getProcessExecutionJson] No se encontraron archivos JSON en ${resultsDir}`);
+        return null;
+      }
+
+      console.log(`[getProcessExecutionJson] Encontrados ${jsonFiles.length} archivos JSON:`, jsonFiles);
+
+      // Cargar todos los archivos y obtener sus fechas de ejecución
+      const filesWithData = await Promise.all(
+        jsonFiles.map(async (file) => {
+          try {
+            const filePath = path.join(resultsDir, file);
+            const data = await fs.readFile(filePath, 'utf-8');
+            const jsonData = JSON.parse(data);
+            const fechaEjecucion = jsonData.fechaEjecucion ? new Date(jsonData.fechaEjecucion).getTime() : 0;
+            
+            // Obtener fecha de modificación del archivo como fallback
+            const stats = await fs.stat(filePath);
+            const mtime = stats.mtime.getTime();
+            
+            return {
+              file,
+              fechaEjecucion: fechaEjecucion || mtime,
+              data: jsonData
+            };
+          } catch (error) {
+            console.error(`[getProcessExecutionJson] Error leyendo archivo ${file}:`, error);
+            return null;
+          }
+        })
+      );
+
+      const validFiles = filesWithData.filter(f => f !== null) as Array<{
+        file: string;
+        fechaEjecucion: number;
+        data: any;
+      }>;
+
+      if (validFiles.length === 0) {
+        console.log(`[getProcessExecutionJson] No se pudieron cargar archivos JSON válidos`);
+        return null;
+      }
+
+      // Ordenar por fecha de ejecución (más reciente primero) y retornar el primero
+      const latest = validFiles.sort((a, b) => b.fechaEjecucion - a.fechaEjecucion)[0];
+      console.log(`[getProcessExecutionJson] Usando archivo más reciente: ${latest.file}`);
+      return latest.data;
+    } catch (error) {
+      console.error('[getProcessExecutionJson] Error obteniendo JSON de ejecución:', error);
+      return null;
+    }
   }
 
   async exportResults(processId: string, format: 'csv' | 'json'): Promise<string> {

@@ -3,6 +3,10 @@ import * as path from 'path';
 import dotenv from 'dotenv';
 import { AzureOpenAI } from 'openai';
 import { mdToPdf } from 'md-to-pdf';
+import {
+  compararCamposFundamentales,
+  generarEstadisticasComparacion,
+} from './comparadorCamposFundamentales';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -51,7 +55,7 @@ interface ResultadoAgente {
  * Configurar el cliente de Azure OpenAI
  * Soporta múltiples versiones de API para compatibilidad
  */
-function configurarClienteAzure(): AzureOpenAI {
+export function configurarClienteAzure(): AzureOpenAI {
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
@@ -99,7 +103,7 @@ function estimarTokens(texto: string): number {
  * Crea una solicitud a Azure OpenAI con fallback automático para diferentes modelos
  * Incluye controles de costos y límites seguros
  */
-async function crearCompletacionConFallback(
+export async function crearCompletacionConFallback(
   cliente: AzureOpenAI,
   deploymentName: string,
   messages: Array<{ role: 'system' | 'user'; content: string }>,
@@ -297,7 +301,7 @@ async function crearCompletacionConFallback(
 /**
  * Extrae el contexto relevante del JSON de reporte para el prompt
  */
-function extraerContextoReporte(resultado: ResultadoAgente): string {
+async function extraerContextoReporte(resultado: ResultadoAgente): Promise<string> {
   const ctx: string[] = [];
 
   // Información general
@@ -396,6 +400,16 @@ function extraerContextoReporte(resultado: ResultadoAgente): string {
     });
   }
 
+  // Comparación con campos fundamentales
+  try {
+    const comparacion = await compararCamposFundamentales(resultado);
+    const estadisticasCamposFundamentales = generarEstadisticasComparacion(comparacion);
+    ctx.push('\n' + estadisticasCamposFundamentales);
+  } catch (error: any) {
+    console.warn(`⚠️ No se pudo realizar comparación de campos fundamentales: ${error.message}`);
+    // Continuar sin la comparación si falla
+  }
+
   return ctx.join('\n');
 }
 
@@ -433,10 +447,20 @@ El informe debe incluir las siguientes secciones:
 - Razón del fallo
 - Recomendaciones específicas para cada uno
 
-## 5. CONCLUSIONES Y RECOMENDACIONES
+## 5. ANÁLISIS DE CAMPOS FUNDAMENTALES
+- Estadísticas generales de cobertura de campos fundamentales CORFO
+- Porcentaje de campos fundamentales encontrados vs faltantes
+- Desglose por categoría (Persona Jurídica, Representante Legal, Director Proyecto, etc.)
+- Lista de campos fundamentales encontrados (indicar si fueron completados exitosamente)
+- Lista de campos fundamentales faltantes (identificar qué campos requeridos no están presentes)
+- Evaluación de completitud del formulario según estándares CORFO
+- Recomendaciones sobre campos fundamentales que deben agregarse
+
+## 6. CONCLUSIONES Y RECOMENDACIONES
 - Evaluación general del proceso
 - Identificación de patrones en los fallos (si existen)
 - Recomendaciones técnicas para mejorar la tasa de éxito
+- Análisis de la cobertura de campos fundamentales
 - Próximos pasos sugeridos
 
 ---
@@ -480,7 +504,7 @@ export async function generarInformePDF(
 
     // 2. Extraer contexto relevante
     console.log('🔍 Extrayendo contexto del reporte...');
-    const contexto = extraerContextoReporte(resultado);
+    const contexto = await extraerContextoReporte(resultado);
 
     // 3. Configurar cliente Azure OpenAI
     console.log('🔧 Configurando Azure OpenAI...');

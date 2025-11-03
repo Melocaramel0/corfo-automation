@@ -5,7 +5,8 @@ import {
   Settings, 
   Home, 
   ChevronRight,
-  ChevronRight as ArrowRight
+  ChevronRight as ArrowRight,
+  FileText
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import clsx from 'clsx'
@@ -31,6 +32,12 @@ const sidebarItems: SidebarItem[] = [
     label: 'Procesos de Validación',
     icon: CheckCircle2,
     path: '/processes',
+  },
+  {
+    id: 'campos-fundamentales',
+    label: 'Campos Fundamentales',
+    icon: FileText,
+    path: '/campos-fundamentales',
   },
   {
     id: 'admin',
