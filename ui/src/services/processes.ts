@@ -347,6 +347,29 @@ export const processService = {
     }
   },
 
+  // Obtener estadísticas globales de ejecuciones
+  async getExecutionStatistics(): Promise<{
+    ultimaEjecucion: string | null;
+    tiempoPromedio: number;
+    totalEjecuciones: number;
+  }> {
+    try {
+      const response = await apiService.get<{
+        ultimaEjecucion: string | null;
+        tiempoPromedio: number;
+        totalEjecuciones: number;
+      }>('/processes/statistics/executions')
+      return response.data || response
+    } catch (error) {
+      console.error('Error obteniendo estadísticas de ejecuciones:', error)
+      return {
+        ultimaEjecucion: null,
+        tiempoPromedio: 0,
+        totalEjecuciones: 0
+      }
+    }
+  },
+
   // Obtener el JSON completo de ejecución (archivo exec_*.json)
   async getExecutionJson(processId: string): Promise<any> {
     try {

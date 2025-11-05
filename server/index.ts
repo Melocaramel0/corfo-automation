@@ -6,6 +6,7 @@ import { resultsRouter } from './routes/results';
 import { executionRouter } from './routes/executions';
 import { informesRouter } from './routes/informes';
 import { camposFundamentalesRouter } from './routes/camposFundamentales';
+import { adminRouter } from './routes/admin';
 import { initStorage } from './utils/initStorage';
 
 dotenv.config();
@@ -59,6 +60,7 @@ app.use('/api/results', resultsRouter);
 app.use('/api/executions', executionRouter);
 app.use('/api/informes', informesRouter);
 app.use('/api/campos-fundamentales', camposFundamentalesRouter);
+app.use('/api/admin', adminRouter);
 
 // Error handler
 app.use((err: Error, _req: Request, res: Response, _next: any) => {

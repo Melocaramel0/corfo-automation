@@ -61,6 +61,31 @@ npm run server:dev
 npm run client
 ```
 
+### Mock users:
+
+1. Administrador
+RUT: 15124928-0
+Contraseña: Admin#2025
+Permisos: Acceso completo
+------------------------
+
+2. Usuario QA
+RUT: 11111111-1
+Contraseña: Qa#2025
+Permisos: Todo excepto administración
+------------------------
+
+3. Usuario Final
+RUT: 22222222-2
+Contraseña: User#2025
+Permisos: Solo ver y ejecutar procesos
+
+
+
+
+
+
+
 ## 🎉 ¡Listo!
 
 1. Abre tu navegador en: **http://localhost:5173**

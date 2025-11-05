@@ -85,15 +85,45 @@ export const ExecutionProgressBar: React.FC<ExecutionProgressBarProps> = ({
         <div className="mt-4">
           <h4 className="text-sm font-medium text-corfoGray-80 mb-2">Últimos eventos:</h4>
           <div className="bg-corfoGray-10 rounded-lg p-3 max-h-32 overflow-y-auto">
-            {executionStatus.logs.slice(-5).map((log) => (
-              <div key={log.id} className="text-xs text-corfoGray-60 mb-1 last:mb-0">
-                <span className="text-corfoGray-60">
-                  {new Date(log.fecha).toLocaleTimeString('es-CL')}
-                </span>
-                {' - '}
-                <span>{log.descripcion}</span>
-              </div>
-            ))}
+            {executionStatus.logs.slice(-5).map((log, index) => {
+              // Formatear fecha de manera segura
+              let fechaFormateada = ''
+              try {
+                if (log.fecha) {
+                  const fecha = new Date(log.fecha)
+                  if (!isNaN(fecha.getTime())) {
+                    fechaFormateada = fecha.toLocaleTimeString('es-CL', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    })
+                  }
+                }
+              } catch (e) {
+                // Si falla, usar número de evento
+                fechaFormateada = `Evento ${index + 1}`
+              }
+
+              // Si no hay fecha válida, usar timestamp relativo
+              if (!fechaFormateada) {
+                fechaFormateada = `Hace ${Math.max(1, executionStatus.logs.length - index)}s`
+              }
+
+              return (
+                <div key={log.id} className="text-xs text-corfoGray-60 mb-1 last:mb-0 flex items-start">
+                  <span className="text-corfoGray-50 font-medium min-w-[60px]">
+                    {fechaFormateada}
+                  </span>
+                  <span className="text-corfoGray-50 mx-2">-</span>
+                  <div className="flex-1">
+                    {log.accion && (
+                      <span className="text-corfoGray-70 font-medium">{log.accion}: </span>
+                    )}
+                    <span className="text-corfoGray-60">{log.descripcion || 'Evento sin descripción'}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

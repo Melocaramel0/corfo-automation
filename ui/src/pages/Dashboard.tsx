@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   CheckCircle2, 
@@ -10,46 +10,157 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { processService } from '../services/processes'
+import { ValidationProcess } from '../types'
 
 const Dashboard: React.FC = () => {
   const { user, hasPermission } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalProcesos: 0,
+    procesosEjecutados: 0,
+    procesosEnConfiguracion: 0,
+    procesosConErrores: 0,
+    ultimaEjecucion: 'N/A',
+    tiempoPromedioEjecucion: 'N/A'
+  })
+  const [recentActivity, setRecentActivity] = useState<Array<{
+    id: string
+    action: string
+    process: string
+    user: string
+    time: string
+    status: 'success' | 'info' | 'error'
+  }>>([])
 
-  // Estadísticas mock
-  const stats = {
-    totalProcesos: 12,
-    procesosEjecutados: 8,
-    procesosEnConfiguracion: 3,
-    procesosConErrores: 1,
-    ultimaEjecucion: '2024-01-20 14:45',
-    tiempoPromedioEjecucion: '12.5 min'
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      
+      // Obtener todos los procesos
+      const response = await processService.getProcesses({ 
+        page: 1, 
+        limit: 1000 // Obtener todos para calcular estadísticas
+      })
+      
+      const processes = response.data
+
+      // Calcular estadísticas
+      const totalProcesos = processes.length
+      const procesosEjecutados = processes.filter(p => p.estado === 'Ejecutado').length
+      const procesosEnConfiguracion = processes.filter(p => 
+        p.estado === 'En configuración' || p.estado === 'Creado'
+      ).length
+      const procesosConErrores = processes.filter(p => p.estado === 'Fallido').length
+
+      // Obtener estadísticas de ejecuciones desde archivos exec_*.json
+      const executionStats = await processService.getExecutionStatistics()
+
+      // Formatear última ejecución
+      let ultimaEjecucionStr = 'N/A'
+      if (executionStats.ultimaEjecucion) {
+        const fecha = new Date(executionStats.ultimaEjecucion)
+        ultimaEjecucionStr = fecha.toLocaleString('es-CL', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }
+
+      // Formatear tiempo promedio
+      let tiempoPromedioStr = 'N/A'
+      if (executionStats.tiempoPromedio > 0) {
+        const minutos = Math.floor(executionStats.tiempoPromedio / 60)
+        const segundos = Math.round(executionStats.tiempoPromedio % 60)
+        tiempoPromedioStr = minutos > 0 ? `${minutos} min ${segundos}s` : `${segundos}s`
+      }
+
+      setStats({
+        totalProcesos,
+        procesosEjecutados,
+        procesosEnConfiguracion,
+        procesosConErrores,
+        ultimaEjecucion: ultimaEjecucionStr,
+        tiempoPromedioEjecucion: tiempoPromedioStr
+      })
+
+      // Generar actividad reciente desde procesos
+      const activity: typeof recentActivity = []
+      
+      // Ordenar procesos por fecha de modificación o creación (más recientes primero)
+      const sortedProcesses = [...processes].sort((a, b) => {
+        const fechaA = a.fechaModificacion ? new Date(a.fechaModificacion) : new Date(a.fechaCreacion)
+        const fechaB = b.fechaModificacion ? new Date(b.fechaModificacion) : new Date(b.fechaCreacion)
+        return fechaB.getTime() - fechaA.getTime()
+      })
+
+      // Tomar los 3 más recientes
+      sortedProcesses.slice(0, 3).forEach((process, index) => {
+        const fechaModificacion = process.fechaModificacion 
+          ? new Date(process.fechaModificacion) 
+          : new Date(process.fechaCreacion)
+        const ahora = new Date()
+        const diffMs = ahora.getTime() - fechaModificacion.getTime()
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+        const diffDays = Math.floor(diffHours / 24)
+
+        let timeAgo = ''
+        if (diffHours < 1) {
+          timeAgo = 'Hace menos de una hora'
+        } else if (diffHours < 24) {
+          timeAgo = `Hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`
+        } else {
+          timeAgo = `Hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`
+        }
+
+        let action = ''
+        let status: 'success' | 'info' | 'error' = 'info'
+        
+        if (process.estado === 'Ejecutado') {
+          action = 'Proceso ejecutado'
+          status = 'success'
+        } else if (process.estado === 'Fallido') {
+          action = 'Error en validación'
+          status = 'error'
+        } else if (process.estado === 'Creado' || process.estado === 'En configuración') {
+          action = 'Nuevo proceso creado'
+          status = 'info'
+        } else {
+          action = `Proceso ${process.estado.toLowerCase()}`
+          status = 'info'
+        }
+
+        activity.push({
+          id: process.id,
+          action,
+          process: process.nombreConcurso,
+          user: process.usuarioCreacion,
+          time: timeAgo,
+          status
+        })
+      })
+
+      setRecentActivity(activity)
+    } catch (error) {
+      console.error('Error cargando datos del dashboard:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const recentActivity = [
-    {
-      id: '1',
-      action: 'Proceso ejecutado',
-      process: 'Validación Formulario Semilla Inicia',
-      user: 'admin@corfo.cl',
-      time: 'Hace 2 horas',
-      status: 'success'
-    },
-    {
-      id: '2',
-      action: 'Nuevo proceso creado',
-      process: 'Formulario Innovación Tecnológica',
-      user: 'qa@corfo.cl',
-      time: 'Hace 4 horas',
-      status: 'info'
-    },
-    {
-      id: '3',
-      action: 'Error en validación',
-      process: 'Desarrollo Productivo',
-      user: 'sistema',
-      time: 'Hace 6 horas',
-      status: 'error'
-    }
-  ]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-corfo-600"></div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -212,28 +323,34 @@ const Dashboard: React.FC = () => {
         </h3>
         
         <div className="space-y-4">
-          {recentActivity.map((activity) => (
-            <div key={activity.id} className="flex items-center space-x-4 p-3 bg-corfoGray-10 rounded-lg">
-              <div className={`flex-shrink-0 w-2 h-2 rounded-full ${
-                activity.status === 'success' ? 'bg-corfoAqua-100' :
-                activity.status === 'error' ? 'bg-corfoRed-500' : 'bg-corfo-500'
-              }`} />
-              
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-corfoGray-90">
-                  {activity.action}
-                </p>
-                <p className="text-sm text-corfoGray-60 truncate">
-                  {activity.process}
-                </p>
-              </div>
-              
-              <div className="text-right">
-                <p className="text-sm text-corfoGray-60">{activity.user}</p>
-                <p className="text-xs text-corfoGray-60">{activity.time}</p>
-              </div>
+          {recentActivity.length === 0 ? (
+            <div className="text-center py-8 text-corfoGray-60">
+              No hay actividad reciente
             </div>
-          ))}
+          ) : (
+            recentActivity.map((activity) => (
+              <div key={activity.id} className="flex items-center space-x-4 p-3 bg-corfoGray-10 rounded-lg">
+                <div className={`flex-shrink-0 w-2 h-2 rounded-full ${
+                  activity.status === 'success' ? 'bg-corfoAqua-100' :
+                  activity.status === 'error' ? 'bg-corfoRed-500' : 'bg-corfo-500'
+                }`} />
+                
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-corfoGray-90">
+                    {activity.action}
+                  </p>
+                  <p className="text-sm text-corfoGray-60 truncate">
+                    {activity.process}
+                  </p>
+                </div>
+                
+                <div className="text-right">
+                  <p className="text-sm text-corfoGray-60">{activity.user}</p>
+                  <p className="text-xs text-corfoGray-60">{activity.time}</p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
         
         <div className="mt-4 text-center">

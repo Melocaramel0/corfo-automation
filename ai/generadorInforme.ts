@@ -159,6 +159,18 @@ export async function crearCompletacionConFallback(
     const respuesta1 = await cliente.chat.completions.create(crearRequest(true, true, false) as any);
     const outputTokens = respuesta1.usage?.completion_tokens || 0;
     console.log(`✅ Usando max_completion_tokens con temperature (${outputTokens} tokens generados)`);
+    
+    // Registrar consumo de IA
+    try {
+      const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+      const aiConsumptionService = AIConsumptionService.getInstance();
+      const inputTokens = respuesta1.usage?.prompt_tokens || 0;
+      await aiConsumptionService.recordNLPRequest(inputTokens, outputTokens);
+    } catch (error) {
+      // Si falla el tracking, continuar sin registrar (no crítico)
+      console.warn('⚠️ No se pudo registrar consumo de IA:', error);
+    }
+    
     return respuesta1;
   } catch (error1: any) {
     const errorMsg1 = error1.message || '';
@@ -803,6 +815,16 @@ export async function generarInformePDF(
       ],
       0.2
     );
+
+    // Registrar análisis de sentimientos (los informes incluyen análisis)
+    try {
+      const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+      const aiConsumptionService = AIConsumptionService.getInstance();
+      await aiConsumptionService.recordSentimentAnalysis();
+    } catch (error) {
+      // Si falla el tracking, continuar sin registrar (no crítico)
+      console.warn('⚠️ No se pudo registrar análisis de sentimientos:', error);
+    }
 
     const informeMarkdown = respuesta.choices[0]?.message?.content;
 

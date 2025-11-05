@@ -220,6 +220,19 @@ export async function mapearCamposConIA(
         0.2
       );
 
+      // Registrar consumo de IA
+      try {
+        const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+        const aiConsumptionService = AIConsumptionService.getInstance();
+        const inputTokens = respuesta.usage?.prompt_tokens || 0;
+        const outputTokens = respuesta.usage?.completion_tokens || 0;
+        await aiConsumptionService.recordNLPRequest(inputTokens, outputTokens);
+        await aiConsumptionService.recordTopicDetection(); // Mapeo de campos usa detección de temas
+      } catch (error) {
+        // Si falla el tracking, continuar sin registrar (no crítico)
+        console.warn('⚠️ No se pudo registrar consumo de IA:', error);
+      }
+
       const contenido = respuesta.choices[0]?.message?.content;
       if (contenido) {
         const mapeosLote = parsearRespuestaMapeo(contenido, lote, camposFundamentales);

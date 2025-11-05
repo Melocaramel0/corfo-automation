@@ -12,12 +12,51 @@ import {
   Calendar,
   StopCircle
 } from 'lucide-react'
-import { ValidationProcess, ExecutionStatus } from '../types'
+import { ValidationProcess, ExecutionStatus, ProcessLog } from '../types'
 import { processService } from '../services/processes'
 import { Badge } from '../components/ui/Badge'
 import { CreateProcessModal } from '../components/processes/CreateProcessModal'
 import { ResultsModal } from '../components/processes/ResultsModal'
 import { ExecutionProgressBar } from '../components/processes/ExecutionProgressBar'
+
+// Helper para convertir logs de string[] a ProcessLog[]
+const convertLogsToProcessLogs = (
+  logs: any[], 
+  executionId: string, 
+  processId: string,
+  startTime?: Date
+): ProcessLog[] => {
+  if (!logs || logs.length === 0) return []
+  
+  // Si ya son ProcessLog, retornarlos tal cual
+  if (logs.length > 0 && typeof logs[0] === 'object' && logs[0].fecha && logs[0].descripcion) {
+    return logs as ProcessLog[]
+  }
+  
+  // Convertir strings a ProcessLog
+  const now = startTime ? new Date(startTime) : new Date()
+  return (logs as string[]).map((logMessage, index) => ({
+    id: `log_${executionId}_${index}`,
+    accion: 'Ejecución',
+    descripcion: logMessage,
+    fecha: new Date(now.getTime() - (logs.length - index) * 1000).toISOString(),
+    procesoId: processId
+  }))
+}
+
+// Helper para normalizar ExecutionStatus (convierte logs si es necesario)
+const normalizeExecutionStatus = (
+  status: ExecutionStatus | null | undefined,
+  executionId: string,
+  processId: string
+): ExecutionStatus | null => {
+  if (!status) return null
+  
+  return {
+    ...status,
+    logs: convertLogsToProcessLogs(status.logs || [], executionId, processId, status.startTime)
+  }
+}
 
 export const ValidationProcesses: React.FC = () => {
   const [processes, setProcesses] = useState<ValidationProcess[]>([])
@@ -60,11 +99,14 @@ export const ValidationProcesses: React.FC = () => {
         const processId = (execStatus as any).processId || ''
         
         if (executionId && processId && execStatus.isRunning) {
-          restoredExecutions.set(processId, {
-            executionId,
-            status: execStatus
-          })
-          console.log(`[restoreActiveExecutions] Restaurada ejecución ${executionId} para proceso ${processId}`)
+          const normalizedStatus = normalizeExecutionStatus(execStatus, executionId, processId)
+          if (normalizedStatus) {
+            restoredExecutions.set(processId, {
+              executionId,
+              status: normalizedStatus
+            })
+            console.log(`[restoreActiveExecutions] Restaurada ejecución ${executionId} para proceso ${processId}`)
+          }
         }
       })
       
@@ -96,7 +138,10 @@ export const ValidationProcesses: React.FC = () => {
                 try {
                   const status = await processService.getExecutionStatus(exec.executionId)
                   if (status && status.isRunning) {
-                    restoredExecutions.set(pid, { executionId: exec.executionId, status })
+                    const normalizedStatus = normalizeExecutionStatus(status, exec.executionId, pid)
+                    if (normalizedStatus) {
+                      restoredExecutions.set(pid, { executionId: exec.executionId, status: normalizedStatus })
+                    }
                   }
                 } catch {
                   // Si no existe, no restaurar
@@ -162,10 +207,14 @@ export const ValidationProcesses: React.FC = () => {
               const newStatus = update.status || existingExec?.status
               
               if (newStatus) {
-                newMap.set(processIdToUpdate, {
-                  executionId: update.executionId,
-                  status: newStatus
-                })
+                const normalizedStatus = normalizeExecutionStatus(newStatus, update.executionId, processIdToUpdate)
+                
+                if (normalizedStatus) {
+                  newMap.set(processIdToUpdate, {
+                    executionId: update.executionId,
+                    status: normalizedStatus
+                  })
+                }
 
                 // Si la ejecución terminó, removerla y recargar procesos
                 if (!newStatus.isRunning) {
@@ -265,7 +314,15 @@ export const ValidationProcesses: React.FC = () => {
       // Agregar esta ejecución al Map de ejecuciones activas
       setExecutions(prev => {
         const newMap = new Map(prev)
-        const executionData = { executionId, status: status || { isRunning: true } as ExecutionStatus }
+        const normalizedStatus = normalizeExecutionStatus(
+          status || { isRunning: true } as ExecutionStatus,
+          executionId,
+          process.id
+        )
+        const executionData = { 
+          executionId, 
+          status: normalizedStatus || { isRunning: true } as ExecutionStatus 
+        }
         newMap.set(process.id, executionData)
         
         // Guardar en localStorage como backup

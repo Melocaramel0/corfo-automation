@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { SystemLogService } from '../services/systemLogService';
 
 const router = Router();
 
@@ -89,6 +90,16 @@ router.put('/:categoria/:nombre', async (req: Request, res: Response) => {
     // Guardar
     await fs.writeFile(RUTA_CAMPOS_FUNDAMENTALES, JSON.stringify(camposFundamentales, null, 2), 'utf-8');
 
+    // Registrar log
+    const systemLogService = SystemLogService.getInstance();
+    await systemLogService.logAction(
+      'Edición de Campo Fundamental',
+      `Campo '${nombre}' actualizado en categoría '${categoria}'`,
+      campoActualizado.usuario || 'Sistema',
+      '-',
+      req.ip || 'localhost'
+    );
+
     res.json(camposFundamentales.categorias[categoria].campos[nombre]);
   } catch (error: any) {
     console.error('Error actualizando campo:', error);
@@ -155,6 +166,16 @@ router.post('/:categoria', async (req: Request, res: Response) => {
     // Guardar
     await fs.writeFile(RUTA_CAMPOS_FUNDAMENTALES, JSON.stringify(camposFundamentales, null, 2), 'utf-8');
 
+    // Registrar log
+    const systemLogService = SystemLogService.getInstance();
+    await systemLogService.logAction(
+      'Creación de Campo Fundamental',
+      `Campo '${nombreCampo}' creado en categoría '${categoria}'`,
+      nuevoCampo.usuario || 'Sistema',
+      '-',
+      req.ip || 'localhost'
+    );
+
     res.status(201).json(camposFundamentales.categorias[categoria].campos[nombreCampo]);
   } catch (error: any) {
     console.error('Error creando campo:', error);
@@ -204,13 +225,23 @@ router.delete('/:categoria/:nombre', async (req: Request, res: Response) => {
     camposFundamentales.metadatos.totalCamposFundamentales = total;
 
     // Guardar
-    await fs.writeFile(RUTA_CAMPOS_FUNDAMENTALES, JSON.stringify(camposFundamentales, null, 2), 'utf-8');
+      await fs.writeFile(RUTA_CAMPOS_FUNDAMENTALES, JSON.stringify(camposFundamentales, null, 2), 'utf-8');
 
-    if (permanente) {
-      res.json({ mensaje: 'Campo eliminado permanentemente' });
-    } else {
-      res.json({ mensaje: 'Campo marcado como inactivo', campo: camposFundamentales.categorias[categoria].campos[nombre] });
-    }
+      // Registrar log
+      const systemLogService = SystemLogService.getInstance();
+      await systemLogService.logAction(
+        permanente ? 'Eliminación de Campo Fundamental' : 'Desactivación de Campo Fundamental',
+        `Campo '${nombre}' ${permanente ? 'eliminado permanentemente' : 'marcado como inactivo'} en categoría '${categoria}'`,
+        'Sistema',
+        '-',
+        req.ip || 'localhost'
+      );
+
+      if (permanente) {
+        res.json({ mensaje: 'Campo eliminado permanentemente' });
+      } else {
+        res.json({ mensaje: 'Campo marcado como inactivo', campo: camposFundamentales.categorias[categoria].campos[nombre] });
+      }
   } catch (error: any) {
     console.error('Error eliminando campo:', error);
     res.status(500).json({ error: 'Error al eliminar campo', mensaje: error.message });

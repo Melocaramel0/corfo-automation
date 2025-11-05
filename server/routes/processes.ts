@@ -174,6 +174,20 @@ router.get('/:id/logs', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/processes/statistics/executions
+ * Obtener estadísticas globales de ejecuciones (última ejecución y tiempo promedio)
+ */
+router.get('/statistics/executions', async (req: Request, res: Response) => {
+  try {
+    const stats = await processService.getExecutionStatistics();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error obteniendo estadísticas de ejecuciones:', error);
+    res.status(500).json({ error: 'Error obteniendo estadísticas' });
+  }
+});
+
+/**
  * GET /api/processes/:id/export
  * Exportar resultados de un proceso
  */

@@ -5,6 +5,7 @@ import { obtenerConfiguracion } from '../../ai/configuraciones';
 import { executionService } from './executionService';
 import { getNextReportId } from '../utils/getNextReportId';
 import { generarInformePDF } from '../../ai/generadorInforme';
+import { SystemLogService } from './systemLogService';
 
 interface ValidationProcess {
   id: string;
@@ -131,6 +132,16 @@ export class ProcessService {
     processes.unshift(newProcess);
     await this.saveProcesses(processes);
 
+    // Registrar log
+    const systemLogService = SystemLogService.getInstance();
+    await systemLogService.logAction(
+      'Creación de Concurso',
+      `Se creó el concurso '${newProcess.nombreConcurso}'`,
+      newProcess.usuarioCreacion,
+      newProcess.nombreConcurso,
+      'localhost'
+    );
+
     return newProcess;
   }
 
@@ -142,6 +153,7 @@ export class ProcessService {
       throw new Error('Proceso no encontrado');
     }
 
+    const oldProcess = processes[index];
     processes[index] = {
       ...processes[index],
       ...processData,
@@ -149,6 +161,17 @@ export class ProcessService {
     };
 
     await this.saveProcesses(processes);
+
+    // Registrar log
+    const systemLogService = SystemLogService.getInstance();
+    await systemLogService.logAction(
+      'Edición de Concurso',
+      `Concurso '${oldProcess.nombreConcurso}' actualizado`,
+      oldProcess.usuarioCreacion,
+      oldProcess.nombreConcurso,
+      'localhost'
+    );
+
     return processes[index];
   }
 
@@ -157,8 +180,19 @@ export class ProcessService {
     const index = processes.findIndex(p => p.id === id);
 
     if (index !== -1) {
+      const process = processes[index];
       processes[index].estado = 'Borrado';
       await this.saveProcesses(processes);
+
+      // Registrar log
+      const systemLogService = SystemLogService.getInstance();
+      await systemLogService.logAction(
+        'Eliminación de Concurso',
+        `Concurso '${process.nombreConcurso}' marcado como 'borrado'`,
+        process.usuarioCreacion,
+        process.nombreConcurso,
+        'localhost'
+      );
     }
   }
 
@@ -170,6 +204,16 @@ export class ProcessService {
 
     // Actualizar estado a ejecutado
     await this.updateProcess(id, { estado: 'Ejecutado' });
+
+    // Registrar log de ejecución
+    const systemLogService = SystemLogService.getInstance();
+    await systemLogService.logAction(
+      'Validación Automática',
+      `Proceso de validación iniciado para '${process.nombreConcurso}'`,
+      process.usuarioCreacion,
+      process.nombreConcurso,
+      'localhost'
+    );
 
     return {
       message: 'Proceso ejecutado exitosamente',
@@ -257,6 +301,18 @@ export class ProcessService {
           estado: resultado.exito ? 'Ejecutado' : 'Fallido',
           fechaModificacion: new Date().toISOString()
         });
+
+        // Registrar log de finalización
+        const systemLogService = SystemLogService.getInstance();
+        await systemLogService.logAction(
+          resultado.exito ? 'Validación Automática Completada' : 'Validación Automática Fallida',
+          resultado.exito 
+            ? `Proceso de validación completado exitosamente para '${process.nombreConcurso}'. ${resultado.estadisticas?.camposCompletados || 0} campos completados de ${resultado.estadisticas?.totalCampos || 0} total.`
+            : `Proceso de validación fallido para '${process.nombreConcurso}'. ${resultado.mensaje || 'Error desconocido'}`,
+          process.usuarioCreacion,
+          process.nombreConcurso,
+          'localhost'
+        );
 
         // Finalizar ejecución
         await executionService.completeExecution(executionId, resultado);
@@ -572,6 +628,88 @@ export class ProcessService {
         .join('\n');
     } else {
       return JSON.stringify(results, null, 2);
+    }
+  }
+
+  /**
+   * Obtiene estadísticas globales de todas las ejecuciones
+   * Retorna última ejecución y tiempo promedio
+   */
+  async getExecutionStatistics(): Promise<{
+    ultimaEjecucion: string | null;
+    tiempoPromedio: number;
+    totalEjecuciones: number;
+  }> {
+    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    
+    try {
+      // Verificar si el directorio existe
+      try {
+        await fs.access(resultsDir);
+      } catch {
+        return {
+          ultimaEjecucion: null,
+          tiempoPromedio: 0,
+          totalEjecuciones: 0
+        };
+      }
+
+      const files = await fs.readdir(resultsDir);
+      const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
+      
+      if (jsonFiles.length === 0) {
+        return {
+          ultimaEjecucion: null,
+          tiempoPromedio: 0,
+          totalEjecuciones: 0
+        };
+      }
+
+      let ultimaEjecucion: Date | null = null;
+      let tiemposEjecucion: number[] = [];
+
+      // Leer todos los archivos de ejecución
+      for (const file of jsonFiles) {
+        try {
+          const filePath = path.join(resultsDir, file);
+          const data = await fs.readFile(filePath, 'utf-8');
+          const jsonData = JSON.parse(data);
+          
+          // Extraer fecha de ejecución
+          if (jsonData.fechaEjecucion) {
+            const fecha = new Date(jsonData.fechaEjecucion);
+            if (!ultimaEjecucion || fecha > ultimaEjecucion) {
+              ultimaEjecucion = fecha;
+            }
+          }
+          
+          // Extraer tiempo total
+          if (jsonData.tiempoTotal && typeof jsonData.tiempoTotal === 'number') {
+            tiemposEjecucion.push(jsonData.tiempoTotal);
+          }
+        } catch (error) {
+          console.error(`Error leyendo archivo ${file} para estadísticas:`, error);
+          // Continuar con el siguiente archivo
+        }
+      }
+
+      // Calcular tiempo promedio
+      const tiempoPromedio = tiemposEjecucion.length > 0
+        ? tiemposEjecucion.reduce((a, b) => a + b, 0) / tiemposEjecucion.length
+        : 0;
+
+      return {
+        ultimaEjecucion: ultimaEjecucion ? ultimaEjecucion.toISOString() : null,
+        tiempoPromedio: Math.round(tiempoPromedio),
+        totalEjecuciones: jsonFiles.length
+      };
+    } catch (error) {
+      console.error('Error obteniendo estadísticas de ejecuciones:', error);
+      return {
+        ultimaEjecucion: null,
+        tiempoPromedio: 0,
+        totalEjecuciones: 0
+      };
     }
   }
 }
