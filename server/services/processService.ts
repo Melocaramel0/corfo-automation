@@ -233,7 +233,7 @@ export class ProcessService {
       } : undefined;
       
       // Modo headless (navegador oculto == true) cuando se ejecuta desde interfaz
-      const agente = new AgenteOrquestador(configuracion, false, credenciales);
+      const agente = new AgenteOrquestador(configuracion, true, credenciales);
 
       // Guardar instancia activa para poder cancelarla después
       this.activeMVPInstances.set(executionId, agente);

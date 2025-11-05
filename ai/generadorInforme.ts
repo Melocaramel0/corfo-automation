@@ -434,18 +434,122 @@ async function generarTablaCamposFundamentales(resultado: ResultadoAgente): Prom
 }
 
 /**
+ * Normaliza texto para comparación (minúsculas, sin espacios extra)
+ */
+function normalizarTexto(texto: string): string {
+  return texto.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Extrae el nombre del campo eliminando redundancias del paso y prefijos comunes
+ */
+function extraerNombreCampo(etiqueta: string, tituloPaso: string): string {
+  let nombreCampo = etiqueta.trim();
+  const pasoNormalizado = normalizarTexto(tituloPaso);
+  const etiquetaNormalizada = normalizarTexto(etiqueta);
+  
+  // Eliminar el nombre del paso del inicio de la etiqueta
+  if (etiquetaNormalizada.startsWith(pasoNormalizado)) {
+    // Buscar el índice exacto en el texto original (case-insensitive)
+    const indice = nombreCampo.toLowerCase().indexOf(pasoNormalizado.toLowerCase());
+    if (indice === 0) {
+      // Eliminar el paso y espacios siguientes
+      const resto = nombreCampo.substring(tituloPaso.length).trim();
+      nombreCampo = resto;
+    }
+  }
+  
+  // Prefijos comunes a eliminar (ordenados de mayor a menor longitud)
+  // Estos prefijos aparecen frecuentemente en las etiquetas pero no son parte del nombre real del campo
+  const prefijosComunes = [
+    'Datos Gestion Genero Empresa Mujer',
+    'Datos Gestion Genero Empresa Hombre',
+    'Datos Gestion Genero Empresa',
+    'Datos Gestion',
+    'Persona Juridica Representante Legal',
+    'Persona Jurídica Representante Legal',
+    'Persona Juridica Direccion',
+    'Persona Jurídica Dirección',
+    'Persona Juridica Contacto',
+    'Persona Juridica Adjuntos',
+    'Persona Juridica',
+    'Persona Jurídica',
+    'Persona Natural',
+    'Representante Legal',
+    'Tipo Entidad Participante',
+    'Tipo Identificador',
+    'Tipo Persona',
+    'Direccion',
+    'Dirección',
+    'Contacto',
+    'Adjuntos',
+    'Archivo',
+  ];
+  
+  // Eliminar prefijos comunes de manera iterativa
+  let cambioRealizado = true;
+  let iteraciones = 0;
+  const maxIteraciones = 10; // Prevenir loops infinitos
+  
+  while (cambioRealizado && iteraciones < maxIteraciones) {
+    iteraciones++;
+    cambioRealizado = false;
+    const nombreNormalizado = normalizarTexto(nombreCampo);
+    
+    for (const prefijo of prefijosComunes) {
+      const prefijoNormalizado = normalizarTexto(prefijo);
+      
+      // Si el nombre del campo comienza con el prefijo, eliminarlo
+      if (nombreNormalizado.startsWith(prefijoNormalizado)) {
+        // Buscar el índice en el texto original (case-insensitive)
+        const indiceOriginal = nombreCampo.toLowerCase().indexOf(prefijoNormalizado.toLowerCase());
+        if (indiceOriginal === 0) {
+          // Eliminar el prefijo y espacios siguientes
+          nombreCampo = nombreCampo.substring(prefijo.length).trim();
+          cambioRealizado = true;
+          break; // Reiniciar el bucle con el nuevo nombre
+        } else if (indiceOriginal > 0 && nombreCampo[indiceOriginal - 1] === ' ') {
+          // El prefijo está después de un espacio, eliminarlo también
+          nombreCampo = (nombreCampo.substring(0, indiceOriginal - 1) + nombreCampo.substring(indiceOriginal + prefijo.length)).trim();
+          cambioRealizado = true;
+          break; // Reiniciar el bucle con el nuevo nombre
+        }
+      }
+    }
+  }
+  
+  // Si después de eliminar todo el nombre está vacío, usar la etiqueta original
+  if (!nombreCampo || nombreCampo.length === 0) {
+    return etiqueta;
+  }
+  
+  return nombreCampo;
+}
+
+/**
+ * Retorna el nombre del paso como ruta de sección
+ * No tenemos información de subsecciones almacenada, solo el nombre del paso
+ */
+function construirRutaSeccion(etiqueta: string, tituloPaso: string): string {
+  // Retornar solo el nombre del paso, ya que no tenemos información de subsecciones
+  return tituloPaso;
+}
+
+/**
  * Genera lista de campos obligatorios
  */
 function generarListaCamposObligatorios(resultado: ResultadoAgente): string {
-  const camposObligatorios: Array<{ etiqueta: string; seccion: string }> = [];
+  const camposObligatorios: Array<{ nombreCampo: string; rutaSeccion: string }> = [];
   
   if (resultado.pasosCompletados) {
     resultado.pasosCompletados.forEach((paso) => {
       paso.detalles.forEach((campo) => {
         if (campo.esObligatorio) {
+          const nombreCampo = extraerNombreCampo(campo.etiqueta, paso.titulo);
+          const rutaSeccion = construirRutaSeccion(campo.etiqueta, paso.titulo);
           camposObligatorios.push({
-            etiqueta: campo.etiqueta,
-            seccion: paso.titulo,
+            nombreCampo,
+            rutaSeccion,
           });
         }
       });
@@ -458,7 +562,7 @@ function generarListaCamposObligatorios(resultado: ResultadoAgente): string {
   
   const lineas: string[] = [];
   camposObligatorios.forEach((campo, index) => {
-    lineas.push(`${index + 1}. Campo: '${campo.etiqueta}' en Sección: '${campo.seccion}'`);
+    lineas.push(`${index + 1}. Campo: '${campo.nombreCampo}' en Sección: '${campo.rutaSeccion}'`);
   });
   
   return lineas.join('\n');
@@ -468,15 +572,17 @@ function generarListaCamposObligatorios(resultado: ResultadoAgente): string {
  * Genera lista de campos no obligatorios
  */
 function generarListaCamposNoObligatorios(resultado: ResultadoAgente): string {
-  const camposNoObligatorios: Array<{ etiqueta: string; seccion: string }> = [];
+  const camposNoObligatorios: Array<{ nombreCampo: string; rutaSeccion: string }> = [];
   
   if (resultado.pasosCompletados) {
     resultado.pasosCompletados.forEach((paso) => {
       paso.detalles.forEach((campo) => {
         if (!campo.esObligatorio) {
+          const nombreCampo = extraerNombreCampo(campo.etiqueta, paso.titulo);
+          const rutaSeccion = construirRutaSeccion(campo.etiqueta, paso.titulo);
           camposNoObligatorios.push({
-            etiqueta: campo.etiqueta,
-            seccion: paso.titulo,
+            nombreCampo,
+            rutaSeccion,
           });
         }
       });
@@ -489,7 +595,7 @@ function generarListaCamposNoObligatorios(resultado: ResultadoAgente): string {
   
   const lineas: string[] = [];
   camposNoObligatorios.forEach((campo, index) => {
-    lineas.push(`${index + 1}. Campo: '${campo.etiqueta}' en Sección: '${campo.seccion}'`);
+    lineas.push(`${index + 1}. Campo: '${campo.nombreCampo}' en Sección: '${campo.rutaSeccion}'`);
   });
   
   return lineas.join('\n');
@@ -618,10 +724,12 @@ NO modifiques la tabla, solo inclúyela tal cual se proporciona.
 
 ## 4. CAMPOS NO OBLIGATORIOS
 
-Lista los campos no obligatorios proporcionados en la PARTE 4. Usa el formato numerado:
-1. Campo: 'Nombre del Campo' en Sección: 'Nombre de la Sección'
-2. Campo: 'Otro Campo' en Sección: 'Otra Sección'
+Lista los campos no obligatorios proporcionados en la PARTE 4. **COPIA EXACTAMENTE** el formato que se te proporciona, sin modificar nada:
+1. Campo: 'Nombre del Campo' en Sección: 'Nombre del Paso'
+2. Campo: 'Otro Campo' en Sección: 'Otro Paso'
 ...
+
+**IMPORTANTE:** NO modifiques los nombres de los campos ni los nombres de los pasos. Copia exactamente lo que aparece en la PARTE 4.
 
 ---
 
@@ -638,6 +746,7 @@ ${contexto}
 - La Parte 2 DEBE usar formato de tabla con columnas "Métrica" y "Valor"
 - La Parte 3 DEBE incluir la tabla tal cual, sin modificaciones
 - La Parte 4 DEBE usar el formato numerado con "Campo: 'X' en Sección: 'Y'"
+- La Parte 4 DEBE copiar EXACTAMENTE los campos y nombres de pasos proporcionados en la PARTE 4, sin modificar nada
 - NO agregues secciones adicionales
 - NO agregues análisis adicionales como "RESUMEN EJECUTIVO"
 - Sé conciso y directo
