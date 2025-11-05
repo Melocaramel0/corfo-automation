@@ -164,11 +164,12 @@ router.post('/:categoria', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/campos-fundamentales/:categoria/:nombre
- * Elimina un campo (lo marca como inactivo)
+ * Elimina un campo (lo marca como inactivo por defecto, o elimina permanentemente si ?permanente=true)
  */
 router.delete('/:categoria/:nombre', async (req: Request, res: Response) => {
   try {
     const { categoria, nombre } = req.params;
+    const permanente = req.query.permanente === 'true';
 
     const contenido = await fs.readFile(RUTA_CAMPOS_FUNDAMENTALES, 'utf-8');
     const camposFundamentales: any = JSON.parse(contenido);
@@ -177,8 +178,13 @@ router.delete('/:categoria/:nombre', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Campo no encontrado' });
     }
 
-    // Marcar como inactivo (no eliminar físicamente)
-    camposFundamentales.categorias[categoria].campos[nombre].activo = false;
+    if (permanente) {
+      // Eliminación física (hard delete)
+      delete camposFundamentales.categorias[categoria].campos[nombre];
+    } else {
+      // Marcar como inactivo (soft delete)
+      camposFundamentales.categorias[categoria].campos[nombre].activo = false;
+    }
 
     // Actualizar metadatos
     camposFundamentales.metadatos.ultimaModificacion = new Date().toISOString();
@@ -200,7 +206,11 @@ router.delete('/:categoria/:nombre', async (req: Request, res: Response) => {
     // Guardar
     await fs.writeFile(RUTA_CAMPOS_FUNDAMENTALES, JSON.stringify(camposFundamentales, null, 2), 'utf-8');
 
-    res.json({ mensaje: 'Campo marcado como inactivo', campo: camposFundamentales.categorias[categoria].campos[nombre] });
+    if (permanente) {
+      res.json({ mensaje: 'Campo eliminado permanentemente' });
+    } else {
+      res.json({ mensaje: 'Campo marcado como inactivo', campo: camposFundamentales.categorias[categoria].campos[nombre] });
+    }
   } catch (error: any) {
     console.error('Error eliminando campo:', error);
     res.status(500).json({ error: 'Error al eliminar campo', mensaje: error.message });

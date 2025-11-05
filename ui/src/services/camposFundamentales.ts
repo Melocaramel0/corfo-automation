@@ -84,5 +84,12 @@ export const camposFundamentalesService = {
   async deleteCampo(categoria: string, nombre: string): Promise<void> {
     await apiService.delete(`/campos-fundamentales/${categoria}/${nombre}`)
   },
+
+  /**
+   * Elimina un campo permanentemente (hard delete)
+   */
+  async deleteCampoPermanente(categoria: string, nombre: string): Promise<void> {
+    await apiService.delete(`/campos-fundamentales/${categoria}/${nombre}?permanente=true`)
+  },
 }
 
