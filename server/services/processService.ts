@@ -294,7 +294,7 @@ export class ProcessService {
         const resultado: ResultadoAgente = await agente.ejecutar();
 
         // Guardar resultado
-        await this.saveExecutionResult(executionId, resultado);
+        await this.saveExecutionResult(executionId, processId, resultado);
 
         // Actualizar estado del proceso
         await this.updateProcess(processId, { 
@@ -411,7 +411,7 @@ export class ProcessService {
    * Este reporte se guarda en data/execution_results/ con metadata del servidor
    * para ejecuciones monitoreadas desde la interfaz web
    */
-  private async saveExecutionResult(executionId: string, resultado: ResultadoAgente): Promise<void> {
+  private async saveExecutionResult(executionId: string, processId: string, resultado: ResultadoAgente): Promise<void> {
     try {
       const resultsDir = path.join(__dirname, '../../data/execution_results');
       await fs.mkdir(resultsDir, { recursive: true });
@@ -420,8 +420,18 @@ export class ProcessService {
       const nextId = await getNextReportId(resultsDir, 'exec_');
       const resultFile = path.join(resultsDir, `exec_${nextId}.json`);
       
+      // Agregar metadata con processId y executionId al resultado
+      const resultadoConMetadata = {
+        ...resultado,
+        metadata: {
+          processId,
+          executionId,
+          fechaGuardado: new Date().toISOString()
+        }
+      };
+      
       // Guardar resultado con reintentos para manejar bloqueos de OneDrive
-      await this.saveFileWithRetry(resultFile, JSON.stringify(resultado, null, 2));
+      await this.saveFileWithRetry(resultFile, JSON.stringify(resultadoConMetadata, null, 2));
       
       console.log(`✅ Resultado de ejecución guardado: exec_${nextId}.json`);
 
@@ -466,21 +476,67 @@ export class ProcessService {
   }
 
   async getProcessResults(processId: string): Promise<any[]> {
-    // Buscar el último resultado de ejecución para este proceso
+    // Buscar el último resultado de ejecución para este proceso filtrando por processId en el contenido JSON
     const resultsDir = path.join(__dirname, '../../data/execution_results');
     
     try {
       const files = await fs.readdir(resultsDir);
-      const processFiles = files.filter(f => f.includes(processId));
+      const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
       
-      if (processFiles.length === 0) {
+      if (jsonFiles.length === 0) {
         return [];
       }
 
-      // Obtener el archivo más reciente
-      const latestFile = processFiles.sort().reverse()[0];
-      const data = await fs.readFile(path.join(resultsDir, latestFile), 'utf-8');
-      const resultado: ResultadoAgente = JSON.parse(data);
+      // Cargar todos los archivos y filtrar por processId leyendo el contenido JSON
+      const filesWithData = await Promise.all(
+        jsonFiles.map(async (file) => {
+          try {
+            const filePath = path.join(resultsDir, file);
+            const data = await fs.readFile(filePath, 'utf-8');
+            const jsonData = JSON.parse(data);
+            
+            // Verificar si tiene metadata y si el processId coincide
+            const fileProcessId = jsonData.metadata?.processId || jsonData.processId; // Soporte retrocompatibilidad
+            
+            // Si no tiene metadata, saltar este archivo
+            if (!fileProcessId) {
+              return null;
+            }
+            
+            // Filtrar solo archivos que pertenezcan a este proceso
+            if (fileProcessId !== processId) {
+              return null;
+            }
+            
+            const fechaEjecucion = jsonData.fechaEjecucion ? new Date(jsonData.fechaEjecucion).getTime() : 0;
+            const stats = await fs.stat(filePath);
+            const mtime = stats.mtime.getTime();
+            
+            return {
+              file,
+              fechaEjecucion: fechaEjecucion || mtime,
+              data: jsonData
+            };
+          } catch (error) {
+            console.error(`[getProcessResults] Error leyendo archivo ${file}:`, error);
+            return null;
+          }
+        })
+      );
+
+      const validFiles = filesWithData.filter(f => f !== null) as Array<{
+        file: string;
+        fechaEjecucion: number;
+        data: any;
+      }>;
+
+      if (validFiles.length === 0) {
+        return [];
+      }
+
+      // Obtener el archivo más reciente de este proceso
+      const latest = validFiles.sort((a, b) => b.fechaEjecucion - a.fechaEjecucion)[0];
+      const resultado: ResultadoAgente = latest.data;
 
       // Convertir ResultadoAgente a formato de resultados esperado por el frontend
       const results = resultado.pasosCompletados?.flatMap(paso => 
@@ -492,7 +548,7 @@ export class ProcessService {
           resultado: detalle.completado ? 'OK' : 'FAIL',
           valorIngresado: detalle.valorAsignado,
           detalleMensaje: detalle.razonFallo || 'Campo completado correctamente',
-          timestamp: new Date().toISOString(),
+          timestamp: resultado.fechaEjecucion || new Date().toISOString(),
           tiempoEjecucion: paso.tiempoTranscurrido / paso.detalles.length
         }))
       ) || [];
@@ -507,28 +563,75 @@ export class ProcessService {
     // Buscar logs de ejecuciones de este proceso
     const executions = await executionService.getExecutionsByProcess(processId);
     
+    // Obtener fecha de ejecución del archivo JSON si está disponible para usar timestamps reales
+    let fechaEjecucionBase: string | null = null;
+    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    try {
+      const files = await fs.readdir(resultsDir);
+      const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
+      
+      // Buscar el archivo JSON más reciente para este proceso
+      for (const file of jsonFiles.sort().reverse()) {
+        try {
+          const filePath = path.join(resultsDir, file);
+          const data = await fs.readFile(filePath, 'utf-8');
+          const jsonData = JSON.parse(data);
+          
+          // Verificar si tiene metadata y si el processId coincide
+          const fileProcessId = jsonData.metadata?.processId || jsonData.processId;
+          
+          if (fileProcessId === processId) {
+            fechaEjecucionBase = jsonData.fechaEjecucion || null;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+    } catch {
+      // Si no hay archivo, continuar sin fecha base
+    }
+    
+    // Usar fecha de ejecución del JSON si está disponible, de lo contrario usar fecha actual
+    const fechaBase = fechaEjecucionBase ? new Date(fechaEjecucionBase) : new Date();
+    
     const executionLogs = executions.flatMap(exec => 
       exec.logs.map((log: string, index: number) => ({
         id: `${exec.executionId}_${index}`,
         accion: 'Ejecución Agente Orquestador',
         descripcion: log,
-        fecha: new Date().toISOString(),
+        fecha: fechaBase.toISOString(),
         procesoId: processId
       }))
     );
 
-    // Agregar logs del resumen final desde el JSON de ejecución
-    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    // Agregar logs del resumen final desde el JSON de ejecución filtrando por processId
     try {
       const files = await fs.readdir(resultsDir);
-      const processFiles = files.filter(f => f.includes(processId));
+      const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
       
-      if (processFiles.length > 0) {
-        const latestFile = processFiles.sort().reverse()[0];
-        const data = await fs.readFile(path.join(resultsDir, latestFile), 'utf-8');
-        const resultado: ResultadoAgente = JSON.parse(data);
-        
-        // Agregar resumen final como log
+      // Buscar el archivo JSON más reciente para este proceso
+      let resultado: ResultadoAgente | null = null;
+      for (const file of jsonFiles.sort().reverse()) {
+        try {
+          const filePath = path.join(resultsDir, file);
+          const data = await fs.readFile(filePath, 'utf-8');
+          const jsonData = JSON.parse(data);
+          
+          // Verificar si tiene metadata y si el processId coincide
+          const fileProcessId = jsonData.metadata?.processId || jsonData.processId;
+          
+          if (fileProcessId === processId) {
+            resultado = jsonData;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+      
+      if (resultado) {
+        // Agregar resumen final como log usando fecha real del JSON
         if (resultado.estadisticas) {
           const resumenLog = {
             id: `${processId}_resumen_final`,
@@ -549,7 +652,7 @@ export class ProcessService {
 
   async getProcessExecutionJson(processId: string): Promise<any> {
     // Obtener el JSON completo del archivo exec_*.json
-    // Estrategia: usar siempre el archivo más reciente (por fecha de ejecución en el JSON o fecha de modificación)
+    // Estrategia: filtrar por processId leyendo el contenido JSON y retornar el más reciente de ese proceso
     const resultsDir = path.join(__dirname, '../../data/execution_results');
     
     try {
@@ -561,15 +664,30 @@ export class ProcessService {
         return null;
       }
 
-      console.log(`[getProcessExecutionJson] Encontrados ${jsonFiles.length} archivos JSON:`, jsonFiles);
+      console.log(`[getProcessExecutionJson] Encontrados ${jsonFiles.length} archivos JSON, filtrando por processId: ${processId}`);
 
-      // Cargar todos los archivos y obtener sus fechas de ejecución
+      // Cargar todos los archivos y filtrar por processId
       const filesWithData = await Promise.all(
         jsonFiles.map(async (file) => {
           try {
             const filePath = path.join(resultsDir, file);
             const data = await fs.readFile(filePath, 'utf-8');
             const jsonData = JSON.parse(data);
+            
+            // Verificar si tiene metadata y si el processId coincide
+            const fileProcessId = jsonData.metadata?.processId || jsonData.processId; // Soporte retrocompatibilidad
+            
+            // Si no tiene metadata, intentar usar el processId del archivo (para archivos antiguos)
+            if (!fileProcessId) {
+              console.log(`[getProcessExecutionJson] Archivo ${file} no tiene metadata.processId, saltando`);
+              return null;
+            }
+            
+            // Filtrar solo archivos que pertenezcan a este proceso
+            if (fileProcessId !== processId) {
+              return null;
+            }
+            
             const fechaEjecucion = jsonData.fechaEjecucion ? new Date(jsonData.fechaEjecucion).getTime() : 0;
             
             // Obtener fecha de modificación del archivo como fallback
@@ -595,13 +713,13 @@ export class ProcessService {
       }>;
 
       if (validFiles.length === 0) {
-        console.log(`[getProcessExecutionJson] No se pudieron cargar archivos JSON válidos`);
+        console.log(`[getProcessExecutionJson] No se encontraron archivos JSON válidos para processId: ${processId}`);
         return null;
       }
 
-      // Ordenar por fecha de ejecución (más reciente primero) y retornar el primero
+      // Ordenar por fecha de ejecución (más reciente primero) y retornar el primero de este proceso
       const latest = validFiles.sort((a, b) => b.fechaEjecucion - a.fechaEjecucion)[0];
-      console.log(`[getProcessExecutionJson] Usando archivo más reciente: ${latest.file}`);
+      console.log(`[getProcessExecutionJson] Usando archivo más reciente para processId ${processId}: ${latest.file}`);
       return latest.data;
     } catch (error) {
       console.error('[getProcessExecutionJson] Error obteniendo JSON de ejecución:', error);

@@ -127,17 +127,17 @@ export class AIConsumptionService {
       nlpApi: {
         name: 'API de Procesamiento de Lenguaje Natural',
         requests: this.consumption.nlpApi.requests,
-        description: 'solicitudes'
+        description: `solicitudes (${this.consumption.nlpApi.totalInputTokens + this.consumption.nlpApi.totalOutputTokens} tokens totales)`
       },
       sentimentAnalysis: {
         name: 'Componente de Análisis de Sentimientos',
         executions: this.consumption.sentimentAnalysis.executions,
-        description: 'ejecuciones'
+        description: 'ejecuciones (al generar informes)'
       },
       topicDetection: {
         name: 'Modelo de Detección de Temas',
         uses: this.consumption.topicDetection.uses,
-        description: 'usos'
+        description: 'usos (análisis de campos fundamentales)'
       }
     };
   }

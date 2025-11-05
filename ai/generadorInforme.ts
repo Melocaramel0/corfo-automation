@@ -100,6 +100,25 @@ function estimarTokens(texto: string): number {
 }
 
 /**
+ * Función auxiliar para registrar consumo de IA
+ * Se llama después de cada llamada exitosa a la API
+ */
+async function registrarConsumoIA(usage: { prompt_tokens?: number; completion_tokens?: number } | undefined): Promise<void> {
+  if (!usage) return;
+  
+  try {
+    const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+    const aiConsumptionService = AIConsumptionService.getInstance();
+    const inputTokens = usage.prompt_tokens || 0;
+    const outputTokens = usage.completion_tokens || 0;
+    await aiConsumptionService.recordNLPRequest(inputTokens, outputTokens);
+  } catch (error) {
+    // Si falla el tracking, continuar sin registrar (no crítico)
+    console.warn('⚠️ No se pudo registrar consumo de IA:', error);
+  }
+}
+
+/**
  * Crea una solicitud a Azure OpenAI con fallback automático para diferentes modelos
  * Incluye controles de costos y límites seguros
  */
@@ -161,15 +180,7 @@ export async function crearCompletacionConFallback(
     console.log(`✅ Usando max_completion_tokens con temperature (${outputTokens} tokens generados)`);
     
     // Registrar consumo de IA
-    try {
-      const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
-      const aiConsumptionService = AIConsumptionService.getInstance();
-      const inputTokens = respuesta1.usage?.prompt_tokens || 0;
-      await aiConsumptionService.recordNLPRequest(inputTokens, outputTokens);
-    } catch (error) {
-      // Si falla el tracking, continuar sin registrar (no crítico)
-      console.warn('⚠️ No se pudo registrar consumo de IA:', error);
-    }
+    await registrarConsumoIA(respuesta1.usage);
     
     return respuesta1;
   } catch (error1: any) {
@@ -183,6 +194,7 @@ export async function crearCompletacionConFallback(
         const respuesta1b = await cliente.chat.completions.create(crearRequest(false, true, false) as any);
         const outputTokens = respuesta1b.usage?.completion_tokens || 0;
         console.log(`✅ Usando max_completion_tokens sin temperature (${outputTokens} tokens generados)`);
+        await registrarConsumoIA(respuesta1b.usage);
         return respuesta1b;
       } catch (error1b: any) {
         const errorMsg1b = error1b.message || '';
@@ -196,6 +208,7 @@ export async function crearCompletacionConFallback(
             const respuesta2 = await cliente.chat.completions.create(crearRequest(false, false, true) as any);
             const outputTokens = respuesta2.usage?.completion_tokens || 0;
             console.log(`✅ Usando max_tokens sin temperature (${outputTokens} tokens generados)`);
+            await registrarConsumoIA(respuesta2.usage);
             return respuesta2;
           } catch (error2: any) {
             const errorMsg2 = error2.message || '';
@@ -215,6 +228,7 @@ export async function crearCompletacionConFallback(
                 }
                 
                 console.log(`✅ Generación completada con configuración mínima (${outputTokens} tokens generados)`);
+                await registrarConsumoIA(respuesta3.usage);
                 return respuesta3;
               } catch (error3: any) {
                 // Si todo falla, lanzar el error más descriptivo
@@ -246,6 +260,7 @@ export async function crearCompletacionConFallback(
         const respuesta2 = await cliente.chat.completions.create(crearRequest(true, false, true) as any);
         const outputTokens = respuesta2.usage?.completion_tokens || 0;
         console.log(`✅ Usando max_tokens con temperature (${outputTokens} tokens generados)`);
+        await registrarConsumoIA(respuesta2.usage);
         return respuesta2;
       } catch (error2: any) {
         const errorMsg2 = error2.message || '';
@@ -256,6 +271,7 @@ export async function crearCompletacionConFallback(
             const respuesta2b = await cliente.chat.completions.create(crearRequest(false, false, true) as any);
             const outputTokens = respuesta2b.usage?.completion_tokens || 0;
             console.log(`✅ Usando max_tokens sin temperature (${outputTokens} tokens generados)`);
+            await registrarConsumoIA(respuesta2b.usage);
             return respuesta2b;
           } catch (error2b: any) {
             // Continuar con estrategia 3
@@ -265,6 +281,7 @@ export async function crearCompletacionConFallback(
                 const respuesta3 = await cliente.chat.completions.create(crearRequest(false, false, false) as any);
                 const outputTokens = respuesta3.usage?.completion_tokens || 0;
                 console.log(`✅ Generación completada con configuración mínima (${outputTokens} tokens generados)`);
+                await registrarConsumoIA(respuesta3.usage);
                 return respuesta3;
               } catch (error3: any) {
                 throw new Error(
@@ -285,6 +302,7 @@ export async function crearCompletacionConFallback(
             const respuesta3 = await cliente.chat.completions.create(crearRequest(true, false, false) as any);
             const outputTokens = respuesta3.usage?.completion_tokens || 0;
             console.log(`✅ Generación completada sin límites, con temperature (${outputTokens} tokens generados)`);
+            await registrarConsumoIA(respuesta3.usage);
             return respuesta3;
           } catch (error3: any) {
             // Último intento: configuración mínima
@@ -292,6 +310,7 @@ export async function crearCompletacionConFallback(
               const respuesta4 = await cliente.chat.completions.create(crearRequest(false, false, false) as any);
               const outputTokens = respuesta4.usage?.completion_tokens || 0;
               console.log(`✅ Generación completada con configuración mínima (${outputTokens} tokens generados)`);
+              await registrarConsumoIA(respuesta4.usage);
               return respuesta4;
             } catch (error4: any) {
               throw new Error(
@@ -817,13 +836,16 @@ export async function generarInformePDF(
     );
 
     // Registrar análisis de sentimientos (los informes incluyen análisis)
+    // Registrar también detección de temas (análisis de campos fundamentales)
     try {
       const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
       const aiConsumptionService = AIConsumptionService.getInstance();
       await aiConsumptionService.recordSentimentAnalysis();
+      // El informe incluye análisis de campos fundamentales, lo cual es una forma de detección de temas
+      await aiConsumptionService.recordTopicDetection();
     } catch (error) {
       // Si falla el tracking, continuar sin registrar (no crítico)
-      console.warn('⚠️ No se pudo registrar análisis de sentimientos:', error);
+      console.warn('⚠️ No se pudo registrar consumo de IA:', error);
     }
 
     const informeMarkdown = respuesta.choices[0]?.message?.content;
