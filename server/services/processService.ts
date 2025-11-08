@@ -289,18 +289,27 @@ export class ProcessService {
       console.log(`🚀 Iniciando ejecución ${executionId} para proceso ${processId}`);
       console.log(`📋 URL del formulario: ${process.rutaFormulario}`);
 
-      // Ejecutar Agente Orquestador y capturar logs en tiempo real
-      await this.captureLogs(executionId, async () => {
-        const resultado: ResultadoAgente = await agente.ejecutar();
-
-        // Guardar resultado
-        await this.saveExecutionResult(executionId, processId, resultado);
-
-        // Actualizar estado del proceso
-        await this.updateProcess(processId, { 
-          estado: resultado.exito ? 'Ejecutado' : 'Fallido',
-          fechaModificacion: new Date().toISOString()
-        });
+            // Ejecutar Agente Orquestador y capturar logs en tiempo real
+            await this.captureLogs(executionId, async () => {
+              const resultado: ResultadoAgente = await agente.ejecutar();
+      
+              // Verificar si la ejecución fue cancelada antes de guardar resultados
+              const executionStatus = await executionService.getExecutionStatus(executionId);
+              const wasCancelled = executionStatus?.error?.includes('cancelada') || !executionStatus?.isRunning;
+              
+              if (wasCancelled) {
+                console.log(`⚠️ Ejecución ${executionId} fue cancelada. Omitiendo generación de reporte y PDF.`);
+                return; // Salir sin generar reporte ni PDF
+              }
+      
+              // Guardar resultado solo si NO fue cancelada
+              await this.saveExecutionResult(executionId, processId, resultado);
+      
+              // Actualizar estado del proceso
+              await this.updateProcess(processId, { 
+                estado: resultado.exito ? 'Ejecutado' : 'Fallido',
+                fechaModificacion: new Date().toISOString()
+              });
 
         // Registrar log de finalización
         const systemLogService = SystemLogService.getInstance();

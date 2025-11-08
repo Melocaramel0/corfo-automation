@@ -210,9 +210,15 @@ export const ValidationProcesses: React.FC = () => {
                 const normalizedStatus = normalizeExecutionStatus(newStatus, update.executionId, processIdToUpdate)
                 
                 if (normalizedStatus) {
+                  // Limitar logs SOLO en UI (no afecta logs en backend/terminal)
+                  const statusForUI = {
+                    ...normalizedStatus,
+                    logs: normalizedStatus.logs.slice(-50) // Solo últimos 50 para renderizar en UI
+                  }
+                  
                   newMap.set(processIdToUpdate, {
                     executionId: update.executionId,
-                    status: normalizedStatus
+                    status: statusForUI
                   })
                 }
 
@@ -252,8 +258,10 @@ export const ValidationProcesses: React.FC = () => {
         })
       } catch (error) {
         console.error('Error actualizando estados de ejecución:', error)
+        // Evitar que errores de red rompan la UI
+        // Continuar con el polling aunque falle un request
       }
-    }, 1000)
+    }, 2500) // Reducido de 1s a 2.5s para evitar sobrecarga
 
     return () => clearInterval(interval)
   }, [executions, searchTerm])
@@ -485,21 +493,35 @@ export const ValidationProcesses: React.FC = () => {
         </button>
       </div>
 
-      {/* Barra de progreso de ejecución - mostrar solo la primera ejecución activa para no saturar la UI */}
+      {/* Barra de progreso de ejecución - mostrar solo la primera ejecución activa */}
       {(() => {
-        const firstRunningExec = Array.from(executions.values()).find(exec => exec.status?.isRunning)
+        const runningExecutions = Array.from(executions.values()).filter(exec => exec.status?.isRunning)
+        const firstRunningExec = runningExecutions[0]
         const firstRunningStatus = firstRunningExec?.status
+        const remainingCount = runningExecutions.length - 1
         
         return firstRunningStatus ? (
-          <ExecutionProgressBar 
-            executionStatus={firstRunningStatus}
-            onCancel={() => {
-              const firstRunning = Array.from(executions.entries()).find(([_, exec]) => exec.status?.isRunning)
-              if (firstRunning) {
-                handleCancelExecution(firstRunning[0])
-              }
-            }}
-          />
+          <div>
+            <ExecutionProgressBar 
+              executionStatus={firstRunningStatus}
+              onCancel={() => {
+                const firstRunning = Array.from(executions.entries()).find(([_, exec]) => exec.status?.isRunning)
+                if (firstRunning) {
+                  handleCancelExecution(firstRunning[0])
+                }
+              }}
+            />
+            {remainingCount > 0 && (
+              <div className="bg-corfoYellow-25 border border-corfoYellow-100 rounded-lg p-3 mb-6 flex items-center">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-corfoYellow-100 animate-pulse" />
+                  <span className="text-sm font-medium text-corfoGray-90">
+                    {remainingCount} {remainingCount === 1 ? 'proceso más en ejecución' : 'procesos más en ejecución'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         ) : null
       })()}
 

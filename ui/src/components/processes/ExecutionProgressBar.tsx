@@ -45,7 +45,7 @@ export const ExecutionProgressBar: React.FC<ExecutionProgressBarProps> = ({
               <div className={`w-3 h-3 rounded-full ${executionStatus.isRunning ? 'animate-pulse bg-corfo-500' : 'bg-corfoAqua-100'}`} />
             )}
             <h3 className="text-lg font-semibold text-corfoGray-90">
-              Ejecución del Proceso MVP
+              Ejecución del Proceso 
             </h3>
           </div>
           
@@ -85,7 +85,7 @@ export const ExecutionProgressBar: React.FC<ExecutionProgressBarProps> = ({
         <div className="mt-4">
           <h4 className="text-sm font-medium text-corfoGray-80 mb-2">Últimos eventos:</h4>
           <div className="bg-corfoGray-10 rounded-lg p-3 max-h-32 overflow-y-auto">
-            {executionStatus.logs.slice(-5).map((log, index) => {
+            {executionStatus.logs.slice(-5).reverse().map((log, index) => {
               // Formatear fecha de manera segura
               let fechaFormateada = ''
               try {

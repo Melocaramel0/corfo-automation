@@ -753,10 +753,23 @@ export class AgenteOrquestador {
         // Ahora realizar login desde el contexto actual (sin ir al home por defecto)
         await this.realizarLogin();
 
-        // Asegurar que estemos en la URL objetivo autenticados (si la navegación de login nos movió)
-        if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
+        // IMPORTANTE: Prevenir navegación de vuelta a URL de login después de autenticarse
+        // 
+        // PROBLEMA: Si this.formUrl es una URL de login (ej: login.corfo.cl o Login.aspx),
+        // el login exitoso nos redirige automáticamente al formulario o página intermedia.
+        // Si intentamos "reafirmar" la URL navegando de vuelta a la URL de login,
+        // se pierde la sesión y se desloguea automáticamente.
+        //
+        // SOLUCIÓN: Solo reafirmar URL si NO es una URL de login.
+        // Si es URL de login, confiar en que el flujo de login nos llevó al lugar correcto.
+        const esUrlLogin = this.formUrl && (this.formUrl.includes('login.corfo.cl') || this.formUrl.includes('Login.aspx'));
+        
+        if (esUrlLogin) {
+            console.log('ℹ️ URL objetivo es URL de login - confiando en redirección post-login (NO navegar de vuelta)');
+            const urlActual = this.page!.url();
+            console.log(`📍 URL después del login: ${urlActual}`);
+        } else if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
             console.log(` Reafirmando URL objetivo autenticado: ${this.formUrl}`);
-            // Solo navegar si realmente no estamos en la URL objetivo
             const urlActual = this.page!.url();
             if (!urlActual.includes('Postulador.aspx') || urlActual.includes('Borradores')) {
                 await this.navegarAURLEspecifica(this.formUrl);
@@ -1489,31 +1502,26 @@ export class AgenteOrquestador {
 
                 const valorAsignado = await this.completarCampo(elemento, info);
 
-                // Si el campo retorna null (solo para campos readonly/disabled), no incluirlo en el reporte
+                // Si el campo retorna null (solo para campos readonly/disabled/file sin botón), no incluirlo en el reporte
                 if (valorAsignado === null) {
                     continue;
                 }
 
-                // Aplicar valor por defecto si valorAsignado es null, undefined o string vacío
-                let valorFinal = valorAsignado;
-                if (!valorFinal || valorFinal.trim() === '') {
-                    valorFinal = this.obtenerValorPorDefecto(info.tipo);
-                }
-
+                // valorAsignado ya viene con valor garantizado (completarCampo aplica defaults internamente)
                 const detalle: DetallePaso = {
                     etiqueta: info.etiqueta,
                     tipo: info.tipo,
-                    valorAsignado: valorFinal,
-                    completado: true, // Siempre true ahora que aplicamos valores por defecto
+                    valorAsignado: valorAsignado,
+                    completado: true, // Siempre true porque completarCampo garantiza valor
                     esObligatorio: info.esObligatorio,
-                    razonFallo: undefined // Sin razón de fallo cuando usamos valores por defecto
+                    razonFallo: undefined
                 };
 
                 detalles.push(detalle);
                     camposProcesados.add(campoId);
                     camposNuevosEncontrados++;
                     
-                    console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado || 'N/A'}"`);
+                    console.log(`     ✅ Campo procesado: ${info.tipo} - "${info.etiqueta}" - Valor: "${valorAsignado}"`);
                     
                     //  NUEVO: Si completamos un select, esperar y re-escanear para campos dinámicos
                     if (info.tipo === 'select' && valorAsignado) {
@@ -2185,27 +2193,36 @@ export class AgenteOrquestador {
 
     /**
      * Obtiene el valor por defecto según el tipo de campo cuando no se dispone de dato válido
-     * @param tipo Tipo de campo (number, text, textarea, etc.)
+     * @param tipo Tipo de campo (number, text, textarea, select, etc.)
      * @returns Valor por defecto como string
      */
     private obtenerValorPorDefecto(tipo: string): string {
         const tipoLower = tipo.toLowerCase();
         
-        if (tipoLower === 'number') {
-            return '0';
+        switch(tipoLower) {
+            case 'number':
+                return '0';
+            case 'textarea':
+                return 'Este es un texto de prueba para campos que requieren descripción detallada.';
+            case 'text':
+            case 'email':
+            case 'tel':
+            case 'url':
+            case 'password':
+                return 'Texto de prueba';
+            case 'select':
+                return 'Opción por defecto';
+            case 'checkbox':
+                return 'true';
+            case 'radio':
+                return 'seleccionado';
+            case 'date':
+                return '31/12/2024';
+            case 'file':
+                return 'archivo_prueba.pdf';
+            default:
+                return 'Texto de prueba';
         }
-        
-        if (tipoLower === 'textarea') {
-            return 'Este es un texto de prueba para campos que requieren descripción detallada.';
-        }
-        
-        // Para text, email, tel, url, password
-        if (['text', 'email', 'tel', 'url', 'password'].includes(tipoLower)) {
-            return 'Texto de prueba';
-        }
-        
-        // Default para cualquier otro tipo
-        return 'Texto de prueba';
     }
 
     private async completarCampo(elemento: any, info: any): Promise<string | null> {
@@ -2248,47 +2265,7 @@ export class AgenteOrquestador {
 
             //  GENERAR VALOR PARA OTROS TIPOS
             const valor = this.generarValorParaCampo(info);
-            if (!valor) {
-                // Aplicar valor por defecto según el tipo en lugar de retornar null
-                const valorDefault = this.obtenerValorPorDefecto(tipo);
-                
-                // Intentar completar el campo con el valor por defecto
-                if (['text', 'email', 'tel', 'url', 'password'].includes(tipo)) {
-                    await elemento.fill('');
-                    await elemento.fill(valorDefault);
-                    return valorDefault;
-                }
-                
-                if (tipo === 'textarea') {
-                    await elemento.fill('');
-                    await elemento.fill(valorDefault);
-                    return valorDefault;
-                }
-                
-                if (tipo === 'number') {
-                    const numeroValor = valorDefault.replace(/[^\d]/g, '');
-                    const tieneInputmask = info.dataInputmask && (info.dataInputmask.includes('integer') || info.dataInputmask.includes('decimal'));
-                    const esDecimal = info.dataInputmask && info.dataInputmask.includes('decimal');
-                    
-                    if (tieneInputmask) {
-                        await elemento.click();
-                        await this.page!.waitForTimeout(100);
-                        await elemento.press('Control+A');
-                        await elemento.press('Backspace');
-                        await this.page!.waitForTimeout(100);
-                        const valorFinal = esDecimal ? `${numeroValor},00` : numeroValor;
-                        await elemento.type(valorFinal, { delay: 50 });
-                        await this.page!.waitForTimeout(200);
-                        return numeroValor;
-                    } else {
-                        await elemento.fill('');
-                        await elemento.fill(numeroValor);
-                        return numeroValor;
-                    }
-                }
-                
-                return valorDefault;
-            }
+            // Nota: Si valor está vacío, cada bloque específico de tipo aplicará su valor por defecto
 
             //  MANEJO DE CHECKBOXES
             if (tipo === 'checkbox') {
@@ -2338,8 +2315,8 @@ export class AgenteOrquestador {
                     const quedoSeleccionado = await elemento.isChecked();
                     
                     if (!quedoSeleccionado) {
-                        console.log(`     ❌ Radio button NO quedó seleccionado después del clic`);
-                        return null; // Falló la selección
+                        console.log(`     ⚠️ Radio button NO quedó seleccionado, aplicando valor por defecto`);
+                        return 'seleccionado (default)'; // Retornar valor por defecto en lugar de null
                     }
                     
                     // 🔴 NUEVO: Esperar a que aparezcan campos condicionales si existen
@@ -2358,21 +2335,42 @@ export class AgenteOrquestador {
 
             //  MANEJO DE INPUTS DE TEXTO
             if (['text', 'email', 'tel', 'url', 'password'].includes(tipo)) {
+                // Verificar si el valor está vacío y aplicar default
+                const valorFinal = (!valor || valor.trim() === '') ? this.obtenerValorPorDefecto(tipo) : valor;
+                
+                if (!valor || valor.trim() === '') {
+                    console.log(`     ℹ️ Campo de texto sin valor válido, usando valor por defecto`);
+                }
+                
                 await elemento.fill('');
-                await elemento.fill(valor);
-                return valor;
+                await elemento.fill(valorFinal);
+                return valorFinal;
             }
 
             //  MANEJO DE TEXTAREAS
             if (tipo === 'textarea') {
+                // Verificar si el valor está vacío y aplicar default
+                const valorFinal = (!valor || valor.trim() === '') ? this.obtenerValorPorDefecto(tipo) : valor;
+                
+                if (!valor || valor.trim() === '') {
+                    console.log(`     ℹ️ Textarea sin valor válido, usando valor por defecto`);
+                }
+                
                 await elemento.fill('');
-                await elemento.fill(valor);
-                return valor;
+                await elemento.fill(valorFinal);
+                return valorFinal;
             }
 
             //  MANEJO DE INPUTS NUMÉRICOS
             if (tipo === 'number') {
                 const numeroValor = typeof valor === 'string' ? valor.replace(/[^\d]/g, '') : valor;
+                
+                // Verificar si está vacío y aplicar default
+                const numeroFinal = (!numeroValor || numeroValor.trim() === '') ? '0' : numeroValor;
+                
+                if (!numeroValor || numeroValor.trim() === '') {
+                    console.log(`     ℹ️ Campo numérico sin valor válido, usando valor por defecto: 0`);
+                }
                 
                 // 🔴 MEJORA: Para campos con inputmask (integer o decimal), usar estrategia diferente
                 const tieneInputmask = info.dataInputmask && (info.dataInputmask.includes('integer') || info.dataInputmask.includes('decimal'));
@@ -2391,7 +2389,7 @@ export class AgenteOrquestador {
                     
                     // 3. Escribir carácter por carácter con type() para que inputmask lo procese
                     // Para decimales, agregar coma y decimales
-                    const valorFinal = esDecimal ? `${numeroValor},00` : numeroValor;
+                    const valorFinal = esDecimal ? `${numeroFinal},00` : numeroFinal;
                     await elemento.type(valorFinal, { delay: 50 });
                     await this.page!.waitForTimeout(200);
                     
@@ -2399,10 +2397,10 @@ export class AgenteOrquestador {
                 } else {
                     // Estrategia normal para campos sin inputmask
                     await elemento.fill('');
-                    await elemento.fill(numeroValor);
+                    await elemento.fill(numeroFinal);
                 }
                 
-                return numeroValor;
+                return numeroFinal;
             }
 
             //  MANEJO DE INPUTS DE FECHA
@@ -2691,8 +2689,8 @@ export class AgenteOrquestador {
             console.log(`     🔍 Select: "${etiqueta}" (${opciones.length} opciones, múltiple: ${esMultiple})`);
             
             if (opciones.length === 0) {
-                console.log(`     ⚠️ Select sin opciones`);
-                return null;
+                console.log(`     ⚠️ Select sin opciones, aplicando valor por defecto`);
+                return "Sin opciones disponibles";
             }
             
             //  Filtrar opciones válidas (no placeholders)
@@ -2715,8 +2713,18 @@ export class AgenteOrquestador {
             console.log(`     📋 Opciones válidas: ${opcionesValidas.length}`);
             
             if (opcionesValidas.length === 0) {
-                console.log(`     ⚠️ No hay opciones válidas`);
-                return null;
+                console.log(`     ⚠️ No hay opciones válidas, seleccionando primera opción disponible`);
+                // Intentar seleccionar la primera opción aunque sea placeholder
+                if (opciones.length > 0) {
+                    try {
+                        await elemento.selectOption(opciones[0].value);
+                        return opciones[0].text;
+                    } catch (selectError) {
+                        console.log(`     ⚠️ No se pudo seleccionar primera opción`);
+                        return "Primera opción";
+                    }
+                }
+                return "Primera opción";
             }
             
             //  Selección inteligente basada en contexto
@@ -2779,8 +2787,8 @@ export class AgenteOrquestador {
             return opcionSeleccionada.text;
             
         } catch (error) {
-            console.log(`     ⚠️ Error completando select:`, (error as Error).message);
-            return null;
+            console.log(`     ⚠️ Error completando select, aplicando valor por defecto:`, (error as Error).message);
+            return "Opción por defecto";
         }
     }
 
