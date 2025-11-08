@@ -689,6 +689,14 @@ export class AgenteOrquestador {
             await this.limpiarRecursos();
         }
 
+        // Verificar si fue cancelado antes de generar reportes
+        if (this.cancelado) {
+            console.log('🛑 Ejecución cancelada. No se generará ningún informe.');
+            this.resultado.exito = false;
+            this.resultado.mensaje = 'Ejecución cancelada por el usuario';
+            return this.resultado;
+        }
+
         // Calcular estadísticas y tiempo total ANTES de finalizar
         this.resultado.tiempoTotal = Math.round((Date.now() - this.tiempoInicio) / 1000); // Convertir a segundos
         this.calcularEstadisticas();
@@ -3648,6 +3656,12 @@ export class AgenteOrquestador {
      * NO se guarda cuando se ejecuta desde la UI (headless=true)
      */
     private async finalizar(): Promise<void> {
+        // Verificar si fue cancelado antes de generar cualquier informe
+        if (this.cancelado) {
+            console.log('🛑 Ejecución cancelada. No se generará ningún informe.');
+            return;
+        }
+
         // Solo guardar reporte cuando se ejecuta desde terminal (NO headless)
         // Cuando se ejecuta desde UI, el reporte lo guarda ProcessService
         if (!this.headless) {

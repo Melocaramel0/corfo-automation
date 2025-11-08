@@ -293,17 +293,14 @@ export class ProcessService {
             await this.captureLogs(executionId, async () => {
               const resultado: ResultadoAgente = await agente.ejecutar();
       
-              // Verificar si la ejecución fue cancelada antes de guardar resultados
-              const executionStatus = await executionService.getExecutionStatus(executionId);
-              const wasCancelled = executionStatus?.error?.includes('cancelada') || !executionStatus?.isRunning;
-              
-              if (wasCancelled) {
-                console.log(`⚠️ Ejecución ${executionId} fue cancelada. Omitiendo generación de reporte y PDF.`);
-                return; // Salir sin generar reporte ni PDF
-              }
+              // Guardar resultado (saveExecutionResult verifica internamente si fue cancelada)
+              const wasSaved = await this.saveExecutionResult(executionId, processId, resultado);
       
-              // Guardar resultado solo si NO fue cancelada
-              await this.saveExecutionResult(executionId, processId, resultado);
+              // Si fue cancelada, no continuar con el resto del flujo
+              if (!wasSaved) {
+                console.log(`⚠️ Ejecución ${executionId} cancelada. Deteniendo flujo de finalización.`);
+                return;
+              }
       
               // Actualizar estado del proceso
               await this.updateProcess(processId, { 
@@ -419,8 +416,9 @@ export class ProcessService {
    * Guarda el resultado de una ejecución desde la UI
    * Este reporte se guarda en data/execution_results/ con metadata del servidor
    * para ejecuciones monitoreadas desde la interfaz web
+   * @returns true si se guardó exitosamente, false si fue cancelada
    */
-  private async saveExecutionResult(executionId: string, processId: string, resultado: ResultadoAgente): Promise<void> {
+  private async saveExecutionResult(executionId: string, processId: string, resultado: ResultadoAgente): Promise<boolean> {
     try {
       const resultsDir = path.join(__dirname, '../../data/execution_results');
       await fs.mkdir(resultsDir, { recursive: true });
@@ -439,10 +437,34 @@ export class ProcessService {
         }
       };
       
+      // Verificar si la ejecución fue cancelada antes de guardar resultados
+      // Verificar tanto el estado de ejecución como el mensaje del resultado
+      const executionStatus = await executionService.getExecutionStatus(executionId);
+      const wasCancelled = 
+        executionStatus?.currentStep === 'Cancelado' ||
+        executionStatus?.error?.toLowerCase().includes('cancelada') ||
+        resultado.mensaje?.toLowerCase().includes('cancelada');
+      
+      if (wasCancelled) {
+        console.log(`⚠️ Ejecución ${executionId} fue cancelada. No se guardará resultado ni se generará PDF.`);
+        return false;
+      }
+
       // Guardar resultado con reintentos para manejar bloqueos de OneDrive
       await this.saveFileWithRetry(resultFile, JSON.stringify(resultadoConMetadata, null, 2));
       
       console.log(`✅ Resultado de ejecución guardado: exec_${nextId}.json`);
+
+      // Verificar nuevamente antes de generar PDF (por si se canceló durante el guardado)
+      const executionStatusAfterSave = await executionService.getExecutionStatus(executionId);
+      const wasCancelledAfterSave = 
+        executionStatusAfterSave?.currentStep === 'Cancelado' ||
+        executionStatusAfterSave?.error?.toLowerCase().includes('cancelada');
+      
+      if (wasCancelledAfterSave) {
+        console.log(`⚠️ Ejecución ${executionId} fue cancelada durante el guardado. No se generará PDF.`);
+        return false;
+      }
 
       // Generar PDF automáticamente después de guardar el JSON
       try {
@@ -456,10 +478,13 @@ export class ProcessService {
         console.error(`   Nota: El reporte JSON está guardado, solo falló la generación del PDF`);
         // No lanzar error para no interrumpir el flujo principal
       }
+      
+      return true;
     } catch (error) {
       console.error(`❌ Error guardando resultado de ejecución ${executionId}:`, error);
       console.error(`   Nota: El resultado está disponible en memoria pero no se pudo persistir en disco`);
       // No lanzar error para no interrumpir el flujo
+      return false;
     }
   }
 
