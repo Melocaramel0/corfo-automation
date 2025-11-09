@@ -1,0 +1,162 @@
+[
+  {
+    "nombreConcurso": "pruebafinalll",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para pruebafinalll",
+    "estado": "Creado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:44:38.465Z",
+    "id": "process_1762666974713",
+    "fechaCreacion": "2025-11-09T05:42:54.713Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "pruebaaa512",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para pruebaaa512",
+    "estado": "Creado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:44:37.145Z",
+    "id": "process_1762666941978",
+    "fechaCreacion": "2025-11-09T05:42:21.978Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "pruebaa",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para pruebaa",
+    "estado": "Creado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:44:31.327Z",
+    "id": "process_1762666816450",
+    "fechaCreacion": "2025-11-09T05:40:16.450Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "prueba3",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para prueba3",
+    "estado": "Borrado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:34:02.895Z",
+    "id": "process_1762665211052",
+    "fechaCreacion": "2025-11-09T05:13:31.052Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "prueba2",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para prueba2",
+    "estado": "Borrado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:34:05.713Z",
+    "id": "process_1762664374216",
+    "fechaCreacion": "2025-11-09T04:59:34.216Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "prueba1",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para prueba1",
+    "estado": "Ejecutado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T05:09:12.796Z",
+    "id": "process_1762664366049",
+    "fechaCreacion": "2025-11-09T04:59:26.049Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "prueba1",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para prueba1",
+    "estado": "Borrado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T04:58:51.548Z",
+    "id": "process_1762663928058",
+    "fechaCreacion": "2025-11-09T04:52:08.058Z",
+    "usuarioCreacion": "system@corfo.cl"
+  },
+  {
+    "nombreConcurso": "prueba0",
+    "rutaFormulario": "https://login.corfo.cl/gsi/login/Login.aspx?uid=WEB226&env=produccion-cloud&enforcelogin=1&cid=2629",
+    "credencialesAcceso": {
+      "usuario": "15124928-0",
+      "password": "Admin#2025"
+    },
+    "descripcion": "Proceso de validación para prueba0",
+    "estado": "Borrado",
+    "reglas": [],
+    "configuracion": {
+      "modoEjecucion": "secuencial",
+      "tiempoMaxPorCampo": 30,
+      "reintentos": 3
+    },
+    "fechaModificacion": "2025-11-09T04:52:41.528Z",
+    "id": "process_1762663920382",
+    "fechaCreacion": "2025-11-09T04:52:00.382Z",
+    "usuarioCreacion": "system@corfo.cl"
+  }
+]

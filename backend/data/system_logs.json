@@ -1,0 +1,422 @@
+[
+  {
+    "id": "log_1762667078466_4caiqzp1q",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'pruebafinalll' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebafinalll",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:44:38.466Z"
+  },
+  {
+    "id": "log_1762667077145_ts8nndrta",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'pruebaaa512' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebaaa512",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:44:37.145Z"
+  },
+  {
+    "id": "log_1762667071328_b9fatjh5c",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'pruebaa' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebaa",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:44:31.328Z"
+  },
+  {
+    "id": "log_1762666974714_eshh22j8s",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'pruebafinalll'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebafinalll",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:42:54.714Z"
+  },
+  {
+    "id": "log_1762666941980_lptkkmhra",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'pruebaaa512'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebaaa512",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:42:21.980Z"
+  },
+  {
+    "id": "log_1762666816450_up9uo3767",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'pruebaa'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "pruebaa",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:40:16.450Z"
+  },
+  {
+    "id": "log_1762666806782_pir5blt9i",
+    "action": "Eliminación de Concurso",
+    "description": "Concurso 'prueba3' marcado como 'borrado'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba3",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:40:06.782Z"
+  },
+  {
+    "id": "log_1762666804717_5773y4o0s",
+    "action": "Eliminación de Concurso",
+    "description": "Concurso 'prueba2' marcado como 'borrado'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:40:04.717Z"
+  },
+  {
+    "id": "log_1762666445714_l73jjzrhy",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba2' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:34:05.713Z"
+  },
+  {
+    "id": "log_1762666442897_pc85uvvkb",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba3' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba3",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:34:02.897Z"
+  },
+  {
+    "id": "log_1762665428496_5h2j62pag",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba2' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:17:08.496Z"
+  },
+  {
+    "id": "log_1762665420703_sdgqoyp85",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba3' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba3",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:17:00.703Z"
+  },
+  {
+    "id": "log_1762665211053_evwprwznz",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba3'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba3",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:13:31.053Z"
+  },
+  {
+    "id": "log_1762664952797_26xrq92fa",
+    "action": "Validación Automática Completada",
+    "description": "Proceso de validación completado exitosamente para 'prueba1'. 200 campos completados de 200 total.",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:09:12.797Z"
+  },
+  {
+    "id": "log_1762664952797_f6l08a60c",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T05:09:12.797Z"
+  },
+  {
+    "id": "log_1762664374217_ntvx5507i",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba2'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:59:34.217Z"
+  },
+  {
+    "id": "log_1762664366050_zvvss41pr",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba1'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:59:26.050Z"
+  },
+  {
+    "id": "log_1762664344201_x995rr70b",
+    "action": "Eliminación de Concurso",
+    "description": "Concurso 'prueba1' marcado como 'borrado'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:59:04.201Z"
+  },
+  {
+    "id": "log_1762664342634_xkku5zdbh",
+    "action": "Eliminación de Concurso",
+    "description": "Concurso 'prueba0' marcado como 'borrado'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba0",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:59:02.634Z"
+  },
+  {
+    "id": "log_1762664331549_k01hwdejv",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:58:51.549Z"
+  },
+  {
+    "id": "log_1762663961529_v7nn0re9t",
+    "action": "Validación Automática Fallida",
+    "description": "Proceso de validación fallido para 'prueba0'. Error desconocido",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba0",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:52:41.529Z"
+  },
+  {
+    "id": "log_1762663961529_c7ixh23jk",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba0' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba0",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:52:41.529Z"
+  },
+  {
+    "id": "log_1762663928059_a3xffqoxv",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba1'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:52:08.059Z"
+  },
+  {
+    "id": "log_1762663920383_qs4yh0dn4",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba0'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba0",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:52:00.383Z"
+  },
+  {
+    "id": "log_1762663866791_n8no0f0fa",
+    "action": "Validación Automática Fallida",
+    "description": "Proceso de validación fallido para 'prueba1'. Error desconocido",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:51:06.791Z"
+  },
+  {
+    "id": "log_1762663866791_s6t6qaaa6",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:51:06.791Z"
+  },
+  {
+    "id": "log_1762663226355_s6t5k9a4f",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:40:26.355Z"
+  },
+  {
+    "id": "log_1762663198583_7ndaj9d0i",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba2' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:39:58.583Z"
+  },
+  {
+    "id": "log_1762662984345_dn1fdrhsc",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba3'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba3",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:36:24.345Z"
+  },
+  {
+    "id": "log_1762662976988_1lh8bo4hi",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba2'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:36:16.988Z"
+  },
+  {
+    "id": "log_1762662968436_hxlqxj7kx",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba1'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:36:08.436Z"
+  },
+  {
+    "id": "log_1762662452304_rzyw00rxh",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba2' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:27:32.304Z"
+  },
+  {
+    "id": "log_1762662249551_l2lgpkoio",
+    "action": "Validación Automática Completada",
+    "description": "Proceso de validación completado exitosamente para 'prueba1'. 200 campos completados de 200 total.",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:24:09.551Z"
+  },
+  {
+    "id": "log_1762662249550_asxi5y7oc",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:24:09.550Z"
+  },
+  {
+    "id": "log_1762661625684_z7uuw9qrd",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:13:45.684Z"
+  },
+  {
+    "id": "log_1762661398029_9n9p7aivx",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:09:58.029Z"
+  },
+  {
+    "id": "log_1762661219119_t20201re2",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:06:59.119Z"
+  },
+  {
+    "id": "log_1762661111701_d4leynpcg",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:05:11.701Z"
+  },
+  {
+    "id": "log_1762661010780_93qdh156c",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T04:03:30.780Z"
+  },
+  {
+    "id": "log_1762660582045_uv173cpzd",
+    "action": "Edición de Concurso",
+    "description": "Concurso 'prueba1' actualizado",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T03:56:22.045Z"
+  },
+  {
+    "id": "log_1762660520922_haddimtvk",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba2'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba2",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T03:55:20.922Z"
+  },
+  {
+    "id": "log_1762660513445_ya7revbk4",
+    "action": "Creación de Concurso",
+    "description": "Se creó el concurso 'prueba1'",
+    "date": "2025-11-09",
+    "user": "system@corfo.cl",
+    "contest": "prueba1",
+    "ipHost": "localhost",
+    "timestamp": "2025-11-09T03:55:13.445Z"
+  }
+]

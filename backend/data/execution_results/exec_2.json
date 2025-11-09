@@ -1,0 +1,1546 @@
+{
+  "exito": true,
+  "mensaje": "",
+  "estadisticas": {
+    "totalPasos": 12,
+    "totalCampos": 200,
+    "camposCompletados": 200,
+    "porcentajeExito": 100,
+    "velocidadCamposPorSegundo": 0.37,
+    "tiempoPromedioPorPaso": 45
+  },
+  "titulo": "Formulario de Postulación",
+  "tituloProyecto": "Formulario Postulación \"Perfil Impulsa Transición Tecnológica \"",
+  "codigoProyecto": "Código Proyecto: 25PRUEBAIA-1 [ N° 810348 ]",
+  "urlInicial": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVUEUTJWd9y0o0L/48pjj+07sz5ORWutdEsq1hQWROq6+6MDgdxTjfw02XnpHJQLjtD29GansLktinHdbUiigZac=",
+  "fechaEjecucion": "2025-11-09T04:59:35.778Z",
+  "tiempoTotal": 544,
+  "pasosCompletados": [
+    {
+      "numero": 1,
+      "titulo": "Datos Generales Proyecto",
+      "camposEncontrados": 24,
+      "camposCompletados": 24,
+      "tiempoTranscurrido": 61,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Datos Generales Proyecto Nombre Proyecto",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Sector Economico",
+          "tipo": "select",
+          "valorAsignado": "Acuicultura",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Sector Economico De Impacto Del Proyecto",
+          "tipo": "select",
+          "valorAsignado": "Agricultura",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Duracion Proyecto",
+          "tipo": "number",
+          "valorAsignado": "24",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Resumen",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Aporte Corfo Solicitado",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Aporte Pecuniario Del Beneficiario",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Aporte Valorizado Del Beneficiario",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Aporte Pecuniario Otros Participantes Asociadocoejecutor",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Aporte Valorizado Otros Participantes Asociadocoejecutor",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Costo Total Proyecto",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Localizacion Proyecto",
+          "tipo": "select",
+          "valorAsignado": "Región de Arica y Parinacota",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Objetivos Especificos Objetivo",
+          "tipo": "textarea",
+          "valorAsignado": "Desarrollar una solución tecnológica innovadora para el monitoreo ambiental en tiempo real",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Ejecucion Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Calle",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Numero",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Numero Departamentooficina",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Codigo Postal",
+          "tipo": "number",
+          "valorAsignado": "8320000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Impacto Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Postulacion Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Ejecucion Provincia",
+          "tipo": "select",
+          "valorAsignado": "Valparaiso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Postulacion Provincia",
+          "tipo": "select",
+          "valorAsignado": "Valparaiso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Ejecucion Comuna",
+          "tipo": "select",
+          "valorAsignado": "Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Datos Generales Proyecto Region Postulacion Comuna",
+          "tipo": "select",
+          "valorAsignado": "Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "titulo": "Encuesta",
+      "camposEncontrados": 1,
+      "camposCompletados": 1,
+      "tiempoTranscurrido": 5,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Favor Describir Experiencia",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "titulo": "las pelotas",
+      "camposEncontrados": 1,
+      "camposCompletados": 1,
+      "tiempoTranscurrido": 5,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Area De Texto 1",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "titulo": "Encargado/Director del Proyecto",
+      "camposEncontrados": 11,
+      "camposCompletados": 11,
+      "tiempoTranscurrido": 25,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Tipo",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Tipo Persona",
+          "tipo": "select",
+          "valorAsignado": "Persona Natural",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Tipo Identificador",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Identificador Rut",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Nombre",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Apellido Paterno",
+          "tipo": "text",
+          "valorAsignado": "González",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Apellido Materno",
+          "tipo": "text",
+          "valorAsignado": "González",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Genero",
+          "tipo": "select",
+          "valorAsignado": "Femenino",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Telefono Fijo",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Telefono Celular",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Mail",
+          "tipo": "email",
+          "valorAsignado": "contacto@empresaprueba.cl",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "titulo": "Beneficiario",
+      "camposEncontrados": 67,
+      "camposCompletados": 67,
+      "tiempoTranscurrido": 105,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Beneficiario Tipo",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Tipo Persona",
+          "tipo": "select",
+          "valorAsignado": "Persona Jurídica",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Tipo Identificador",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Identificador Rut",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Razon Social",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Objeto Social",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Giro",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Sector Economico",
+          "tipo": "select",
+          "valorAsignado": "Agricultura",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Fecha Constitucion",
+          "tipo": "date",
+          "valorAsignado": "31/12/2024",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Tamano Empresa",
+          "tipo": "select",
+          "valorAsignado": "Pequeña",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Calle",
+          "tipo": "text",
+          "valorAsignado": "Av. Providencia",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Numero",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Departamento",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Block",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Poblacion",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Codigo Postal",
+          "tipo": "number",
+          "valorAsignado": "8320000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Localizacion Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Su Empresa O Institucion Es Liderada Por Una Mujer",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Tipo Identificador",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Identificador Rut",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Nombre",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Apellido Paterno",
+          "tipo": "text",
+          "valorAsignado": "González",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Apellido Materno",
+          "tipo": "text",
+          "valorAsignado": "González",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Legal Genero",
+          "tipo": "select",
+          "valorAsignado": "Femenino",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Contacto Telefono Fijo",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Contacto Telefono Celular",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Representante Contacto Mail",
+          "tipo": "email",
+          "valorAsignado": "contacto@empresaprueba.cl",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Contacto Telefono Fijo",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Contacto Telefono Celular",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Contacto Mail",
+          "tipo": "email",
+          "valorAsignado": "contacto@empresaprueba.cl",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Adjuntos Archivo Adjunto",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Actividad Economica",
+          "tipo": "select",
+          "valorAsignado": "Acuicultura",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Detalle Actividad",
+          "tipo": "select",
+          "valorAsignado": "CULTIVO DE TRIGO",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Hizo Inicio De Actividades En Sii",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Ano Inicio Actividades",
+          "tipo": "date",
+          "valorAsignado": "31/12/2024",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Numero Empleados",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Total Ventas",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Exporto Ano Anterior",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Monto Total Exportaciones",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Monto Inversion Productiva",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Levanto Capital",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Monto Capital",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Fuente Capital",
+          "tipo": "select",
+          "valorAsignado": "Fondo Público",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Bienes Nuevos",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Servicios Nuevos",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Metodo Manufactura",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Metodo Logistica",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Actividad Soporte",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Gerentes",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Profesionales",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Tecnicas",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Operarias",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Administrativas",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Representantes",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Directoras",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Mujer Socias",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Gerentes",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Profesionales",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Tecnicos",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Operarios",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Administrativos",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Representantes",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Directores",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Datos Gestion Genero Empresa Hombre Socios",
+          "tipo": "number",
+          "valorAsignado": "0",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Tramo",
+          "tipo": "select",
+          "valorAsignado": "2.400 UF A 5.000 UF\t (PEQUEÑA 1)",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Localizacion Provincia",
+          "tipo": "select",
+          "valorAsignado": "Valparaiso",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Beneficiario Persona Juridica Direccion Localizacion Comuna",
+          "tipo": "select",
+          "valorAsignado": "Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 6,
+      "titulo": "Asociado",
+      "camposEncontrados": 19,
+      "camposCompletados": 19,
+      "tiempoTranscurrido": 47,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Su Propuesta Considera La Participacion De Asociados",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Tipo",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Tipo Persona",
+          "tipo": "select",
+          "valorAsignado": "Persona Jurídica",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Tipo Entidad Participante",
+          "tipo": "select",
+          "valorAsignado": "ONG",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Tipo Identificador",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Identificador Rut",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Razon Social",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Objeto Social",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Giro",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Tamano Empresa",
+          "tipo": "select",
+          "valorAsignado": "Pequeña",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Calle",
+          "tipo": "text",
+          "valorAsignado": "Av. Providencia",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Numero",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Departamento",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Block",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Poblacion",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Localizacion Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Adjuntos Archivo Adjunto",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Localizacion Provincia",
+          "tipo": "select",
+          "valorAsignado": "Valparaiso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Asociado Persona Juridica Direccion Localizacion Comuna",
+          "tipo": "select",
+          "valorAsignado": "Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 7,
+      "titulo": "Coejecutor",
+      "camposEncontrados": 40,
+      "camposCompletados": 40,
+      "tiempoTranscurrido": 84,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Su Propuesta Considera La Participacion De Coejecutores",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Tipo",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Tipo Entidad Participante",
+          "tipo": "select",
+          "valorAsignado": "ONG",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Tipo Identificador",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Identificador Rut",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Origen",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Razon Social",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Objeto Social",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Giro",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Tamano Empresa",
+          "tipo": "select",
+          "valorAsignado": "Pequeña",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Calle",
+          "tipo": "text",
+          "valorAsignado": "Av. Providencia",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Numero",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Departamento",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Block",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Poblacion",
+          "tipo": "text",
+          "valorAsignado": "Block A",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Codigo Postal",
+          "tipo": "number",
+          "valorAsignado": "8320000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Localizacion Region",
+          "tipo": "select",
+          "valorAsignado": "Región de Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Contacto Telefono Fijo",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Contacto Telefono Celular",
+          "tipo": "number",
+          "valorAsignado": "56912345678",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Contacto Mail",
+          "tipo": "email",
+          "valorAsignado": "contacto@empresaprueba.cl",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Adjuntos Archivo Adjunto",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Actividad Economica",
+          "tipo": "select",
+          "valorAsignado": "Acuicultura",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Detalle Actividad",
+          "tipo": "select",
+          "valorAsignado": "CULTIVO DE TRIGO",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Hizo Inicio De Actividades En Sii",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Ano Inicio Actividades",
+          "tipo": "date",
+          "valorAsignado": "31/12/2024",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Numero Empleados",
+          "tipo": "number",
+          "valorAsignado": "100",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Total Ventas",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Exporto Ano Anterior",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Monto Total Exportaciones",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Monto Inversion Productiva",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Levanto Capital",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Monto Capital",
+          "tipo": "number",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Fuente Capital",
+          "tipo": "select",
+          "valorAsignado": "Fondo Público",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Bienes Nuevos",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Servicios Nuevos",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Metodo Manufactura",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Actividad Soporte",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Datos Gestion Metodo Logistica",
+          "tipo": "radio",
+          "valorAsignado": "seleccionado",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Localizacion Provincia",
+          "tipo": "select",
+          "valorAsignado": "Valparaiso",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Coejecutor Persona Juridica Direccion Localizacion Comuna",
+          "tipo": "select",
+          "valorAsignado": "Valparaíso",
+          "completado": true,
+          "esObligatorio": true
+        }
+      ]
+    },
+    {
+      "numero": 8,
+      "titulo": "Propuesta Técnica y Financiera",
+      "camposEncontrados": 4,
+      "camposCompletados": 4,
+      "tiempoTranscurrido": 20,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "01fomrulario Antecedentes Y Resumen De La Propuesta",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Plantilla Presupuesto",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "04 Adjuntar Sustentabilidad De La Propuesta",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Adjunte Los Anexos Relacionados Con Su Postulacion",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": false
+        }
+      ]
+    },
+    {
+      "numero": 9,
+      "titulo": "Actividades",
+      "camposEncontrados": 5,
+      "camposCompletados": 5,
+      "tiempoTranscurrido": 18,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Actividad",
+          "tipo": "select",
+          "valorAsignado": "Actividad",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Mes inicio",
+          "tipo": "select",
+          "valorAsignado": "1",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Mes término",
+          "tipo": "select",
+          "valorAsignado": "1",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        }
+      ]
+    },
+    {
+      "numero": 10,
+      "titulo": "Presupuesto",
+      "camposEncontrados": 23,
+      "camposCompletados": 23,
+      "tiempoTranscurrido": 66,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Cargo",
+          "tipo": "select",
+          "valorAsignado": "ANALISTA",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Rut Recurso",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre Recurso",
+          "tipo": "text",
+          "valorAsignado": "254462950",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Fuente financiamiento",
+          "tipo": "select",
+          "valorAsignado": "CORFO",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Mes 1",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "X",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre ítem",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Fuente financiamiento",
+          "tipo": "select",
+          "valorAsignado": "CORFO",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Mes 1",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre ítem",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Fuente financiamiento",
+          "tipo": "select",
+          "valorAsignado": "CORFO",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Mes 1",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre ítem",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Fuente financiamiento",
+          "tipo": "select",
+          "valorAsignado": "CORFO",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Mes 1",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Nombre ítem",
+          "tipo": "text",
+          "valorAsignado": "Juan Carlos",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Descripción",
+          "tipo": "textarea",
+          "valorAsignado": "Este es un texto de prueba para campos que requieren descripción detallada.",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Fuente financiamiento",
+          "tipo": "select",
+          "valorAsignado": "CORFO",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Mes 1",
+          "tipo": "text",
+          "valorAsignado": "Texto de prueba",
+          "completado": true,
+          "esObligatorio": false
+        }
+      ]
+    },
+    {
+      "numero": 11,
+      "titulo": "Resumen presupuesto",
+      "camposEncontrados": 5,
+      "camposCompletados": 5,
+      "tiempoTranscurrido": 8,
+      "exito": true,
+      "detalles": [
+        {
+          "etiqueta": "Resumen Presupuesto Overhead",
+          "tipo": "text",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": true
+        },
+        {
+          "etiqueta": "Resumen Presupuesto Monto Otro Postulado",
+          "tipo": "text",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Resumen Presupuesto Arancel",
+          "tipo": "text",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Resumen Presupuesto Monto Anticipo",
+          "tipo": "text",
+          "valorAsignado": "50000000",
+          "completado": true,
+          "esObligatorio": false
+        },
+        {
+          "etiqueta": "Resumen Presupuesto Adjuntos Archivo Adjunto",
+          "tipo": "file",
+          "valorAsignado": "archivo_subido: documento_prueba.pdf",
+          "completado": true,
+          "esObligatorio": false
+        }
+      ]
+    },
+    {
+      "numero": 12,
+      "titulo": "Confirmación Final",
+      "camposEncontrados": 0,
+      "camposCompletados": 0,
+      "tiempoTranscurrido": 0,
+      "exito": true,
+      "detalles": []
+    }
+  ],
+  "errores": [],
+  "urlFormularioEnviado": "https://postulador.corfo.cl/GOS/PlataformaPostulacionFront/Modules/Postulador/Postulador.aspx?paramUrl=HANtlLRJ8UEzZmpbeJuhVUEUTJWd9y0o0L/48pjj+07sz5ORWutdEsq1hQWROq6+6MDgdxTjfw02XnpHJQLjtD29GansLktinHdbUiigZac=#boton",
+  "metadata": {
+    "processId": "process_1762664366049",
+    "executionId": "exec_1762664375778",
+    "fechaGuardado": "2025-11-09T05:08:40.201Z"
+  }
+}
