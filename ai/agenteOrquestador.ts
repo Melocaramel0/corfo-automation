@@ -618,6 +618,39 @@ export class AgenteOrquestador {
     private credenciales: { usuario: string; password: string } | null = null; // Credenciales dinámicas
     private cancelado: boolean = false; // Bandera para cancelación
 
+    /**
+     * Espera inteligente: Verifica condición cada 100ms hasta que se cumpla o se alcance timeout
+     * Esto permite continuar apenas la condición es verdadera, sin esperar tiempo fijo innecesario
+     * @param condicion Función que retorna true cuando se puede continuar
+     * @param timeoutMs Tiempo máximo a esperar (fallback al comportamiento actual)
+     * @returns true si la condición se cumplió, false si se alcanzó timeout
+     */
+    private async esperarCondicion(
+        condicion: () => Promise<boolean>,
+        timeoutMs: number
+    ): Promise<boolean> {
+        const inicio = Date.now();
+        const intervalo = 100; // Verificar cada 100ms
+        
+        while (Date.now() - inicio < timeoutMs) {
+            try {
+                if (await condicion()) {
+                    const tiempoEspera = Date.now() - inicio;
+                    if (tiempoEspera < timeoutMs * 0.5) {
+                        console.log(`   ⚡ Condición cumplida en ${tiempoEspera}ms (ahorro: ${timeoutMs - tiempoEspera}ms)`);
+                    }
+                    return true;
+                }
+            } catch (error) {
+                // Si falla la verificación, continuar esperando
+            }
+            await this.page!.waitForTimeout(intervalo);
+        }
+        
+        // Timeout alcanzado, continuar de todas formas (comportamiento actual)
+        return false;
+    }
+
     constructor(configuracion: ConfiguracionAgente, headless: boolean = false, credenciales?: { usuario: string; password: string }) {
         this.configuracion = configuracion;
         this.headless = headless;
@@ -869,9 +902,12 @@ export class AgenteOrquestador {
             await this.navegarDeBorradoresAFormulario();
         } else {
             console.log('✅ Ya estamos en el formulario real');
-            // Espera adicional cuando no hay borradores para que se carguen los campos dinámicos
+            // Espera inteligente: detectar cuando hay campos cargados (máximo 7 segundos)
             console.log('⏳ Esperando carga de campos dinámicos...');
-            await this.page!.waitForTimeout(7000);
+            await this.esperarCondicion(async () => {
+                const campos = await this.page!.$$('input:not([type="hidden"]), select, textarea');
+                return campos.length > 0;
+            }, 7000);
         }
         
         // Verificar cancelación después de navegación
@@ -887,12 +923,12 @@ export class AgenteOrquestador {
         console.log(`📋 Formulario accedido: ${this.resultado.titulo}`);
         console.log(`🔗 URL: ${this.resultado.urlInicial}`);
         
-        // Extraer información específica del proyecto
-        await this.extraerInformacionProyecto();
-        
-        // Esperar carga completa y activar contenido dinámico
-        await this.page!.waitForLoadState('networkidle').catch(() => {});
-        await this.activarContenidoDinamico();
+        // OPTIMIZACIÓN: Ejecutar en paralelo operaciones independientes
+        await Promise.all([
+            this.extraerInformacionProyecto(),
+            this.page!.waitForLoadState('networkidle').catch(() => {}),
+            this.activarContenidoDinamico()
+        ]);
         
         // Detectar estructura del formulario
         let estructura = await detector.detectarEstructuraCompleta();
@@ -956,7 +992,8 @@ export class AgenteOrquestador {
 
                 // Si procesarPasoActual completó exitosamente, avanzar al siguiente paso
                 pasoActual++;
-                await this.page!.waitForTimeout(2000);
+                // OPTIMIZADO: Espera reducida después de cambio de paso
+                await this.page!.waitForTimeout(1000);
                 
                 // Verificar si llegamos a una página especial
                 const estructuraActual = await detector.detectarEstructuraCompleta();
@@ -1088,8 +1125,12 @@ export class AgenteOrquestador {
                         break;
                     }
                     
-                    // Esperar a que el sistema nos posicione en los campos faltantes
-                    await this.page!.waitForTimeout(2000);
+                    // Espera inteligente: verificar que la página esté estable antes de procesar
+                    await this.esperarCondicion(async () => {
+                        const url = this.page!.url();
+                        await this.page!.waitForTimeout(500);
+                        return this.page!.url() === url; // URL estable = página lista
+                    }, 2000);
                     
                     // 🔴 CORRECCIÓN CRÍTICA: Procesar campos independientemente de si son "nuevos" o no
                     // El modal apareció = hay campos faltantes, debemos intentar completarlos
@@ -1259,7 +1300,12 @@ export class AgenteOrquestador {
             }
             
             await botonAgregar.click();
-            await this.page!.waitForTimeout(2000);
+            // OPTIMIZADO: Espera inteligente para apertura de modal
+            await this.esperarCondicion(async () => {
+                // Verificar que el modal esté visible
+                const modal = await this.page!.$('.modal:visible, [role="dialog"]:visible, .swal2-container:visible');
+                return modal !== null;
+            }, 2000);
             console.log('   ✅ Modal abierto');
             
             // 2. Procesar campos del modal (REUTILIZA lógica existente)
@@ -1381,7 +1427,11 @@ export class AgenteOrquestador {
                     }
                     
                     await botonAgregar.click();
-                    await this.page!.waitForTimeout(2000);
+                    // OPTIMIZADO: Espera inteligente para modal de presupuesto
+                    await this.esperarCondicion(async () => {
+                        const modal = await this.page!.$('.modal:visible, [role="dialog"]:visible');
+                        return modal !== null;
+                    }, 2000);
                     console.log('      ✅ Modal abierto');
                     
                     // 🔴 CRÍTICO: Limpiar Set de campos procesados para cada modal nuevo
@@ -1649,8 +1699,8 @@ export class AgenteOrquestador {
 
     /**
      * Realiza un scroll progresivo y suave para activar contenido dinámico
-     * MEJORADO: Activa todo el contenido sin logging excesivo
-     * MEJORADO: Los campos se capturan después por obtenerTodosLosCampos()
+     * OPTIMIZADO: Scroll más rápido con esperas condicionales
+     * Los campos se capturan después por obtenerTodosLosCampos()
      */
     private async scrollProgresivoParaActivarContenido(): Promise<void> {
         console.log('     📜 Activando contenido dinámico con scroll progresivo...');
@@ -1659,8 +1709,8 @@ export class AgenteOrquestador {
         let alturaDocumento = await this.page!.evaluate(() => document.body.scrollHeight);
         
         let posicionActual = 0;
-        const distanciaPorScroll = 200; // Distancia por cada scroll
-        const delayEntreScrolls = 150; // Tiempo entre scrolls
+        const distanciaPorScroll = 300; // OPTIMIZADO: Mayor distancia (era 200)
+        const delayEntreScrolls = 80;   // OPTIMIZADO: Menor delay (era 150)
         
         let contadorScrolls = 0;
         
@@ -3245,7 +3295,8 @@ export class AgenteOrquestador {
             const boton = await this.buscarBotonPorTexto(textoBotones);
             if (boton) {
                 await boton.click();
-                await this.page!.waitForTimeout(1500);
+                // OPTIMIZADO: Espera reducida después de cerrar modal
+                await this.page!.waitForTimeout(800);
                 console.log('   ✅ Modal confirmado');
             }
         } catch (error) {
@@ -3482,10 +3533,11 @@ export class AgenteOrquestador {
                     
                     // Hacer scroll al botón si es necesario
                     await boton.scrollIntoViewIfNeeded();
-                    await this.page!.waitForTimeout(500);
+                    await this.page!.waitForTimeout(300);
                     
                     await boton.click();
-                    await this.page!.waitForTimeout(2000);
+                    // OPTIMIZADO: Espera reducida después de click de navegación
+                    await this.page!.waitForTimeout(1200);
                     
                     // 🔴 NUEVO: Capturar resultado del modal
                     const resultadoModal = await this.manejarModalConfirmacion();
