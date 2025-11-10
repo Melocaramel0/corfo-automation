@@ -214,27 +214,6 @@ Ver carpeta `/documentacion/` para guías detalladas:
 - `INICIO_RAPIDO.md` - Guía de inicio
 - `CONTROL_COSTOS.md` - Optimización de recursos
 
-## 🤝 Contribuir
-
-Este es un proyecto privado. Para contribuir, contacta al equipo de desarrollo.
-
-## 📄 Licencia
-
-ISC
-
----
-
-**Versión**: 2.1.0 (Refactorizada - Arquitectura Modular)  
-**Última actualización**: Nov 2025
-
-### 🎯 Mejoras de la Refactorización
-
-- ✅ **Reducción de código**: `agenteOrquestador.ts` reducido de ~3,125 a 1,386 líneas (56% menos)
-- ✅ **Arquitectura modular**: Servicios especializados por responsabilidad
-- ✅ **Mejor mantenibilidad**: Código más fácil de entender y modificar
-- ✅ **Separación de concerns**: Navegación, campos, autenticación, etc. en módulos independientes
-- ✅ **Reutilización**: Servicios pueden ser utilizados independientemente
-- ✅ **Organización de datos**: Carpeta `data/` centralizada en la raíz del proyecto para fácil acceso
 
 ## 💾 Almacenamiento de Datos
 
@@ -249,3 +228,21 @@ Todos los datos generados por el sistema se guardan en la carpeta `data/` en la 
 - **`data/ai_consumption.json`**: Estadísticas de consumo de recursos IA
 
 > **Nota**: La carpeta `data/` se crea automáticamente al iniciar el servidor. Si necesitas limpiar los datos, simplemente elimina la carpeta y se recreará automáticamente.
+
+
+## 🤝 Contribuir
+
+Este es un proyecto privado. Para contribuir, contacta al equipo de desarrollo.
+
+## 📄 Licencia
+
+ISC
+
+---
+
+**Versión**: 2.1.0 (Refactorizada - Arquitectura Modular)  
+**Última actualización**: Nov 2025
+
+
+
+
