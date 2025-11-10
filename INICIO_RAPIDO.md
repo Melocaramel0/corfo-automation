@@ -94,16 +94,44 @@ Permisos: Solo ver y ejecutar procesos
 
 
 
+## 🎉 Ejecutar Procesos
 
-
-
-
-## 🎉 ¡Listo!
+### Opción 1: Desde la Aplicación Web (Recomendado)
 
 1. Abre tu navegador en: **http://localhost:5173**
-2. Crea un nuevo proceso desde la interfaz
-3. Ingresa la URL del formulario CORFO
-4. Haz clic en ▶️ "Ejecutar" y observa el progreso en tiempo real
+2. Inicia sesión con tus credenciales
+3. Crea un nuevo proceso desde la interfaz
+4. Ingresa la URL del formulario CORFO
+5. Haz clic en ▶️ "Ejecutar" y observa el progreso en tiempo real
+
+### Opción 2: Desde la Terminal (CLI)
+
+Ejecuta el agente directamente desde la terminal para debugging o ejecuciones rápidas:
+
+```bash
+cd backend
+npm run agente-orquestador
+```
+
+**Flujo de ejecución desde terminal:**
+1. El agente te pedirá ingresar la URL del formulario CORFO
+2. Se abrirá un navegador (visible por defecto)
+3. El agente realizará login automáticamente usando las credenciales de `backend/.env`
+4. Procesará el formulario paso a paso
+5. Al finalizar, generará un reporte JSON en `data/debugg_results/report_N.json` (raíz del proyecto)
+6. Si está habilitado, también generará un PDF en `data/informes/report_N.pdf` (raíz del proyecto)
+
+**Nota:** Los reportes generados desde terminal se guardan localmente y no se sincronizan con la base de datos de la aplicación web.
+
+### 📁 Ubicación de Archivos Generados
+
+Todos los archivos generados se guardan en la carpeta `data/` en la **raíz del proyecto**:
+
+- **Reportes desde terminal**: `data/debugg_results/report_N.json` y `data/informes/report_N.pdf`
+- **Reportes desde UI**: `data/execution_results/exec_N.json` y `data/informes/exec_N.pdf`
+- **Datos del sistema**: `data/processes.json`, `data/executions.json`, `data/system_logs.json`
+
+> 💡 **Tip**: La carpeta `data/` se crea automáticamente. Puedes eliminarla en cualquier momento para limpiar todos los datos y se recreará al ejecutar el sistema nuevamente.
 
 ## 📖 Más Información
 

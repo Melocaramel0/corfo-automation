@@ -36,7 +36,6 @@ corfo-automation/
 │   │   │   ├── services/ # Lógica de negocio
 │   │   │   └── utils/    # Utilidades
 │   │   └── scripts/      # Scripts de mantenimiento
-│   ├── data/             # Datos y reportes generados
 │   ├── package.json      # Dependencias backend
 │   └── tsconfig.json     # Config TypeScript backend
 │
@@ -49,6 +48,14 @@ corfo-automation/
 │   ├── package.json      # Dependencias frontend
 │   └── vite.config.ts    # Config Vite
 │
+├── data/                 # 💾 Datos y reportes generados (raíz del proyecto)
+│   ├── debugg_results/   # Reportes desde terminal (report_N.json)
+│   ├── execution_results/# Reportes desde UI (exec_N.json)
+│   ├── informes/         # PDFs generados (report_N.pdf, exec_N.pdf)
+│   ├── processes.json    # Procesos guardados
+│   ├── executions.json   # Ejecuciones activas
+│   ├── system_logs.json  # Logs del sistema
+│   └── ai_consumption.json # Consumo de recursos IA
 ├── archivos_prueba/      # Archivos para testing
 ├── documentacion/        # Documentación técnica
 ├── package.json          # Root (scripts monorepo)
@@ -197,7 +204,7 @@ El código está organizado en módulos especializados siguiendo el principio de
    - Intenta navegar al siguiente
    - Si aparece modal de campos faltantes → reintenta
 5. **Confirmación**: Envía formulario final
-6. **Reporte**: Genera JSON + PDF con resultados
+6. **Reporte**: Genera JSON + PDF con resultados en `data/` (raíz del proyecto)
 
 ## 📖 Documentación Adicional
 
@@ -222,8 +229,23 @@ ISC
 
 ### 🎯 Mejoras de la Refactorización
 
-- ✅ **Reducción de código**: `agenteOrquestador.ts` 
+- ✅ **Reducción de código**: `agenteOrquestador.ts` reducido de ~3,125 a 1,386 líneas (56% menos)
 - ✅ **Arquitectura modular**: Servicios especializados por responsabilidad
 - ✅ **Mejor mantenibilidad**: Código más fácil de entender y modificar
 - ✅ **Separación de concerns**: Navegación, campos, autenticación, etc. en módulos independientes
 - ✅ **Reutilización**: Servicios pueden ser utilizados independientemente
+- ✅ **Organización de datos**: Carpeta `data/` centralizada en la raíz del proyecto para fácil acceso
+
+## 💾 Almacenamiento de Datos
+
+Todos los datos generados por el sistema se guardan en la carpeta `data/` en la **raíz del proyecto**:
+
+- **`data/debugg_results/`**: Reportes JSON generados desde terminal (`report_1.json`, `report_2.json`, ...)
+- **`data/execution_results/`**: Reportes JSON generados desde la UI (`exec_1.json`, `exec_2.json`, ...)
+- **`data/informes/`**: PDFs generados automáticamente (`report_N.pdf`, `exec_N.pdf`)
+- **`data/processes.json`**: Procesos de validación guardados
+- **`data/executions.json`**: Estado de ejecuciones activas
+- **`data/system_logs.json`**: Logs de acciones del sistema
+- **`data/ai_consumption.json`**: Estadísticas de consumo de recursos IA
+
+> **Nota**: La carpeta `data/` se crea automáticamente al iniciar el servidor. Si necesitas limpiar los datos, simplemente elimina la carpeta y se recreará automáticamente.
