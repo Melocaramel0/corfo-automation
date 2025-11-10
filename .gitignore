@@ -41,3 +41,7 @@ coverage/
 
 # Production
 build/
+
+#datos locales
+data/
+

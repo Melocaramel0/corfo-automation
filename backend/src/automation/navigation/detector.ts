@@ -2,7 +2,7 @@
  * Detector de estructura del formulario
  */
 import { Page } from 'playwright';
-import { EstructuraFormularioDetectada } from './types';
+import { EstructuraFormularioDetectada } from '../core/types';
 
 /**
  * Clase para detectar automáticamente la estructura del formulario
@@ -142,7 +142,7 @@ export class DetectorEstructura {
      */
     async esPaginaConfirmacion(): Promise<boolean> {
         return await this.page.evaluate(() => {
-            // 🔴 DETECCIÓN PRINCIPAL: Botón "Enviar" con id="BotonEnviar"
+            //  DETECCIÓN PRINCIPAL: Botón "Enviar" con id="BotonEnviar"
             const botonEnviar = document.querySelector('#BotonEnviar, a[id*="BotonEnviar"], button[id*="BotonEnviar"]');
             if (botonEnviar) {
                 const rect = botonEnviar.getBoundingClientRect();
@@ -152,7 +152,7 @@ export class DetectorEstructura {
                 }
             }
             
-            // 🔴 VERIFICACIÓN SECUNDARIA: Si hay botón AGREGAR+, NO es confirmación
+            //  VERIFICACIÓN SECUNDARIA: Si hay botón AGREGAR+, NO es confirmación
             const botonesAgregar = Array.from(document.querySelectorAll('button, a, input[type="button"]'));
             const tieneBotonAgregar = botonesAgregar.some(boton => {
                 const texto = (boton.textContent?.trim() || '').toLowerCase();
@@ -166,7 +166,7 @@ export class DetectorEstructura {
                 return false;
             }
             
-            // 🔴 VERIFICACIÓN TERCIARIA: Si hay tabs de presupuesto, NO es confirmación
+            //  VERIFICACIÓN TERCIARIA: Si hay tabs de presupuesto, NO es confirmación
             const tabsContainer = document.querySelector('ul[id*="ul_tb_cuentas_"]');
             if (tabsContainer) {
                 const tabs = tabsContainer.querySelectorAll('li a[data-toggle="tab"][data-cuenta]');
@@ -410,5 +410,6 @@ export class DetectorEstructura {
         });
     }
 }
+
 
 

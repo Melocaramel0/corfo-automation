@@ -42,7 +42,8 @@ export class ExecutionService {
    * SOLUCIÓN 3: Detectar OneDrive y usar ruta alternativa
    */
   private getSecureDataPath(): string {
-    const defaultPath = path.join(__dirname, '../../../data/logs.json');
+    const { getDataPath } = require('../utils/dataPath');
+    const defaultPath = path.join(getDataPath(), 'logs.json');
     
     // Verificar si estamos en OneDrive (Windows)
     if (process.platform === 'win32' && defaultPath.includes('OneDrive')) {
@@ -198,7 +199,7 @@ export class ExecutionService {
       // Analizar el mensaje para extraer progreso
       this.analyzeLogForProgress(execution, message);
       
-      // 🔴 MEJORA: Usar debounce para evitar escrituras excesivas
+      //  MEJORA: Usar debounce para evitar escrituras excesivas
       // Guardar después de 500ms de inactividad en lugar de por cada log
       this.debounceSave();
     }

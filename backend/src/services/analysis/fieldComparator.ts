@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import dotenv from 'dotenv';
 import { AzureOpenAI } from 'openai';
-import { configurarClienteAzure, crearCompletacionConFallback } from './generadorInforme';
+import { configurarClienteAzure, crearCompletacionConFallback } from '../report/reportGenerator';
 
 dotenv.config();
 
@@ -222,7 +222,7 @@ export async function mapearCamposConIA(
 
       // Registrar consumo de IA
       try {
-        const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+        const { AIConsumptionService } = await import('../../server/services/aiConsumptionService');
         const aiConsumptionService = AIConsumptionService.getInstance();
         const inputTokens = respuesta.usage?.prompt_tokens || 0;
         const outputTokens = respuesta.usage?.completion_tokens || 0;
@@ -424,7 +424,7 @@ export async function compararCamposFundamentales(
   rutaCamposFundamentales?: string
 ): Promise<ResultadoComparacion> {
   // Cargar campos fundamentales
-  const ruta = rutaCamposFundamentales || path.join(__dirname, '../../campos_fundamentales.json');
+  const ruta = rutaCamposFundamentales || path.join(__dirname, '../../../campos_fundamentales.json');
   const contenido = await fs.readFile(ruta, 'utf-8');
   const camposFundamentales: CamposFundamentalesJSON = JSON.parse(contenido);
 

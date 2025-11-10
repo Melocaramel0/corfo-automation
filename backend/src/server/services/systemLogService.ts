@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getDataPath } from '../utils/dataPath';
 
 interface SystemLogEntry {
   id: string;
@@ -19,7 +20,7 @@ export class SystemLogService {
   private saveTimeout: NodeJS.Timeout | null = null;
 
   private constructor() {
-    this.logsFile = path.join(__dirname, '../../../data/system_logs.json');
+    this.logsFile = path.join(getDataPath(), 'system_logs.json');
     this.loadLogs();
   }
 

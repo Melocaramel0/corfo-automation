@@ -8,13 +8,28 @@ Sistema automatizado para procesamiento de formularios CORFO con análisis multi
 corfo-automation/
 ├── backend/               # Backend Node.js + Express + Playwright
 │   ├── src/
-│   │   ├── ai/           # Agente Orquestador y módulos IA
-│   │   │   ├── agenteOrquestador.ts  # Agente principal
-│   │   │   ├── detector.ts           # Detección de estructura
-│   │   │   ├── constants.ts          # Constantes y mapeos
-│   │   │   ├── types.ts              # Interfaces TypeScript
-│   │   │   ├── generadorInforme.ts   # Generación de PDFs
-│   │   │   └── comparadorCamposFundamentales.ts
+│   │   ├── automation/   # Módulo de automatización 
+│   │   │   ├── core/     # Núcleo del agente
+│   │   │   │   ├── agenteOrquestador.ts  # Agente principal (orquestación)
+│   │   │   │   └── types.ts              # Interfaces TypeScript
+│   │   │   ├── navigation/  # Navegación y detección
+│   │   │   │   ├── detector.ts      # Detección de estructura
+│   │   │   │   ├── navigator.ts     # Navegación entre pasos
+│   │   │   │   └── modalHandler.ts  # Manejo de modales
+│   │   │   ├── fields/   # Manejo de campos
+│   │   │   │   ├── fieldExtractor.ts      # Extracción de campos
+│   │   │   │   ├── fieldCompleter.ts      # Completado de campos
+│   │   │   │   └── fieldValueGenerator.ts # Generación de valores
+│   │   │   ├── auth/     # Autenticación
+│   │   │   │   └── loginService.ts  # Servicio de login
+│   │   │   ├── utils/    # Utilidades
+│   │   │   │   └── waitUtils.ts     # Utilidades de espera
+│   │   │   └── constants.ts         # Constantes y mapeos
+│   │   ├── services/     # Servicios de análisis/reportes
+│   │   │   ├── report/   # Generación de reportes
+│   │   │   │   └── reportGenerator.ts  # Generación de PDFs
+│   │   │   └── analysis/ # Análisis de campos
+│   │   │       └── fieldComparator.ts  # Comparación de campos
 │   │   ├── server/       # API REST Express
 │   │   │   ├── index.ts
 │   │   │   ├── routes/   # Rutas API
@@ -66,7 +81,7 @@ Crear archivo `.env` en `/backend/`:
 # Credenciales CORFO
 CORFO_USER=tu_usuario
 CORFO_PASS=tu_contraseña
-CORFO_URL=https://ejemplo.corfo.cl/concurso/abc
+
 
 # Azure OpenAI Configuration
 AZURE_OPENAI_API_KEY=tu-clave-api-aqui
@@ -78,7 +93,7 @@ AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4-turbo
 
 ### Modo Desarrollo (Ambos servicios)
 ```bash
-npm start
+npm start 
 # Backend: http://localhost:3001
 # Frontend: http://localhost:5173
 ```
@@ -95,7 +110,7 @@ cd frontend
 npm run dev
 ```
 
-### Ejecutar Agente desde CLI
+### Ejecutar Agente desde CLI / Terminal para debugg
 ```bash
 cd backend
 npm run agente-orquestador
@@ -126,11 +141,32 @@ npm run agente-orquestador
 - **Fetch API**: Comunicación con backend
 
 ### Modularización
-El código está organizado en módulos especializados:
-- `detector.ts`: Detección de estructura del formulario
-- `constants.ts`: Mapeos y configuraciones
+El código está organizado en módulos especializados siguiendo el principio de responsabilidad única:
+
+**Automation Core:**
+- `agenteOrquestador.ts`: Orquestación principal 
 - `types.ts`: Interfaces TypeScript compartidas
-- Separación clara entre backend y frontend
+
+**Navigation:**
+- `detector.ts`: Detección de estructura del formulario
+- `navigator.ts`: Navegación entre pasos y URLs
+- `modalHandler.ts`: Manejo de modales de confirmación
+
+**Fields:**
+- `fieldExtractor.ts`: Extracción de campos del formulario
+- `fieldCompleter.ts`: Completado de campos (text, select, radio, file, etc.)
+- `fieldValueGenerator.ts`: Generación inteligente de valores
+
+**Auth:**
+- `loginService.ts`: Autenticación en CORFO (múltiples interfaces)
+
+**Services:**
+- `reportGenerator.ts`: Generación de reportes PDF
+- `fieldComparator.ts`: Comparación y análisis de campos
+
+**Utils:**
+- `waitUtils.ts`: Utilidades de espera optimizadas
+- `constants.ts`: Mapeos y configuraciones centralizadas
 
 ## 📝 Scripts Disponibles
 
@@ -181,5 +217,13 @@ ISC
 
 ---
 
-**Versión**: 2.0.0 (Refactorizada)  
-**Última actualización**: Noviembre 2025
+**Versión**: 2.1.0 (Refactorizada - Arquitectura Modular)  
+**Última actualización**: Nov 2025
+
+### 🎯 Mejoras de la Refactorización
+
+- ✅ **Reducción de código**: `agenteOrquestador.ts` 
+- ✅ **Arquitectura modular**: Servicios especializados por responsabilidad
+- ✅ **Mejor mantenibilidad**: Código más fácil de entender y modificar
+- ✅ **Separación de concerns**: Navegación, campos, autenticación, etc. en módulos independientes
+- ✅ **Reutilización**: Servicios pueden ser utilizados independientemente

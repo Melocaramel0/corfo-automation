@@ -5,7 +5,7 @@ import {
   extraerMetadatosCampos,
   mapearCamposConIA,
   compararCamposFundamentales,
-} from '../ai/comparadorCamposFundamentales';
+} from '../services/analysis/fieldComparator';
 
 /**
  * Interfaz para campos fundamentales (mismo que en comparadorCamposFundamentales.ts)

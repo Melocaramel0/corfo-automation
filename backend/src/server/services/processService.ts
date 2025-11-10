@@ -1,10 +1,11 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { AgenteOrquestador, ResultadoAgente } from '../../ai/agenteOrquestador';
+import { AgenteOrquestador, ResultadoAgente } from '../../automation/core/agenteOrquestador';
 import { executionService } from './executionService';
 import { getNextReportId } from '../utils/getNextReportId';
-import { generarInformePDF } from '../../ai/generadorInforme';
+import { generarInformePDF } from '../../services/report/reportGenerator';
 import { SystemLogService } from './systemLogService';
+import { getDataPath, getDataSubPath } from '../utils/dataPath';
 
 interface ValidationProcess {
   id: string;
@@ -39,7 +40,7 @@ interface PaginatedResponse<T> {
 
 export class ProcessService {
   private static instance: ProcessService;
-  private processesFile = path.join(__dirname, '../../../data/processes.json');
+  private processesFile = path.join(getDataPath(), 'processes.json');
   private activeMVPInstances: Map<string, AgenteOrquestador> = new Map(); // Guardar instancias activas
 
   private constructor() {
@@ -400,7 +401,7 @@ export class ProcessService {
    */
   private async saveExecutionResult(executionId: string, processId: string, resultado: ResultadoAgente): Promise<boolean> {
     try {
-      const resultsDir = path.join(__dirname, '../../../data/execution_results');
+      const resultsDir = getDataSubPath('execution_results');
       await fs.mkdir(resultsDir, { recursive: true });
 
       // Obtener siguiente ID incremental para reportes de UI
@@ -455,7 +456,7 @@ export class ProcessService {
       
       if (tieneDatosValidos) {
         try {
-          const informesDir = path.join(__dirname, '../../../data/informes');
+          const informesDir = getDataSubPath('informes');
           const pdfPath = path.join(informesDir, `exec_${nextId}.pdf`);
           
           await generarInformePDF(resultFile, pdfPath);
@@ -501,7 +502,7 @@ export class ProcessService {
 
   async getProcessResults(processId: string): Promise<any[]> {
     // Buscar el último resultado de ejecución para este proceso filtrando por processId en el contenido JSON
-    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    const resultsDir = getDataSubPath('execution_results');
     
     try {
       const files = await fs.readdir(resultsDir);
@@ -589,7 +590,7 @@ export class ProcessService {
     
     // Obtener fecha de ejecución del archivo JSON si está disponible para usar timestamps reales
     let fechaEjecucionBase: string | null = null;
-    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    const resultsDir = getDataSubPath('execution_results');
     try {
       const files = await fs.readdir(resultsDir);
       const jsonFiles = files.filter(f => f.startsWith('exec_') && f.endsWith('.json'));
@@ -672,7 +673,7 @@ export class ProcessService {
   async getProcessExecutionJson(processId: string): Promise<any> {
     // Obtener el JSON completo del archivo exec_*.json
     // Estrategia: filtrar por processId leyendo el contenido JSON y retornar el más reciente de ese proceso
-    const resultsDir = path.join(__dirname, '../../../data/execution_results');
+    const resultsDir = path.join(__dirname, '../../../../data/execution_results');
     
     try {
       const files = await fs.readdir(resultsDir);
@@ -777,7 +778,7 @@ export class ProcessService {
     tiempoPromedio: number;
     totalEjecuciones: number;
   }> {
-    const resultsDir = path.join(__dirname, '../../data/execution_results');
+    const resultsDir = getDataSubPath('execution_results');
     
     try {
       // Verificar si el directorio existe

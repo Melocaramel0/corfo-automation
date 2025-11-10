@@ -9,21 +9,26 @@ Asegúrate de tener instalado:
 ## 📦 Instalación
 
 ```bash
+# Opción 1: Instalar todo (recomendado)
+npm run install:all
+
+# Opción 2: Instalar por separado
 # 1. Instalar dependencias del backend
+cd backend
 npm install
 
 # 2. Instalar dependencias del frontend
-cd ui
+cd ../frontend
 npm install
-cd ..
 
 # 3. Instalar Playwright (para automatización)
+cd ../backend
 npx playwright install
 ```
 
 ## 🔐 Configuración
 
-Crea un archivo `.env` en la raíz del proyecto:
+Crea un archivo `.env` en la carpeta `/backend/`:
 
 ```bash
 # Puerto del servidor backend
@@ -35,6 +40,11 @@ CORFO_PASS=tu_password_corfo
 
 # URL del formulario (opcional)
 CORFO_URL=https://postulador.corfo.cl/...
+
+# Azure OpenAI Configuration (opcional, para generación de reportes)
+AZURE_OPENAI_API_KEY=tu-clave-api-aqui
+AZURE_OPENAI_ENDPOINT=https://tu-recurso.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4-turbo
 ```
 
 ## 🎯 Ejecutar la Aplicación
@@ -53,12 +63,14 @@ Esto iniciará:
 
 **Terminal 1 - Backend:**
 ```bash
+cd backend
 npm run server:dev
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-npm run client
+cd frontend
+npm run dev
 ```
 
 ### Mock users:
@@ -95,18 +107,20 @@ Permisos: Solo ver y ejecutar procesos
 
 ## 📖 Más Información
 
-Para detalles técnicos completos, consulta: `INTEGRACION_FRONTEND_BACKEND.md`
+Para detalles técnicos completos, consulta:
+- `documentacion/INTEGRACION_FRONTEND_BACKEND.md` - API y comunicación
+- `README.md` - Documentación completa del proyecto
 
 ## ❓ Problemas Comunes
 
 ### Error: Puerto 3001 en uso
 ```bash
-# Cambiar puerto en .env
+# Cambiar puerto en backend/.env
 PORT=3002
 ```
 
 ### Error: Credenciales incorrectas
-Verifica que `CORFO_USER` y `CORFO_PASS` sean correctos en `.env`
+Verifica que `CORFO_USER` y `CORFO_PASS` sean correctos en `backend/.env`
 
 ### Frontend no conecta con backend
 Reinicia ambos servidores:

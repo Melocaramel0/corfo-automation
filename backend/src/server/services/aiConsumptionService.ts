@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getDataPath } from '../utils/dataPath';
 
 interface AIConsumptionData {
   nlpApi: {
@@ -24,7 +25,7 @@ export class AIConsumptionService {
   private consumption: AIConsumptionData;
 
   private constructor() {
-    this.consumptionFile = path.join(__dirname, '../../../data/ai_consumption.json');
+    this.consumptionFile = path.join(getDataPath(), 'ai_consumption.json');
     this.consumption = {
       nlpApi: {
         requests: 0,

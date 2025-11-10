@@ -47,7 +47,46 @@ export const CAMPOS_CORFO_MAPPING = {
     'TEXTO_LARGO': 'Este es un texto de prueba para campos que requieren descripción detallada.',
     'TEXTO_CORTO': 'Texto de prueba',
     'BOOLEAN': true,
-    'SELECT_DEFAULT': 'primera_opcion'
+    'SELECT_DEFAULT': 'primera_opcion',
+    
+    // Valores específicos para campos financieros
+    'INVERSION': '50000000',
+    'COSTOS_OPERACION': '50000000',
+    'MONTO_GENERICO': '50000000',
+    
+    // Valores específicos para dirección
+    'DIRECCION_NUMERO_CORTO': '100',
+    'DIRECCION_DEPTO_CORTO': '100',
+    'CODIGO_POSTAL_CHILE': '8320000',
+    'BLOCK_VILLA': 'Block A',
+    
+    // Valores específicos para fechas y años
+    'AÑO': '2024',
+    'FECHA_FORMATO_DDMMYYYY': '31/12/2024',
+    
+    // Valores para URLs y redes sociales
+    'URL_EJEMPLO': 'https://www.ejemplo.cl',
+    'URL_REDES_SOCIALES': 'https://www.ejemplo.com',
+    
+    // Valores para profesión y ocupación
+    'PROFESION': 'Ingeniero de Software',
+    
+    // Valores para etnia y pueblo originario
+    'ETNIA': 'No aplica',
+    'PUEBLO_ORIGINARIO': 'No',
+    
+    // Valores para passwords
+    'PASSWORD': 'password123',
+    
+    // Textos específicos para justificaciones
+    'JUSTIFICACION_GENERICA': 'Este proyecto se basa en ciclos biológicos naturales para optimizar los procesos y minimizar el impacto ambiental, aprovechando los patrones naturales de crecimiento y desarrollo para crear soluciones más eficientes y sostenibles.',
+    'CICLOS_BIOLOGICOS': 'El proyecto implementa principios de ciclos biológicos para mejorar la eficiencia y sostenibilidad de los procesos, utilizando patrones naturales de crecimiento y desarrollo.',
+    
+    // Valores por defecto para campos genéricos
+    'OPCION_POR_DEFECTO': 'Opción por defecto',
+    'ARCHIVO_PRUEBA': 'archivo_prueba.pdf',
+    'SIN_OPCIONES_DISPONIBLES': 'Sin opciones disponibles',
+    'PRIMERA_OPCION': 'Primera opción'
 };
 
 /**
@@ -57,5 +96,6 @@ export const DEFAULT_CONFIG = {
     tiempoEsperaEntreCampos: 300, // milisegundos
     GENERAR_PDF_DEBUGGING: false
 };
+
 
 

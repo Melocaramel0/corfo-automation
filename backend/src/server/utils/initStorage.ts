@@ -1,11 +1,12 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getDataPath } from './dataPath';
 
 /**
  * Inicializa los directorios y archivos de almacenamiento necesarios
  */
 export async function initStorage(): Promise<void> {
-  const dataDir = path.join(__dirname, '../../../data');
+  const dataDir = getDataPath();
   const executionResultsDir = path.join(dataDir, 'execution_results');
   const informesDir = path.join(dataDir, 'informes');
   

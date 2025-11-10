@@ -6,7 +6,7 @@ import { mdToPdf } from 'md-to-pdf';
 import {
   compararCamposFundamentales,
   generarEstadisticasComparacion,
-} from './comparadorCamposFundamentales';
+} from '../analysis/fieldComparator';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -107,7 +107,7 @@ async function registrarConsumoIA(usage: { prompt_tokens?: number; completion_to
   if (!usage) return;
   
   try {
-    const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+      const { AIConsumptionService } = await import('../../server/services/aiConsumptionService');
     const aiConsumptionService = AIConsumptionService.getInstance();
     const inputTokens = usage.prompt_tokens || 0;
     const outputTokens = usage.completion_tokens || 0;
@@ -433,7 +433,7 @@ async function generarTablaCamposFundamentales(resultado: ResultadoAgente): Prom
     });
     
     // Cargar campos fundamentales para obtener números de referencia
-    const camposFundamentalesPath = path.join(__dirname, '../../campos_fundamentales.json');
+    const camposFundamentalesPath = path.join(__dirname, '../../../campos_fundamentales.json');
     const contenido = await fs.readFile(camposFundamentalesPath, 'utf-8');
     const camposFundamentales: any = JSON.parse(contenido);
     
@@ -838,7 +838,7 @@ export async function generarInformePDF(
     // Registrar análisis de sentimientos (los informes incluyen análisis)
     // Registrar también detección de temas (análisis de campos fundamentales)
     try {
-      const { AIConsumptionService } = await import('../server/services/aiConsumptionService');
+      const { AIConsumptionService } = await import('../../server/services/aiConsumptionService');
       const aiConsumptionService = AIConsumptionService.getInstance();
       await aiConsumptionService.recordSentimentAnalysis();
       // El informe incluye análisis de campos fundamentales, lo cual es una forma de detección de temas
@@ -906,7 +906,7 @@ if (require.main === module) {
 
   if (args.length < 2) {
     console.error('❌ Uso: npx ts-node ai/generadorInforme.ts <ruta-json> <ruta-pdf-salida>');
-    console.error('   Ejemplo: npx ts-node ai/generadorInforme.ts data/debugg_results/report_6.json data/informes/report_6.pdf');
+    console.error('   Ejemplo: npx ts-node services/report/reportGenerator.ts data/debugg_results/report_6.json data/informes/report_6.pdf');
     process.exit(1);
   }
 

@@ -7,7 +7,7 @@
     "dev": "tsc --watch",
     "server": "npx ts-node --project tsconfig.json src/server/index.ts",
     "server:dev": "npx nodemon --watch src --ext ts --exec \"npx ts-node --project tsconfig.json src/server/index.ts\"",
-    "agente-orquestador": "npx ts-node --project tsconfig.json src/ai/agenteOrquestador.ts",
+    "agente-orquestador": "npx ts-node --project tsconfig.json src/automation/core/agenteOrquestador.ts",
     "generar-informe": "npx ts-node --project tsconfig.json scripts/generarInformePDF.ts"
   },
   "dependencies": {

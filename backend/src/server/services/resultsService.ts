@@ -1,8 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getDataSubPath } from '../utils/dataPath';
 
 export class ResultsService {
-  private resultsDir = path.join(__dirname, '../../../data/execution_results');
+  private resultsDir = getDataSubPath('execution_results');
 
   async getResults(processId: string): Promise<any[]> {
     try {

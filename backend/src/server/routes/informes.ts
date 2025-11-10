@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { executionService } from '../services/executionService';
 import { ProcessService } from '../services/processService';
+import { getDataSubPath } from '../utils/dataPath';
 
 const router = Router();
 const processService = ProcessService.getInstance();
@@ -38,7 +39,7 @@ router.get('/descargar/:nombreArchivo', async (req: Request, res: Response) => {
     }
 
     // Construir ruta al archivo
-    const informesDir = path.join(__dirname, '../../../data/informes');
+    const informesDir = getDataSubPath('informes');
     const filePath = path.join(informesDir, nombreArchivo);
 
     // Verificar que el archivo existe
@@ -85,7 +86,7 @@ router.get('/descargar/:nombreArchivo', async (req: Request, res: Response) => {
  */
 router.get('/listar', async (req: Request, res: Response) => {
   try {
-    const informesDir = path.join(__dirname, '../../../data/informes');
+    const informesDir = getDataSubPath('informes');
 
     // Verificar que el directorio existe
     try {
@@ -196,7 +197,7 @@ async function encontrarPdfPorProcessId(processId: string): Promise<string | nul
 
     // 4. Fallback: Retornar el PDF más reciente si el proceso está "Ejecutado"
     if (proceso.estado === 'Ejecutado') {
-      const informesDir = path.join(__dirname, '../../../data/informes');
+      const informesDir = getDataSubPath('informes');
       try {
         await fs.access(informesDir);
         const archivos = await fs.readdir(informesDir);
@@ -237,7 +238,7 @@ async function encontrarPdfPorProcessId(processId: string): Promise<string | nul
  */
 async function buscarPdfPorFecha(fechaReferencia: number): Promise<string | null> {
   try {
-    const informesDir = path.join(__dirname, '../../../data/informes');
+    const informesDir = getDataSubPath('informes');
     
     try {
       await fs.access(informesDir);
@@ -353,7 +354,7 @@ router.get('/proceso/:processId/descargar', async (req: Request, res: Response) 
     }
 
     // Construir ruta al archivo PDF
-    const informesDir = path.join(__dirname, '../../../data/informes');
+    const informesDir = getDataSubPath('informes');
     const filePath = path.join(informesDir, nombrePdf);
 
     // Verificar que el archivo existe
