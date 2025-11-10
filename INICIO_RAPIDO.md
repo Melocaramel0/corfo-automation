@@ -11,17 +11,24 @@ Asegúrate de tener instalado:
 ```bash
 # Opción 1: Instalar todo (recomendado)
 npm run install:all
+# Esto instalará automáticamente:
+# - Dependencias de la raíz (incluyendo concurrently)
+# - Dependencias del backend
+# - Dependencias del frontend
 
 # Opción 2: Instalar por separado
-# 1. Instalar dependencias del backend
+# 1. Instalar dependencias de la raíz (necesario para npm start)
+npm install
+
+# 2. Instalar dependencias del backend
 cd backend
 npm install
 
-# 2. Instalar dependencias del frontend
+# 3. Instalar dependencias del frontend
 cd ../frontend
 npm install
 
-# 3. Instalar Playwright (para automatización)
+# 4. Instalar Playwright (para automatización)
 cd ../backend
 npx playwright install
 ```
