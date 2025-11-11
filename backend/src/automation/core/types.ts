@@ -31,6 +31,7 @@ export interface ResultadoAgente {
     tiempoTotal: number;
     pasosCompletados?: PasoEjecucion[];
     errores?: string[];
+    erroresValidacion?: ResultadoErroresValidacion;
 }
 
 export interface PasoEjecucion {
@@ -79,6 +80,15 @@ export interface EstadisticasEjecucion {
     pasosProcesados?: number;
     camposAutocompletados?: number;
     porcentajeCompletado?: number;
+}
+
+/**
+ * Interfaz para el resultado de la detección del modal de errores de validación
+ */
+export interface ResultadoErroresValidacion {
+    detectado: boolean;
+    camposFaltantes: string[];
+    rutaScreenshot?: string;
 }
 
 

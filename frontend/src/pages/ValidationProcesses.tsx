@@ -443,6 +443,7 @@ export const ValidationProcesses: React.FC = () => {
       'Creado': 'bg-corfoGray-20 text-corfoGray-80',
       'En configuración': 'bg-corfoYellow-25 text-corfoYellow-100',
       'Ejecutado': 'bg-corfoAqua-50 text-corfoAqua-100', // Verde más visible de la paleta CORFO
+      'Fallido': 'bg-corfoRed-20 text-corfoRed-500', // Rojo de la paleta CORFO
       'Cerrado': 'bg-corfoGray-20 text-corfoGray-80',
       'Anulado': 'bg-corfoRed-20 text-corfoRed-500',
       'Borrado': 'bg-corfoRed-20 text-corfoRed-500'
@@ -637,8 +638,13 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Ver resultados */}
                       <button
                         onClick={() => handleViewResults(process)}
-                        className="p-2 text-corfoCyan-100 hover:text-corfoCyan-90 hover:bg-corfoCyan-25 rounded-lg transition-colors"
-                        title="Ver resultados"
+                        disabled={process.estado === 'Creado'}
+                        className={`p-2 rounded-lg transition-colors ${
+                          process.estado !== 'Creado'
+                            ? 'text-corfoCyan-100 hover:text-corfoCyan-90 hover:bg-corfoCyan-25 cursor-pointer'
+                            : 'text-corfoGray-30 cursor-not-allowed opacity-40'
+                        }`}
+                        title={process.estado === 'Creado' ? 'El proceso debe estar ejecutado o fallido para ver resultados' : 'Ver resultados'}
                       >
                         <BarChart3 className="w-4 h-4" />
                       </button>
@@ -646,8 +652,13 @@ export const ValidationProcesses: React.FC = () => {
                       {/* Descargar resultados */}
                       <button
                         onClick={() => handleExportResults(process)}
-                        className="p-2 text-corfo-500 hover:text-corfo-600 hover:bg-corfo-20 rounded-lg transition-colors"
-                        title="Descargar resultados"
+                        disabled={process.estado === 'Creado'}
+                        className={`p-2 rounded-lg transition-colors ${
+                          process.estado !== 'Creado'
+                            ? 'text-corfo-500 hover:text-corfo-600 hover:bg-corfo-20 cursor-pointer'
+                            : 'text-corfoGray-30 cursor-not-allowed opacity-40'
+                        }`}
+                        title={process.estado === 'Creado' ? 'El proceso debe estar ejecutado o fallido para descargar resultados' : 'Descargar resultados'}
                       >
                         <Download className="w-4 h-4" />
                       </button>

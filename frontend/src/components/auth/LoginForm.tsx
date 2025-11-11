@@ -53,15 +53,15 @@ const LoginForm: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto flex items-center justify-center">
+          <div className="mx-auto flex items-center justify-center mt-22">
             <img 
-              src="/images/Logo_Corfo.png" 
+              src="/images/logo_corfo2024_azul_min.png" 
               alt="CORFO Logo" 
-              className="h-16 object-contain"
+              className="h-38 object-contain"
             />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-corfoGray-90">
-            Sistema CORFO
+            Sistema Validador
           </h2>
           <p className="mt-2 text-sm text-corfoGray-60">
             Validador de Formularios

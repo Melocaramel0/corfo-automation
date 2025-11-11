@@ -636,8 +636,8 @@ export class FieldCompleter {
      */
     private async obtenerArchivoPrueba(): Promise<string | null> {
         try {
-            // Ir 4 niveles arriba desde dist/src/automation/fields/ hasta la raíz del proyecto
-            const directorioArchivos = path.join(__dirname, '..', '..', '..', 'archivos_prueba');
+            // Ir 4 niveles arriba hasta la raíz del proyecto
+            const directorioArchivos = path.join(__dirname, '..', '..', '..','..','archivos_prueba');
             
             // Buscar archivos PDF disponibles
             const archivosDisponibles = [

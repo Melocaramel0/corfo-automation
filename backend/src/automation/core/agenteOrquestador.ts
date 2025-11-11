@@ -158,8 +158,12 @@ export class AgenteOrquestador {
             if (this.cancelado) return this.resultado;
             await this.procesarFormularioHibrido();
 
-            this.resultado.exito = true;
-            this.log('✅ AGENTE ORQUESTADOR COMPLETADO EXITOSAMENTE');
+            // Solo marcar como exitoso si no se marcó como fallido previamente
+            // (por ejemplo, por errores de validación detectados en enviarFormularioFinal)
+            if (this.resultado.exito !== false) {
+                this.resultado.exito = true;
+                this.log('✅ AGENTE ORQUESTADOR COMPLETADO EXITOSAMENTE');
+            }
 
         } catch (error) {
             this.resultado.errores = this.resultado.errores || [];
@@ -552,7 +556,7 @@ export class AgenteOrquestador {
             
             //  NUEVO: Iteraciones ilimitadas basadas en aparición del modal
             // Ya no usamos MAX_ITERACIONES fijo, sino que iteramos hasta que el modal no aparezca
-            const MAX_ITERACIONES_SEGURIDAD = 5; // Solo por seguridad para evitar loops infinitos
+            const MAX_ITERACIONES_SEGURIDAD = 7; // Solo por seguridad para evitar loops infinitos
             let iteracionActual = 1;
             let hayMasCamposFaltantes = false;
             let navegoExitosamenteDentroDelLoop = false;
@@ -681,20 +685,62 @@ export class AgenteOrquestador {
             console.log('   📤 Haciendo clic en botón Enviar...');
             await botonEnviar.click();
             
-            // 2. Esperar 40 segundos para que aparezca el modal de éxito
-            console.log('   ⏳ Esperando 40 segundos para modal de confirmación...');
-            await this.page!.waitForTimeout(40000);
+            // 2. Esperar un tiempo para que aparezca el modal (éxito o error)
+            console.log('   ⏳ Esperando respuesta del servidor...');
+            await this.page!.waitForTimeout(5000);
             
-            // 3. Buscar y hacer clic en botón "Aceptar" del modal de éxito
-            console.log('   🔍 Buscando modal de éxito...');
-            const botonAceptar = await this.modalHandler!.buscarBotonPorTextoPublico(['Aceptar', 'ACEPTAR', 'OK']);
-            if (botonAceptar) {
-                console.log('   ✅ Haciendo clic en botón Aceptar del modal de éxito...');
-                await botonAceptar.click();
-                await this.page!.waitForTimeout(2000);
+            // 3. NUEVO: Detectar si aparece el modal de errores de validación o modal de éxito
+            const erroresValidacion = await this.modalHandler!.detectarModalErroresValidacion(this.headless);
+            
+            if (erroresValidacion.detectado) {
+                console.log('   ❌ ERRORES DE VALIDACIÓN DETECTADOS');
+                console.log(`   📋 Total de campos faltantes: ${erroresValidacion.camposFaltantes.length}`);
+                
+                // Guardar errores de validación en el resultado
+                this.resultado.erroresValidacion = erroresValidacion;
+                
+                // Marcar la ejecución como fallida
+                this.resultado.exito = false;
+                this.resultado.mensaje = `Formulario enviado con ${erroresValidacion.camposFaltantes.length} errores de validación`;
+                
+                // Agregar errores a la lista de errores
+                this.resultado.errores = this.resultado.errores || [];
+                erroresValidacion.camposFaltantes.forEach((campo) => {
+                    this.resultado.errores!.push(`Campo faltante: ${campo}`);
+                });
+                
+                // Cerrar el modal de errores
+                const botonOK = await this.modalHandler!.buscarBotonPorTextoPublico(['OK', 'Aceptar', 'ACEPTAR']);
+                if (botonOK) {
+                    await botonOK.click();
+                    await this.page!.waitForTimeout(1000);
+                }
+                
+                console.log('   ⚠️ Formulario NO se pudo enviar debido a errores de validación');
+                return;
             }
             
-            // 4. Cerrar modal de encuesta si aparece (manejo dinámico)
+            // 4. Si no hay errores, verificar si hay modal de éxito
+            console.log('   🔍 Verificando modal de éxito...');
+            const modalExito = await this.modalHandler!.detectarModalExito();
+            
+            if (modalExito) {
+                console.log('   ✅ Modal de éxito detectado');
+                // Marcar como exitoso cuando se detecta el modal de éxito
+                this.resultado.exito = true;
+                this.resultado.mensaje = 'Formulario enviado exitosamente';
+                
+                const botonAceptar = await this.modalHandler!.buscarBotonPorTextoPublico(['Aceptar', 'ACEPTAR', 'OK']);
+                if (botonAceptar) {
+                    console.log('   ✅ Haciendo clic en botón Aceptar del modal de éxito...');
+                    await botonAceptar.click();
+                    await this.page!.waitForTimeout(2000);
+                }
+            } else {
+                console.log('   ℹ️ No se detectó modal de éxito, continuando...');
+            }
+            
+            // 5. Cerrar modal de encuesta si aparece (manejo dinámico)
             console.log('   🔍 Verificando si aparece modal de encuesta...');
             await this.page!.waitForTimeout(1000);
             
@@ -714,22 +760,25 @@ export class AgenteOrquestador {
                 console.log('   ℹ️ No apareció modal de encuesta, continuando...');
             }
             
-            // 5. Retroceder una vez en el navegador
+            // 6. Retroceder una vez en el navegador
             console.log('   ⬅️ Retrocediendo en el navegador...');
             await this.page!.goBack();
             await this.page!.waitForTimeout(2000);
             
-            // 6. Extraer la URL actual del navegador
+            // 7. Extraer la URL actual del navegador
             const urlFormularioEnviado = this.page!.url();
             console.log(`   🔗 URL del formulario enviado: ${urlFormularioEnviado}`);
             
-            // 7. Guardar la URL en el resultado
+            // 8. Guardar la URL en el resultado
             this.resultado.urlFormularioEnviado = urlFormularioEnviado;
             
             console.log('✅ Formulario enviado exitosamente');
             
         } catch (error) {
             console.error('   ❌ Error enviando formulario:', (error as Error).message);
+            this.resultado.exito = false;
+            this.resultado.errores = this.resultado.errores || [];
+            this.resultado.errores.push(`Error al enviar formulario: ${(error as Error).message}`);
         }
     }
 
@@ -1020,8 +1069,16 @@ export class AgenteOrquestador {
                 }
 
                 // Verificar si el campo realmente se completó
-                // Para radio buttons, verificar que realmente esté seleccionado
-                let realmenteCompletado = valorAsignado !== null && valorAsignado !== 'NO_SELECCIONADO';
+                // Valores que indican que el campo NO se completó correctamente
+                const valoresError = [
+                    'NO_SELECCIONADO',
+                    'archivo_no_encontrado',
+                    'error_subida_archivo',
+                    'sin_boton_subir_archivo'
+                ];
+                
+                const esValorError = valorAsignado !== null && valoresError.includes(valorAsignado);
+                let realmenteCompletado = valorAsignado !== null && !esValorError;
                 
                 if (info.tipo === 'radio') {
                     if (valorAsignado === 'NO_SELECCIONADO') {
@@ -1043,13 +1100,39 @@ export class AgenteOrquestador {
                     }
                 }
                 
+                // Para campos de archivo, verificar valores de error específicos
+                if (info.tipo === 'file' && esValorError) {
+                    realmenteCompletado = false;
+                    if (valorAsignado === 'archivo_no_encontrado') {
+                        console.log(`     ⚠️ Campo file no completado: archivo no encontrado`);
+                    } else if (valorAsignado === 'error_subida_archivo') {
+                        console.log(`     ⚠️ Campo file no completado: error al subir archivo`);
+                    }
+                }
+                
+                // Determinar razón de fallo si no se completó
+                let razonFallo: string | undefined = undefined;
+                if (!realmenteCompletado) {
+                    if (valorAsignado === 'NO_SELECCIONADO') {
+                        razonFallo = 'Radio button no pudo ser seleccionado';
+                    } else if (valorAsignado === 'archivo_no_encontrado') {
+                        razonFallo = 'Archivo no encontrado en carpeta archivos_prueba';
+                    } else if (valorAsignado === 'error_subida_archivo') {
+                        razonFallo = 'Error al subir el archivo';
+                    } else if (valorAsignado === 'sin_boton_subir_archivo') {
+                        razonFallo = 'Campo file sin botón de subir archivo visible';
+                    } else {
+                        razonFallo = 'No se pudo completar el campo correctamente';
+                    }
+                }
+                
                 const detalle: DetallePaso = {
                     etiqueta: info.etiqueta,
                     tipo: info.tipo,
                     valorAsignado: valorAsignado === 'NO_SELECCIONADO' ? 'no seleccionado' : valorAsignado,
                     completado: realmenteCompletado,
                     esObligatorio: info.esObligatorio,
-                    razonFallo: realmenteCompletado ? undefined : 'No se pudo completar el campo correctamente'
+                    razonFallo: razonFallo
                 };
 
                 detalles.push(detalle);
@@ -1287,9 +1370,54 @@ export class AgenteOrquestador {
         this.resultado.estadisticas.totalCampos = pasosCompletados.reduce(
             (total, paso) => total + paso.camposEncontrados, 0
         );
-        this.resultado.estadisticas.camposCompletados = pasosCompletados.reduce(
-            (total, paso) => total + paso.camposCompletados, 0
-        );
+        
+        // Recalcular campos completados contando directamente desde los detalles
+        // Esto asegura que usamos la lógica corregida de completado
+        let camposCompletadosReal = 0;
+        let camposObligatoriosNoCompletados = 0;
+        
+        pasosCompletados.forEach((paso) => {
+            paso.detalles.forEach((detalle) => {
+                if (detalle.completado) {
+                    camposCompletadosReal++;
+                } else if (detalle.esObligatorio) {
+                    camposObligatoriosNoCompletados++;
+                }
+            });
+        });
+        
+        this.resultado.estadisticas.camposCompletados = camposCompletadosReal;
+        
+        // Determinar el estado de éxito basado en los resultados
+        // Si hay errores de validación detectados, ya está marcado como false en enviarFormularioFinal
+        if (this.resultado.erroresValidacion?.detectado) {
+            // Ya está marcado como false, no cambiar
+            // Pero asegurar que el mensaje esté establecido
+            if (!this.resultado.mensaje) {
+                this.resultado.mensaje = `Formulario enviado con ${this.resultado.erroresValidacion.camposFaltantes.length} errores de validación`;
+            }
+        } else if (camposObligatoriosNoCompletados > 0) {
+            // Hay campos obligatorios no completados, marcar como fallido
+            this.resultado.exito = false;
+            this.resultado.mensaje = `Ejecución completada con ${camposObligatoriosNoCompletados} campos obligatorios no completados`;
+        } else {
+            // No hay errores de validación ni campos obligatorios no completados
+            // Si todos los campos están completados y no hay errores, marcar como exitoso
+            // (incluso si no se detectó explícitamente el modal de éxito)
+            if (camposCompletadosReal === this.resultado.estadisticas.totalCampos && 
+                this.resultado.estadisticas.totalCampos > 0) {
+                this.resultado.exito = true;
+                if (!this.resultado.mensaje) {
+                    this.resultado.mensaje = 'Ejecución completada exitosamente';
+                }
+            } else if (this.resultado.exito !== false) {
+                // Si no todos los campos están completados pero no hay errores explícitos,
+                // mantener el estado actual (puede ser true si se detectó modal de éxito)
+                if (!this.resultado.mensaje && this.resultado.exito) {
+                    this.resultado.mensaje = 'Ejecución completada exitosamente';
+                }
+            }
+        }
         
         // Calcular porcentaje de éxito basado en campos completados vs encontrados
         this.resultado.estadisticas.porcentajeExito = this.resultado.estadisticas.totalCampos > 0 
@@ -1356,11 +1484,51 @@ export async function ejecutarAgenteOrquestador(): Promise<ResultadoAgente> {
     console.log(`📊 Pasos completados: ${resultado.estadisticas.totalPasos}`);
     console.log(`📝 Campos encontrados: ${resultado.estadisticas.totalCampos}`);
     console.log(`✅ Campos completados: ${resultado.estadisticas.camposCompletados}`);
+    console.log(`❌ Campos no completados: ${resultado.estadisticas.totalCampos - resultado.estadisticas.camposCompletados}`);
     console.log(` Porcentaje de éxito: ${resultado.estadisticas.porcentajeExito}%`);
     console.log(`⚡ Velocidad: ${resultado.estadisticas.velocidadCamposPorSegundo} campos/segundo`);
     
+    // Mostrar campos obligatorios no completados
+    if (resultado.pasosCompletados) {
+        const camposObligatoriosNoCompletados: Array<{ paso: string; campo: string; razon: string }> = [];
+        resultado.pasosCompletados.forEach((paso) => {
+            paso.detalles.forEach((detalle) => {
+                if (!detalle.completado && detalle.esObligatorio) {
+                    camposObligatoriosNoCompletados.push({
+                        paso: paso.titulo,
+                        campo: detalle.etiqueta,
+                        razon: detalle.razonFallo || 'No especificada'
+                    });
+                }
+            });
+        });
+        
+        if (camposObligatoriosNoCompletados.length > 0) {
+            console.log(`\n⚠️ CAMPOS OBLIGATORIOS NO COMPLETADOS: ${camposObligatoriosNoCompletados.length}`);
+            camposObligatoriosNoCompletados.forEach((item, index) => {
+                console.log(`   ${index + 1}. [${item.paso}] ${item.campo}`);
+                console.log(`      Razón: ${item.razon}`);
+            });
+        }
+    }
+    
+    // Mostrar errores de validación si existen
+    if (resultado.erroresValidacion && resultado.erroresValidacion.detectado) {
+        console.log(`\n❌ ERRORES DE VALIDACIÓN AL ENVIAR FORMULARIO:`);
+        console.log(`   Total de campos faltantes: ${resultado.erroresValidacion.camposFaltantes.length}`);
+        resultado.erroresValidacion.camposFaltantes.forEach((campo, index) => {
+            console.log(`   ${index + 1}. ${campo}`);
+        });
+        
+        if (resultado.erroresValidacion.rutaScreenshot) {
+            console.log(`\n📸 Screenshot del modal de errores guardado en:`);
+            console.log(`   ${resultado.erroresValidacion.rutaScreenshot}`);
+        }
+    }
+    
+    // Mostrar otros errores si existen
     if (resultado.errores && resultado.errores.length > 0) {
-        console.log(`❌ Errores encontrados: ${resultado.errores.length}`);
+        console.log(`\n❌ OTROS ERRORES ENCONTRADOS: ${resultado.errores.length}`);
         resultado.errores.forEach((error, index) => {
             console.log(`   ${index + 1}. ${error}`);
         });
