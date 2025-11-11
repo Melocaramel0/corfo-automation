@@ -7,49 +7,10 @@ import {
   compararCamposFundamentales,
   generarEstadisticasComparacion,
 } from '../analysis/fieldComparator';
+import type { ResultadoAgente } from '../../automation/core/types';
 
 // Cargar variables de entorno
 dotenv.config();
-
-/**
- * Interfaz para el resultado del agente (compatible con report_X.json y exec_X.json)
- */
-interface ResultadoAgente {
-  exito: boolean;
-  mensaje?: string;
-  estadisticas?: {
-    totalPasos: number;
-    totalCampos: number;
-    camposCompletados: number;
-    porcentajeExito: number;
-    velocidadCamposPorSegundo?: number;
-    tiempoPromedioPorPaso?: number;
-  };
-  titulo?: string;
-  tituloProyecto?: string;
-  codigoProyecto?: string;
-  urlInicial?: string;
-  fechaEjecucion?: string;
-  tiempoTotal?: number;
-  pasosCompletados?: Array<{
-    numero: number;
-    titulo: string;
-    camposEncontrados: number;
-    camposCompletados: number;
-    tiempoTranscurrido: number;
-    exito: boolean;
-    detalles: Array<{
-      etiqueta: string;
-      tipo: string;
-      valorAsignado: string;
-      completado: boolean;
-      esObligatorio: boolean;
-      razonFallo?: string;
-    }>;
-  }>;
-  errores?: Array<any>;
-  urlFormularioEnviado?: string;
-}
 
 /**
  * Configurar el cliente de Azure OpenAI
@@ -437,10 +398,10 @@ async function generarTablaCamposFundamentales(resultado: ResultadoAgente): Prom
     const contenido = await fs.readFile(camposFundamentalesPath, 'utf-8');
     const camposFundamentales: any = JSON.parse(contenido);
     
-    // Recorrer todos los campos fundamentales y crear tabla
-    lineas.push('| Número | Campo Fundamental | SI/NO |');
-    lineas.push('|--------|-------------------|-------|');
+    // Array para almacenar todos los campos antes de ordenarlos
+    const camposTabla: Array<{ numeroRef: string; nombreCampo: string; estado: string }> = [];
     
+    // Recorrer todos los campos fundamentales y recopilar información
     Object.entries(camposFundamentales.categorias).forEach(([categoria, cat]: [string, any]) => {
       if (!cat.activo) return;
       
@@ -453,8 +414,24 @@ async function generarTablaCamposFundamentales(resultado: ResultadoAgente): Prom
         const completado = encontrado ? camposEncontradosMap.get(nombre) : false;
         const estado = encontrado && completado ? 'SI' : 'NO';
         
-        lineas.push(`| ${numeroRef} | ${nombreCampo} | ${estado} |`);
+        camposTabla.push({ numeroRef, nombreCampo, estado });
       });
+    });
+    
+    // Ordenar: primero los "NO", luego los "SI"
+    camposTabla.sort((a, b) => {
+      if (a.estado === 'NO' && b.estado === 'SI') return -1;
+      if (a.estado === 'SI' && b.estado === 'NO') return 1;
+      // Si ambos tienen el mismo estado, mantener el orden original (por número de referencia)
+      return 0;
+    });
+    
+    // Crear tabla con los campos ordenados
+    lineas.push('| Número | Campo Fundamental | SI/NO |');
+    lineas.push('|--------|-------------------|-------|');
+    
+    camposTabla.forEach(campo => {
+      lineas.push(`| ${campo.numeroRef} | ${campo.nombreCampo} | ${campo.estado} |`);
     });
     
     return lineas.join('\n');
@@ -696,6 +673,19 @@ async function extraerContextoReporte(resultado: ResultadoAgente): Promise<strin
   const listaCamposNoObligatorios = generarListaCamposNoObligatorios(resultado);
   ctx.push(listaCamposNoObligatorios);
 
+  // PARTE 5: Errores de Validación (si existen)
+  if (resultado.erroresValidacion && resultado.erroresValidacion.detectado) {
+    ctx.push('\n**PARTE 5 - ERRORES DE VALIDACIÓN:**');
+    ctx.push(`- Total de campos faltantes: ${resultado.erroresValidacion.camposFaltantes.length}`);
+    ctx.push('- Campos faltantes:');
+    resultado.erroresValidacion.camposFaltantes.forEach((campo: string, index: number) => {
+      ctx.push(`  ${index + 1}. ${campo}`);
+    });
+    if (resultado.erroresValidacion.rutaScreenshot) {
+      ctx.push(`- Ruta de screenshot: ${resultado.erroresValidacion.rutaScreenshot}`);
+    }
+  }
+
   return ctx.join('\n');
 }
 
@@ -738,7 +728,7 @@ Presenta una tabla con las estadísticas proporcionadas en la PARTE 2. Usa forma
 | Campos completados | [valor] |
 | Porcentaje de éxito | [valor]% |
 | Tiempo promedio por paso | [valor] segundos |
-| Tiempo total de ejecución | [valor] segundos |
+| Tiempo total de ejecución | [valor] minutos |
 
 ---
 
@@ -761,6 +751,14 @@ Lista los campos no obligatorios proporcionados en la PARTE 4. **COPIA EXACTAMEN
 ...
 
 **IMPORTANTE:** NO modifiques los nombres de los campos ni los nombres de los pasos. Copia exactamente lo que aparece en la PARTE 4.
+
+---
+
+## 5. ERRORES DE VALIDACIÓN (Solo si existe PARTE 5 en los datos)
+
+Si existe la PARTE 5 en los datos proporcionados, incluye esta sección con la información de errores de validación. Lista los campos faltantes proporcionados en la PARTE 5.
+
+**NOTA:** Si no existe PARTE 5 en los datos, omite completamente esta sección.
 
 ---
 
@@ -848,7 +846,7 @@ export async function generarInformePDF(
       console.warn('⚠️ No se pudo registrar consumo de IA:', error);
     }
 
-    const informeMarkdown = respuesta.choices[0]?.message?.content;
+    let informeMarkdown = respuesta.choices[0]?.message?.content;
 
     if (!informeMarkdown) {
       console.error('❌ Respuesta de la IA:', JSON.stringify(respuesta, null, 2));
@@ -860,6 +858,43 @@ export async function generarInformePDF(
     }
 
     console.log('✅ Informe generado por IA (longitud:', informeMarkdown.length, 'caracteres)');
+
+    // Si hay errores de validación con screenshot, agregarlo al markdown
+    if (resultado.erroresValidacion?.detectado && resultado.erroresValidacion.rutaScreenshot) {
+      try {
+        console.log('📸 Incluyendo screenshot de errores de validación en el PDF...');
+        const screenshotPath = resultado.erroresValidacion.rutaScreenshot;
+        
+        // Verificar que el archivo existe
+        try {
+          await fs.access(screenshotPath);
+          
+          // Leer la imagen y convertirla a base64
+          const imageBuffer = await fs.readFile(screenshotPath);
+          const imageBase64 = imageBuffer.toString('base64');
+          const imageExtension = path.extname(screenshotPath).slice(1).toLowerCase() || 'png';
+          const mimeType = imageExtension === 'png' ? 'image/png' : imageExtension === 'jpg' || imageExtension === 'jpeg' ? 'image/jpeg' : 'image/png';
+          
+          // Agregar sección de errores de validación con la imagen al final del informe
+          informeMarkdown += '\n\n---\n\n';
+          informeMarkdown += '## 5. ERRORES DE VALIDACIÓN\n\n';
+          informeMarkdown += `Se detectaron ${resultado.erroresValidacion.camposFaltantes.length} campos faltantes al intentar enviar el formulario:\n\n`;
+          resultado.erroresValidacion.camposFaltantes.forEach((campo: string, index: number) => {
+            informeMarkdown += `${index + 1}. ${campo}\n`;
+          });
+          informeMarkdown += '\n\n**Screenshot del modal de errores:**\n\n';
+          informeMarkdown += `![Screenshot de errores de validación](data:${mimeType};base64,${imageBase64})\n`;
+          
+          console.log('✅ Screenshot incluido en el PDF');
+        } catch (accessError) {
+          console.warn(`⚠️ No se pudo acceder al screenshot en ${screenshotPath}:`, (accessError as Error).message);
+          // Continuar sin el screenshot
+        }
+      } catch (screenshotError) {
+        console.warn('⚠️ Error al incluir screenshot en el PDF:', (screenshotError as Error).message);
+        // Continuar sin el screenshot
+      }
+    }
 
     // 5. Asegurar que la carpeta de destino existe
     const directorioSalida = path.dirname(rutaPdfSalida);

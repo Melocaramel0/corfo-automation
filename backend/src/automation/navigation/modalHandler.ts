@@ -5,9 +5,13 @@ import * as path from 'path';
 
 export class ModalHandler {
     private page: Page;
+    private isWebExecution: boolean; // true si es ejecución desde la web, false si es desde terminal
+    private executionId: string | null; // ID de ejecución (para web executions)
 
-    constructor(page: Page) {
+    constructor(page: Page, isWebExecution: boolean = false, executionId: string | null = null) {
         this.page = page;
+        this.isWebExecution = isWebExecution;
+        this.executionId = executionId;
     }
 
     /**
@@ -296,60 +300,73 @@ export class ModalHandler {
             console.log('   ⚠️ MODAL DE ERRORES DE VALIDACIÓN DETECTADO');
             
             // Tomar screenshot del modal ANTES de extraer los campos (para asegurar que el modal esté visible)
+            // IMPORTANTE: Siempre tomar screenshot, incluso en modo headless (para web executions)
             let rutaScreenshot: string | undefined = undefined;
-            if (!headless) {
-                try {
-                    console.log('   📸 Tomando screenshot del modal de errores...');
-                    
-                    // Crear carpeta para screenshots si no existe
-                    const { getDataSubPath } = require('../../server/utils/dataPath');
-                    const screenshotsDir = getDataSubPath('debugg_results/validation_errors');
-                    await fs.mkdir(screenshotsDir, { recursive: true });
-                    
-                    // Generar nombre único para el screenshot
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    const nombreArchivo = `validation_errors_${timestamp}.png`;
-                    const rutaCompleta = path.join(screenshotsDir, nombreArchivo);
-                    
-                    // Buscar el modal específico de errores usando múltiples selectores
-                    let modalElement = await this.page.$('.modal.show:not([style*="display: none"]), .modal.in:not([style*="display: none"])');
-                    
-                    if (!modalElement) {
-                        // Intentar con otros selectores
-                        modalElement = await this.page.$('[role="dialog"]:not([style*="display: none"])');
-                    }
-                    
-                    if (!modalElement) {
-                        // Intentar con swal2
-                        modalElement = await this.page.$('.swal2-container:not([style*="display: none"])');
-                    }
-                    
-                    if (modalElement) {
-                        // Verificar que el modal sea visible
-                        const esVisible = await modalElement.isVisible();
-                        if (esVisible) {
-                            // Screenshot solo del modal
-                            await modalElement.screenshot({ path: rutaCompleta });
-                            console.log(`   📸 Screenshot del modal guardado: ${rutaCompleta}`);
-                            rutaScreenshot = rutaCompleta;
-                        } else {
-                            // Si no es visible, tomar screenshot de toda la página
-                            await this.page.screenshot({ path: rutaCompleta, fullPage: true });
-                            console.log(`   📸 Screenshot de página completa guardado: ${rutaCompleta}`);
-                            rutaScreenshot = rutaCompleta;
-                        }
+            try {
+                console.log('   📸 Tomando screenshot del modal de errores...');
+                
+                // Crear carpeta para screenshots según el contexto de ejecución
+                const { getDataSubPath } = require('../../server/utils/dataPath');
+                let screenshotsDir: string;
+                
+                if (this.isWebExecution) {
+                    // Ejecución desde la web: guardar en execution_results/validation_errors
+                    screenshotsDir = getDataSubPath('execution_results/validation_errors');
+                } else {
+                    // Ejecución desde terminal: guardar en debugg_results/validation_errors
+                    screenshotsDir = getDataSubPath('debugg_results/validation_errors');
+                }
+                
+                await fs.mkdir(screenshotsDir, { recursive: true });
+                
+                // Generar nombre único para el screenshot
+                // Si es ejecución web, usar el executionId en el nombre para asociarlo con el resultado
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                let nombreArchivo: string;
+                if (this.isWebExecution && this.executionId) {
+                    // Usar executionId para asociar el screenshot con el resultado
+                    nombreArchivo = `validation_errors_${this.executionId}_${timestamp}.png`;
+                } else {
+                    nombreArchivo = `validation_errors_${timestamp}.png`;
+                }
+                const rutaCompleta = path.join(screenshotsDir, nombreArchivo);
+                
+                // Buscar el modal específico de errores usando múltiples selectores
+                let modalElement = await this.page.$('.modal.show:not([style*="display: none"]), .modal.in:not([style*="display: none"])');
+                
+                if (!modalElement) {
+                    // Intentar con otros selectores
+                    modalElement = await this.page.$('[role="dialog"]:not([style*="display: none"])');
+                }
+                
+                if (!modalElement) {
+                    // Intentar con swal2
+                    modalElement = await this.page.$('.swal2-container:not([style*="display: none"])');
+                }
+                
+                if (modalElement) {
+                    // Verificar que el modal sea visible
+                    const esVisible = await modalElement.isVisible();
+                    if (esVisible) {
+                        // Screenshot solo del modal
+                        await modalElement.screenshot({ path: rutaCompleta });
+                        console.log(`   📸 Screenshot del modal guardado: ${rutaCompleta}`);
+                        rutaScreenshot = rutaCompleta;
                     } else {
-                        // Si no encontramos el modal específico, tomar screenshot de toda la página
+                        // Si no es visible, tomar screenshot de toda la página
                         await this.page.screenshot({ path: rutaCompleta, fullPage: true });
-                        console.log(`   📸 Screenshot de página completa guardado (modal no encontrado): ${rutaCompleta}`);
+                        console.log(`   📸 Screenshot de página completa guardado: ${rutaCompleta}`);
                         rutaScreenshot = rutaCompleta;
                     }
-                } catch (screenshotError) {
-                    console.log(`   ⚠️ Error al tomar screenshot: ${(screenshotError as Error).message}`);
-                    console.log(`   ⚠️ Stack: ${(screenshotError as Error).stack}`);
+                } else {
+                    // Si no encontramos el modal específico, tomar screenshot de toda la página
+                    await this.page.screenshot({ path: rutaCompleta, fullPage: true });
+                    console.log(`   📸 Screenshot de página completa guardado (modal no encontrado): ${rutaCompleta}`);
+                    rutaScreenshot = rutaCompleta;
                 }
-            } else {
-                console.log('   ℹ️ Modo headless activado, no se tomará screenshot');
+            } catch (screenshotError) {
+                console.log(`   ⚠️ Error al tomar screenshot: ${(screenshotError as Error).message}`);
+                console.log(`   ⚠️ Stack: ${(screenshotError as Error).stack}`);
             }
             
             // Extraer la lista de campos faltantes del modal

@@ -213,7 +213,9 @@ export class AgenteOrquestador {
         this.fieldExtractor = new FieldExtractor(this.page);
         this.fieldCompleter = new FieldCompleter(this.page, this.archivosSubidosEnSesion);
         this.navigator = new Navigator(this.page);
-        this.modalHandler = new ModalHandler(this.page);
+        // Pasar información sobre si es ejecución web (tiene executionId) o terminal
+        const isWebExecution = this.executionId !== null;
+        this.modalHandler = new ModalHandler(this.page, isWebExecution, this.executionId);
         this.loginService = new LoginService(this.page);
 
         console.log('✅ Navegador inicializado');

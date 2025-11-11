@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Clock, X, AlertCircle } from 'lucide-react'
 import { ExecutionStatus } from '../../types'
 
@@ -11,6 +11,47 @@ export const ExecutionProgressBar: React.FC<ExecutionProgressBarProps> = ({
   executionStatus,
   onCancel
 }) => {
+  // Estado local para el tiempo transcurrido que se actualiza cada segundo
+  const [currentElapsedTime, setCurrentElapsedTime] = useState(executionStatus.elapsedTime)
+  const startTimeRef = useRef<number | null>(null)
+
+  // Actualizar el tiempo transcurrido cada segundo cuando la ejecución está corriendo
+  useEffect(() => {
+    if (!executionStatus.isRunning) {
+      // Si no está corriendo, usar el tiempo del estado directamente
+      setCurrentElapsedTime(executionStatus.elapsedTime)
+      startTimeRef.current = null
+      return
+    }
+
+    // Calcular el tiempo inicial solo cuando inicia la ejecución o cambia el startTime
+    if (!startTimeRef.current || executionStatus.startTime) {
+      startTimeRef.current = executionStatus.startTime 
+        ? new Date(executionStatus.startTime).getTime()
+        : Date.now() - executionStatus.elapsedTime
+    }
+
+    // Actualizar inmediatamente
+    setCurrentElapsedTime(Date.now() - startTimeRef.current)
+
+    // Configurar intervalo para actualizar cada segundo
+    const interval = setInterval(() => {
+      if (startTimeRef.current) {
+        const elapsed = Date.now() - startTimeRef.current
+        setCurrentElapsedTime(elapsed)
+      }
+    }, 1000) // Actualizar cada 1 segundo
+
+    return () => clearInterval(interval)
+  }, [executionStatus.isRunning, executionStatus.startTime])
+
+  // Sincronizar el tiempo cuando el backend lo actualiza (solo si no está corriendo)
+  useEffect(() => {
+    if (!executionStatus.isRunning) {
+      setCurrentElapsedTime(executionStatus.elapsedTime)
+    }
+  }, [executionStatus.elapsedTime, executionStatus.isRunning])
+
   const formatTime = (milliseconds: number) => {
     const seconds = Math.floor(milliseconds / 1000)
     const minutes = Math.floor(seconds / 60)
@@ -51,7 +92,7 @@ export const ExecutionProgressBar: React.FC<ExecutionProgressBarProps> = ({
           
           <div className="flex items-center space-x-2 text-sm text-corfoGray-60">
             <Clock className="w-4 h-4" />
-            <span>{formatTime(executionStatus.elapsedTime)}</span>
+            <span>{formatTime(currentElapsedTime)}</span>
           </div>
         </div>
 
