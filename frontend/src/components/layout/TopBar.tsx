@@ -131,7 +131,7 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   }
 
   return (
-    <header className="bg-corfoGray-0 shadow-sm border-b border-corfoGray-20 h-16">
+    <header className="bg-corfoGray-0 shadow-sm border-b border-corfoGray-20 h-16" data-tour="topbar">
       <div className="flex items-center h-full">
         {/* Logo CORFO - alineado con el inicio del sidebar */}
         <div className="w-64 px-6 flex items-center justify-center lg:justify-start border-r border-corfoGray-20">

@@ -80,6 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
         style={{ backgroundColor: '#221E7C' }}
+        data-tour="sidebar"
       >
         <div className="flex flex-col h-full">
           {/* Botón cerrar para móvil */}
