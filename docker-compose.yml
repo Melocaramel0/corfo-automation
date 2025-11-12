@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # --- Servicio del Backend ---
+  backend:
+    build:
+      context: ./backend    # Dónde encontrar el Dockerfile
+      dockerfile: Dockerfile
+    container_name: corfo-backend-service
+    ports:
+      - "3001:3001"         # Mapea puerto: [Tu Máquina]:[Contenedor]
+    env_file:
+      - ./backend/.env      # Pasa tus variables de entorno (¡CRÍTICO!)
+    volumes:
+      - ./data:/app/data  # Conecta tu carpeta 'data' local
+      - ./archivos_prueba:/app/archivos_prueba # Conecta los archivos de prueba
+    restart: unless-stopped
+
+  # --- Servicio del Frontend ---
+  frontend:
+    build:
+      context: ./frontend   # Dónde encontrar el Dockerfile
+      dockerfile: Dockerfile
+    container_name: corfo-frontend-service
+    ports:
+      - "5173:80"           # Mapea tu puerto local 5173 al puerto 80 de Nginx
+    restart: unless-stopped
+    depends_on:
+      - backend             # Le dice a Docker que inicie el backend primero

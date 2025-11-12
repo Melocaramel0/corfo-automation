@@ -201,7 +201,6 @@ export const ValidationProcesses: React.FC = () => {
         setExecutions(prev => {
           const newMap = new Map(prev)
           let shouldReloadProcesses = false
-          const previousExecutions = previousExecutionsRef.current
 
           updates.forEach(update => {
             if (!update) return
