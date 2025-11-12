@@ -11,11 +11,22 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { processService } from '../services/processes'
+import { useTour } from '../hooks/useTour'
+import { dashboardTourSteps } from '../utils/tours'
+import { TourButton } from '../components/ui/TourButton'
 // import { ValidationProcess } from '../types' // No usado actualmente
 
 const Dashboard: React.FC = () => {
   const { user, hasPermission } = useAuth()
   const [loading, setLoading] = useState(true)
+  
+  // Configurar tour del dashboard
+  const { start: startTour } = useTour({
+    steps: dashboardTourSteps,
+    showProgress: true,
+    allowClose: true,
+    overlayColor: '#221E7C',
+  })
   const [stats, setStats] = useState({
     totalProcesos: 0,
     procesosEjecutados: 0,
@@ -165,18 +176,21 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-corfoGray-90">
-          ¡Bienvenido, {user?.name}!
-        </h1>
-        <p className="mt-1 text-sm text-corfoGray-60">
-          Sistema de Validación Automática de Formularios CORFO
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-corfoGray-90" data-tour="welcome">
+            ¡Bienvenido, {user?.name}!
+          </h1>
+          <p className="mt-1 text-sm text-corfoGray-60">
+            Sistema de Validación Automática de Formularios CORFO
+          </p>
+        </div>
+        <TourButton onClick={startTour} variant="icon" />
       </div>
 
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card">
+        <div className="card" data-tour="stats-total">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <CheckCircle2 className="h-8 w-8 text-corfo-500" />
@@ -188,7 +202,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card" data-tour="stats-ejecutados">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <TrendingUp className="h-8 w-8 text-corfoAqua-100" />
@@ -200,7 +214,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card" data-tour="stats-configuracion">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Clock className="h-8 w-8 text-corfoYellow-100" />
@@ -212,7 +226,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card" data-tour="stats-errores">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <AlertTriangle className="h-8 w-8 text-corfoRed-500" />
@@ -228,7 +242,7 @@ const Dashboard: React.FC = () => {
       {/* Módulos principales */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Procesos de Validación */}
-        <div className="card">
+        <div className="card" data-tour="procesos-validacion">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <CheckCircle2 className="h-6 w-6 text-corfo-500" />
@@ -317,7 +331,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Actividad reciente */}
-      <div className="card">
+      <div className="card" data-tour="actividad-reciente">
         <h3 className="text-lg font-medium text-corfoGray-90 mb-4">
           Actividad Reciente
         </h3>
