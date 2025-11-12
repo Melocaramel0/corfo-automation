@@ -108,6 +108,8 @@ export interface ProcessLog {
 
 // Estado de ejecución en tiempo real
 export interface ExecutionStatus {
+  executionId?: string
+  processId?: string
   isRunning: boolean
   progress: number
   startTime?: Date

@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import { NotificationContainer } from '../ui/NotificationContainer'
+import { ExecutionMonitor } from '../global/ExecutionMonitor'
 
 const AppLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -16,6 +18,9 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-corfoGray-10">
+      {/* Monitor global de ejecuciones - monitorea desde cualquier página */}
+      <ExecutionMonitor />
+      
       {/* TopBar - debe estar arriba de todo */}
       <TopBar onMenuClick={handleMenuClick} />
       
@@ -34,6 +39,9 @@ const AppLayout: React.FC = () => {
           </main>
         </div>
       </div>
+      
+      {/* Contenedor de notificaciones toast */}
+      <NotificationContainer />
     </div>
   )
 }

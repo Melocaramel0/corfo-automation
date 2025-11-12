@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext'
+import { NotificationProvider } from './contexts/NotificationContext'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -21,14 +22,16 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              className: 'text-sm',
-            }}
-          />
+          <NotificationProvider>
+            <App />
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                className: 'text-sm',
+              }}
+            />
+          </NotificationProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

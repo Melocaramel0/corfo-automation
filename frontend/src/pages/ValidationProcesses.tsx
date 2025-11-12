@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { 
   Play, 
   Plus, 
@@ -59,6 +60,7 @@ const normalizeExecutionStatus = (
 }
 
 export const ValidationProcesses: React.FC = () => {
+  const location = useLocation()
   const [processes, setProcesses] = useState<ValidationProcess[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -67,6 +69,17 @@ export const ValidationProcesses: React.FC = () => {
   const [showResultsModal, setShowResultsModal] = useState(false)
   // Rastrear múltiples ejecuciones simultáneas: Map<processId, { executionId: string, status: ExecutionStatus }>
   const [executions, setExecutions] = useState<Map<string, { executionId: string; status: ExecutionStatus }>>(new Map())
+  // Ref para rastrear el estado anterior de las ejecuciones y detectar finalizaciones
+  const previousExecutionsRef = useRef<Map<string, { executionId: string; status: ExecutionStatus }>>(new Map())
+
+  // Leer parámetro de búsqueda de la URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const searchParam = params.get('search')
+    if (searchParam) {
+      setSearchTerm(searchParam)
+    }
+  }, [location.search])
 
   // Cargar procesos al montar el componente y restaurar ejecuciones activas
   useEffect(() => {
@@ -188,6 +201,7 @@ export const ValidationProcesses: React.FC = () => {
         setExecutions(prev => {
           const newMap = new Map(prev)
           let shouldReloadProcesses = false
+          const previousExecutions = previousExecutionsRef.current
 
           updates.forEach(update => {
             if (!update) return
@@ -222,6 +236,9 @@ export const ValidationProcesses: React.FC = () => {
                   })
                 }
 
+                // Nota: Las notificaciones de finalización de procesos son manejadas por ExecutionMonitor global
+                // No es necesario dispararlas aquí para evitar duplicados
+
                 // Si la ejecución terminó, removerla y recargar procesos
                 if (!newStatus.isRunning) {
                   newMap.delete(processIdToUpdate)
@@ -230,6 +247,9 @@ export const ValidationProcesses: React.FC = () => {
               }
             }
           })
+
+          // Actualizar el ref con el estado actual para la próxima comparación
+          previousExecutionsRef.current = new Map(newMap)
 
           // Actualizar localStorage con el estado actual
           const stored: Record<string, any> = {}

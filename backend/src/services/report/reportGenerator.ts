@@ -673,17 +673,11 @@ async function extraerContextoReporte(resultado: ResultadoAgente): Promise<strin
   const listaCamposNoObligatorios = generarListaCamposNoObligatorios(resultado);
   ctx.push(listaCamposNoObligatorios);
 
-  // PARTE 5: Errores de Validación (si existen)
-  if (resultado.erroresValidacion && resultado.erroresValidacion.detectado) {
+  // PARTE 5: Errores de Validación (solo si existen errores Y hay screenshot)
+  // Solo se incluye la referencia al screenshot, sin listar campos
+  if (resultado.erroresValidacion && resultado.erroresValidacion.detectado && resultado.erroresValidacion.rutaScreenshot) {
     ctx.push('\n**PARTE 5 - ERRORES DE VALIDACIÓN:**');
-    ctx.push(`- Total de campos faltantes: ${resultado.erroresValidacion.camposFaltantes.length}`);
-    ctx.push('- Campos faltantes:');
-    resultado.erroresValidacion.camposFaltantes.forEach((campo: string, index: number) => {
-      ctx.push(`  ${index + 1}. ${campo}`);
-    });
-    if (resultado.erroresValidacion.rutaScreenshot) {
-      ctx.push(`- Ruta de screenshot: ${resultado.erroresValidacion.rutaScreenshot}`);
-    }
+    ctx.push(`- Ruta de screenshot: ${resultado.erroresValidacion.rutaScreenshot}`);
   }
 
   return ctx.join('\n');
@@ -754,9 +748,9 @@ Lista los campos no obligatorios proporcionados en la PARTE 4. **COPIA EXACTAMEN
 
 ---
 
-## 5. ERRORES DE VALIDACIÓN (Solo si existe PARTE 5 en los datos)
+## 5. ERRORES DE VALIDACIÓN 
 
-Si existe la PARTE 5 en los datos proporcionados, incluye esta sección con la información de errores de validación. Lista los campos faltantes proporcionados en la PARTE 5.
+Si existe la PARTE 5 en los datos proporcionados, incluye esta sección SOLO con el título "## 5. ERRORES DE VALIDACIÓN". NO agregues texto adicional, NO listes campos faltantes. Solo incluye el título de la sección.
 
 **NOTA:** Si no existe PARTE 5 en los datos, omite completamente esta sección.
 
@@ -859,7 +853,8 @@ export async function generarInformePDF(
 
     console.log('✅ Informe generado por IA (longitud:', informeMarkdown.length, 'caracteres)');
 
-    // Si hay errores de validación con screenshot, agregarlo al markdown
+    // Si hay errores de validación con screenshot, agregar el screenshot a la sección 5 generada por la IA
+    // La sección 5 solo existe si hay errores Y screenshot (ya está en el contexto)
     if (resultado.erroresValidacion?.detectado && resultado.erroresValidacion.rutaScreenshot) {
       try {
         console.log('📸 Incluyendo screenshot de errores de validación en el PDF...');
@@ -875,24 +870,38 @@ export async function generarInformePDF(
           const imageExtension = path.extname(screenshotPath).slice(1).toLowerCase() || 'png';
           const mimeType = imageExtension === 'png' ? 'image/png' : imageExtension === 'jpg' || imageExtension === 'jpeg' ? 'image/jpeg' : 'image/png';
           
-          // Agregar sección de errores de validación con la imagen al final del informe
-          informeMarkdown += '\n\n---\n\n';
-          informeMarkdown += '## 5. ERRORES DE VALIDACIÓN\n\n';
-          informeMarkdown += `Se detectaron ${resultado.erroresValidacion.camposFaltantes.length} campos faltantes al intentar enviar el formulario:\n\n`;
-          resultado.erroresValidacion.camposFaltantes.forEach((campo: string, index: number) => {
-            informeMarkdown += `${index + 1}. ${campo}\n`;
-          });
-          informeMarkdown += '\n\n**Screenshot del modal de errores:**\n\n';
-          informeMarkdown += `![Screenshot de errores de validación](data:${mimeType};base64,${imageBase64})\n`;
+          // Buscar la sección 5 en el informe generado por la IA
+          const seccion5Regex = /##\s*5\.\s*ERRORES\s*DE\s*VALIDACI[ÓO]N/gi;
+          const seccion5Index = informeMarkdown.search(seccion5Regex);
           
-          console.log('✅ Screenshot incluido en el PDF');
+          if (seccion5Index !== -1) {
+            // Buscar el final de la sección 5 (antes de la siguiente sección o el final del documento)
+            const section5Content = informeMarkdown.substring(seccion5Index);
+            const nextSectionMatch = section5Content.match(/\n---\n|##\s*\d+\./);
+            const sectionEndIndex = nextSectionMatch 
+              ? seccion5Index + nextSectionMatch.index! 
+              : informeMarkdown.length;
+            
+            // Reemplazar todo el contenido de la sección 5 con título primero y luego imagen ajustada
+            const beforeSection5 = informeMarkdown.substring(0, seccion5Index);
+            const afterSection5 = informeMarkdown.substring(sectionEndIndex);
+            
+            // Crear la sección 5 con título primero y imagen con tamaño ajustado usando HTML
+            const newSection5Content = 
+              '## 5. ERRORES DE VALIDACIÓN\n\n' +
+              `<img src="data:${mimeType};base64,${imageBase64}" alt="Screenshot de errores de validación" style="width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;" />\n`;
+            
+            informeMarkdown = beforeSection5 + newSection5Content + afterSection5;
+            
+            console.log('✅ Screenshot agregado a la sección 5 (título primero, imagen ajustada)');
+          } else {
+            console.warn('⚠️ Sección 5 no encontrada en el informe generado por la IA');
+          }
         } catch (accessError) {
           console.warn(`⚠️ No se pudo acceder al screenshot en ${screenshotPath}:`, (accessError as Error).message);
-          // Continuar sin el screenshot
         }
       } catch (screenshotError) {
         console.warn('⚠️ Error al incluir screenshot en el PDF:', (screenshotError as Error).message);
-        // Continuar sin el screenshot
       }
     }
 
