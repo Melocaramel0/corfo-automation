@@ -33,7 +33,10 @@ describe('FieldExtractor', () => {
       const mockElemento1 = {
         isVisible: vi.fn().mockResolvedValue(true),
         isEnabled: vi.fn().mockResolvedValue(true),
-        evaluate: vi.fn().mockResolvedValue('text'),
+        evaluate: vi.fn()
+          .mockResolvedValueOnce('text') // Primera llamada: obtener tipo
+          .mockResolvedValueOnce(false) // Segunda llamada: esBotonSubirArchivo
+          .mockResolvedValueOnce(true), // Tercera llamada: esInteractuable
       };
 
       const mockElemento2 = {
@@ -48,6 +51,8 @@ describe('FieldExtractor', () => {
 
       expect(campos).toHaveLength(1);
       expect(campos[0]).toBe(mockElemento1);
+      expect(mockElemento1.isVisible).toHaveBeenCalled();
+      expect(mockElemento1.isEnabled).toHaveBeenCalled();
     });
 
     it('debe excluir botones "Subir Archivo"', async () => {

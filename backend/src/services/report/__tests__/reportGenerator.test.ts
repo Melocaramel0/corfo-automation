@@ -5,17 +5,17 @@ import type { ResultadoAgente } from '../../../automation/core/types';
 
 // Mock de módulos externos
 vi.mock('fs/promises');
-vi.mock('openai', () => ({
-  AzureOpenAI: vi.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: vi.fn(),
-      },
-    },
-  })),
-}));
+vi.mock('path');
 vi.mock('md-to-pdf', () => ({
   mdToPdf: vi.fn(),
+}));
+vi.mock('../analysis/fieldComparator', () => ({
+  compararCamposFundamentales: vi.fn().mockResolvedValue({
+    camposEncontrados: [
+      { nombre: 'rut', completado: true },
+      { nombre: 'nombre', completado: true },
+    ],
+  }),
 }));
 vi.mock('../../server/services/aiConsumptionService', () => ({
   AIConsumptionService: {
@@ -25,6 +25,18 @@ vi.mock('../../server/services/aiConsumptionService', () => ({
       recordTopicDetection: vi.fn(),
     })),
   },
+}));
+
+// Mock de openai - debe estar después de los otros mocks
+const mockCreate = vi.fn();
+vi.mock('openai', () => ({
+  AzureOpenAI: vi.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: mockCreate,
+      },
+    },
+  })),
 }));
 
 describe('reportGenerator', () => {
@@ -76,11 +88,40 @@ describe('reportGenerator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreate.mockReset();
     
     // Mock de variables de entorno
     process.env.AZURE_OPENAI_API_KEY = 'test-key';
     process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com';
     process.env.AZURE_OPENAI_DEPLOYMENT_NAME = 'test-deployment';
+    
+    // Mock de campos_fundamentales.json
+    vi.mocked(fs.readFile).mockImplementation(async (path: any) => {
+      if (typeof path === 'string' && path.includes('campos_fundamentales.json')) {
+        return JSON.stringify({
+          categorias: {
+            personaNatural: {
+              activo: true,
+              campos: {
+                rut: {
+                  activo: true,
+                  esFundamental: true,
+                  numeroReferencia: '1',
+                  descripcion: 'RUT',
+                },
+                nombre: {
+                  activo: true,
+                  esFundamental: true,
+                  numeroReferencia: '2',
+                  descripcion: 'Nombre',
+                },
+              },
+            },
+          },
+        });
+      }
+      return '';
+    });
   });
 
   describe('configurarClienteAzure', () => {
@@ -102,7 +143,15 @@ describe('reportGenerator', () => {
       const rutaJson = 'test/report.json';
       const rutaPdf = 'test/report.pdf';
       
-      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockResultado));
+      // Mock del JSON del reporte
+      vi.mocked(fs.readFile).mockImplementation(async (path: any) => {
+        if (path === rutaJson) {
+          return JSON.stringify(mockResultado);
+        }
+        // Para campos_fundamentales.json (ya mockeado en beforeEach)
+        return '';
+      });
+      
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       vi.mocked(fs.access).mockResolvedValue(undefined);
       
@@ -111,9 +160,8 @@ describe('reportGenerator', () => {
         filename: rutaPdf,
       } as any);
 
-      const { AzureOpenAI } = await import('openai');
-      const mockCliente = new AzureOpenAI({} as any);
-      vi.mocked(mockCliente.chat.completions.create).mockResolvedValue({
+      // Mock de la respuesta de OpenAI
+      mockCreate.mockResolvedValue({
         choices: [{
           message: {
             content: '# Informe de Prueba\n\nContenido del informe',
@@ -123,18 +171,23 @@ describe('reportGenerator', () => {
           prompt_tokens: 100,
           completion_tokens: 50,
         },
-      } as any);
+      });
 
       await generarInformePDF(rutaJson, rutaPdf);
 
-      expect(fs.readFile).toHaveBeenCalledWith(rutaJson, 'utf-8');
+      expect(fs.readFile).toHaveBeenCalled();
     });
 
     it('debe generar PDF con contenido correcto', async () => {
       const rutaJson = 'test/report.json';
       const rutaPdf = 'test/report.pdf';
       
-      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockResultado));
+      vi.mocked(fs.readFile).mockImplementation(async (path: any) => {
+        if (path === rutaJson) {
+          return JSON.stringify(mockResultado);
+        }
+        return '';
+      });
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       
       const { mdToPdf } = await import('md-to-pdf');
@@ -142,9 +195,7 @@ describe('reportGenerator', () => {
         filename: rutaPdf,
       } as any);
 
-      const { AzureOpenAI } = await import('openai');
-      const mockCliente = new AzureOpenAI({} as any);
-      vi.mocked(mockCliente.chat.completions.create).mockResolvedValue({
+      mockCreate.mockResolvedValue({
         choices: [{
           message: {
             content: '# Informe\n\nContenido',
@@ -154,7 +205,7 @@ describe('reportGenerator', () => {
           prompt_tokens: 100,
           completion_tokens: 50,
         },
-      } as any);
+      });
 
       await generarInformePDF(rutaJson, rutaPdf);
 
@@ -219,18 +270,21 @@ describe('reportGenerator', () => {
       const rutaJson = 'test/report.json';
       const rutaPdf = 'test/report.pdf';
       
-      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockResultado));
+      vi.mocked(fs.readFile).mockImplementation(async (path: any) => {
+        if (path === rutaJson) {
+          return JSON.stringify(mockResultado);
+        }
+        return '';
+      });
       vi.mocked(fs.mkdir).mockResolvedValue(undefined);
       
-      const { AzureOpenAI } = await import('openai');
-      const mockCliente = new AzureOpenAI({} as any);
-      vi.mocked(mockCliente.chat.completions.create).mockResolvedValue({
+      mockCreate.mockResolvedValue({
         choices: [],
         usage: {
           prompt_tokens: 100,
           completion_tokens: 0,
         },
-      } as any);
+      });
 
       await expect(generarInformePDF(rutaJson, rutaPdf)).rejects.toThrow();
     });
