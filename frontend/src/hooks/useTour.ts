@@ -22,7 +22,7 @@ export interface TourConfig {
   allowClose?: boolean
   overlayColor?: string
   showProgress?: boolean
-  showButtons?: string[]
+  showButtons?: ('next' | 'previous' | 'close')[]
   disableActiveInteraction?: boolean
 }
 
