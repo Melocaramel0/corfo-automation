@@ -27,11 +27,15 @@ export function Tabs({ value, onValueChange, children, className = '' }: TabsPro
 interface TabsListProps {
   children: ReactNode
   className?: string
+  [key: string]: any // Permitir props adicionales como data-tour
 }
 
-export function TabsList({ children, className = '' }: TabsListProps) {
+export function TabsList({ children, className = '', ...props }: TabsListProps) {
   return (
-    <div className={`inline-flex h-10 items-center justify-center rounded-md bg-corfoGray-20 p-1 text-corfoGray-60 ${className}`}>
+    <div 
+      className={`inline-flex h-10 items-center justify-center rounded-md bg-corfoGray-20 p-1 text-corfoGray-60 ${className}`}
+      {...props}
+    >
       {children}
     </div>
   )

@@ -408,7 +408,7 @@ export const CamposFundamentales: React.FC = () => {
       </div>
 
       {/* Lista de categorías */}
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="campos-list">
         {Object.entries(categorias).map(([catKey, categoria]) => {
           const isExpanded = expandedCategorias.has(catKey)
           const camposKeys = Object.keys(categoria.campos)
@@ -450,6 +450,7 @@ export const CamposFundamentales: React.FC = () => {
                         e.stopPropagation()
                         startCreating(catKey)
                       }}
+                      data-tour="add-campo"
                       className="ml-2 px-3 py-1.5 bg-corfo-600 text-white text-sm rounded-lg hover:bg-corfo-700 transition-colors flex items-center space-x-1.5"
                       title="Agregar campo"
                     >

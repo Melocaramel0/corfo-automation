@@ -209,7 +209,7 @@ export function LogVisualization() {
         </div>
 
         {/* Tabla */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-tour="system-logs">
           <table className="min-w-full divide-y divide-corfoGray-20">
             <thead className="bg-corfoGray-10">
               <tr>

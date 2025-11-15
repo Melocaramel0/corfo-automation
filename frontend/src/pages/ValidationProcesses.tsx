@@ -485,6 +485,7 @@ export const ValidationProcesses: React.FC = () => {
         <h1 className="text-2xl font-bold text-corfoGray-90">Procesos de Validación</h1>
         <button
           onClick={handleCreateProcess}
+          data-tour="create-process"
           className="flex items-center px-4 py-2 bg-corfo-500 text-white rounded-lg hover:bg-corfo-600 transition-colors"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -546,7 +547,7 @@ export const ValidationProcesses: React.FC = () => {
       })()}
 
       {/* Tabla de procesos */}
-      <div className="bg-corfoGray-0 rounded-lg shadow overflow-hidden">
+      <div className="bg-corfoGray-0 rounded-lg shadow overflow-hidden" data-tour="process-list">
         <table className="min-w-full divide-y divide-corfoGray-20">
           <thead className="bg-corfoGray-10">
             <tr>
@@ -620,7 +621,7 @@ export const ValidationProcesses: React.FC = () => {
                     </Badge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2" data-tour="process-actions">
                       {/* Ejecutar o Detener */}
                       {(() => {
                         const execution = executions.get(process.id)

@@ -65,6 +65,24 @@ export const dashboardTourSteps: TourStep[] = [
       align: 'start',
     },
   },
+  {
+    element: '[data-tour="sidebar"]',
+    popover: {
+      title: 'Menú de Navegación',
+      description: 'Usa este menú para navegar entre las diferentes secciones del sistema.',
+      side: 'right',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="topbar"]',
+    popover: {
+      title: 'Barra Superior',
+      description: 'Accede a tu perfil, notificaciones y otras opciones desde aquí.',
+      side: 'bottom',
+      align: 'end',
+    },
+  },
 ]
 
 // Tour para la página de Procesos de Validación
@@ -113,7 +131,7 @@ export const camposFundamentalesTourSteps: TourStep[] = [
     element: '[data-tour="add-campo"]',
     popover: {
       title: 'Agregar Campo',
-      description: 'Agrega nuevos campos fundamentales que el sistema debe reconocer y completar automáticamente.',
+      description: 'Agrega nuevos campos fundamentales que el formulario deberia tener para que el sistema realice una comparación.',
       side: 'bottom',
       align: 'start',
     },
@@ -126,7 +144,7 @@ export const adminTourSteps: TourStep[] = [
     element: '[data-tour="admin-tabs"]',
     popover: {
       title: 'Panel de Administración',
-      description: 'Como administrador, tienes acceso a diferentes secciones para gestionar el sistema.',
+      description: 'Como administrador, tienes acceso a tres secciones principales: Consumo de Recursos (monitoreo de IA), Parámetros del Sistema (configuración) y Visualización de Logs (historial del sistema).',
       side: 'bottom',
       align: 'start',
     },
@@ -134,18 +152,18 @@ export const adminTourSteps: TourStep[] = [
   {
     element: '[data-tour="ai-consumption"]',
     popover: {
-      title: 'Consumo de IA',
-      description: 'Monitorea el consumo de recursos de IA para mantener un control de costos.',
-      side: 'bottom',
+      title: 'Consumo de Recursos de IA',
+      description: 'En esta sección puedes monitorear el consumo de las APIs y componentes de inteligencia artificial del sistema. Verás estadísticas de solicitudes NLP, análisis de sentimientos y detección de temas.',
+      side: 'top',
       align: 'start',
     },
   },
   {
     element: '[data-tour="system-logs"]',
     popover: {
-      title: 'Logs del Sistema',
-      description: 'Revisa los logs del sistema para diagnosticar problemas y monitorear la actividad.',
-      side: 'bottom',
+      title: 'Visualización de Logs',
+      description: 'Aquí puedes revisar el historial completo de acciones del sistema. Puedes filtrar por fecha, usuario, acción o concurso, y exportar los logs para análisis.',
+      side: 'top',
       align: 'start',
     },
   },

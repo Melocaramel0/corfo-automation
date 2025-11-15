@@ -11,22 +11,11 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { processService } from '../services/processes'
-import { useTour } from '../hooks/useTour'
-import { dashboardTourSteps } from '../utils/tours'
-import { TourButton } from '../components/ui/TourButton'
 // import { ValidationProcess } from '../types' // No usado actualmente
 
 const Dashboard: React.FC = () => {
   const { user, hasPermission } = useAuth()
   const [loading, setLoading] = useState(true)
-  
-  // Configurar tour del dashboard
-  const { start: startTour } = useTour({
-    steps: dashboardTourSteps,
-    showProgress: true,
-    allowClose: true,
-    overlayColor: '#221E7C',
-  })
   const [stats, setStats] = useState({
     totalProcesos: 0,
     procesosEjecutados: 0,
@@ -185,7 +174,6 @@ const Dashboard: React.FC = () => {
             Sistema de Validación Automática de Formularios CORFO
           </p>
         </div>
-        <TourButton onClick={startTour} variant="icon" />
       </div>
 
       {/* Tarjetas de estadísticas */}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs'
 import { AIResourceConsumption } from '../components/admin/AIResourceConsumption'
 import { SystemParameters } from '../components/admin/SystemParameters'
@@ -6,6 +6,24 @@ import { LogVisualization } from '../components/admin/LogVisualization'
 
 export function Administration() {
   const [activeTab, setActiveTab] = useState('consumption')
+
+  // Cambiar pestaña automáticamente cuando el tour intenta mostrar elementos de otras pestañas
+  useEffect(() => {
+    const handleTourTabChange = (event: CustomEvent) => {
+      const tourId = event.detail.tourId as string
+      if (tourId === 'ai-consumption' && activeTab !== 'consumption') {
+        setActiveTab('consumption')
+      } else if (tourId === 'system-logs' && activeTab !== 'logs') {
+        setActiveTab('logs')
+      }
+    }
+
+    window.addEventListener('tour-tab-change', handleTourTabChange as EventListener)
+    
+    return () => {
+      window.removeEventListener('tour-tab-change', handleTourTabChange as EventListener)
+    }
+  }, [activeTab])
 
   return (
     <div className="p-6">
@@ -17,7 +35,7 @@ export function Administration() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3" data-tour="admin-tabs">
           <TabsTrigger value="consumption">
             Consumo de Recursos
           </TabsTrigger>
@@ -30,7 +48,9 @@ export function Administration() {
         </TabsList>
 
         <TabsContent value="consumption" className="mt-6">
-          <AIResourceConsumption />
+          <div data-tour="ai-consumption">
+            <AIResourceConsumption />
+          </div>
         </TabsContent>
 
         <TabsContent value="parameters" className="mt-6">

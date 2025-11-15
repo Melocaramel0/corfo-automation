@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Menu, 
   User, 
@@ -16,6 +16,14 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { UserRole, ValidationProcess } from '../../types'
 import { processService } from '../../services/processes'
+import { useTour } from '../../hooks/useTour'
+import { 
+  dashboardTourSteps, 
+  processesTourSteps, 
+  camposFundamentalesTourSteps,
+  adminTourSteps
+} from '../../utils/tours'
+import { HelpCircle } from 'lucide-react'
 import clsx from 'clsx'
 
 interface TopBarProps {
@@ -39,6 +47,7 @@ const getRoleBadgeColor = (role: UserRole): string => {
 const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false)
@@ -48,6 +57,97 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const notificationDropdownRef = useRef<HTMLDivElement>(null)
   const wasDropdownOpenRef = useRef(false) // Ref para rastrear si el dropdown estaba abierto
+
+  // Determinar qué tour usar según la ruta actual
+  const getTourSteps = () => {
+    const path = location.pathname
+    if (path === '/') {
+      return dashboardTourSteps
+    } else if (path === '/processes') {
+      return processesTourSteps
+    } else if (path === '/campos-fundamentales') {
+      return camposFundamentalesTourSteps
+    } else if (path.startsWith('/admin')) {
+      return adminTourSteps
+    }
+    return []
+  }
+
+  // Determinar título y descripción según la ruta actual
+  const getPageInfo = () => {
+    const path = location.pathname
+    if (path === '/') {
+      return {
+        title: 'Menú Principal',
+        description: 'Sistema de Validación Automática de Formularios CORFO'
+      }
+    } else if (path === '/processes') {
+      return {
+        title: 'Procesos de Validación',
+        description: 'Gestiona y ejecuta validaciones automáticas'
+      }
+    } else if (path === '/campos-fundamentales') {
+      return {
+        title: 'Campos Fundamentales',
+        description: 'Gestiona los campos fundamentales para formularios CORFO'
+      }
+    } else if (path.startsWith('/admin')) {
+      return {
+        title: 'Administración',
+        description: 'Panel de administración del sistema'
+      }
+    }
+    return {
+      title: 'Procesos de Validación',
+      description: 'Gestiona y ejecuta validaciones automáticas'
+    }
+  }
+
+  // Determinar si mostrar el botón (mostrar en todos los módulos)
+  const shouldShowTourButton = () => {
+    return true
+  }
+
+  const tourSteps = getTourSteps()
+  const showTourButton = shouldShowTourButton()
+  const pageInfo = getPageInfo()
+  
+  // Callback para cambiar pestañas en Administración ANTES de que driver.js intente encontrar el elemento
+  const handleTourHighlightStarted = (_element: HTMLElement, step: any) => {
+    const selector = step.element
+    if (selector.includes('ai-consumption')) {
+      window.dispatchEvent(new CustomEvent('tour-tab-change', { detail: { tourId: 'ai-consumption' } }))
+    } else if (selector.includes('system-logs')) {
+      // Para logs, cambiar la pestaña y esperar a que el elemento esté disponible
+      window.dispatchEvent(new CustomEvent('tour-tab-change', { detail: { tourId: 'system-logs' } }))
+      // Esperar a que el elemento esté en el DOM y sea visible
+      return new Promise<void>((resolve) => {
+        const checkElement = () => {
+          const element = document.querySelector('[data-tour="system-logs"]')
+          if (element) {
+            const rect = (element as HTMLElement).getBoundingClientRect()
+            if (rect.width > 0 && rect.height > 0) {
+              resolve()
+            } else {
+              setTimeout(checkElement, 50)
+            }
+          } else {
+            setTimeout(checkElement, 50)
+          }
+        }
+        // Dar tiempo inicial para que React renderice
+        setTimeout(checkElement, 200)
+      })
+    }
+  }
+  
+  const { start: startTour } = useTour({
+    steps: tourSteps,
+    showProgress: true,
+    allowClose: true,
+    overlayColor: '#221E7C',
+    onHighlightStarted: handleTourHighlightStarted,
+  })
 
   // Cargar últimas ejecuciones cuando se abre el dropdown
   useEffect(() => {
@@ -157,16 +257,28 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuClick }) => {
             {/* Título de la página actual */}
             <div>
               <h1 className="text-xl font-semibold text-corfoGray-90">
-                Procesos de Validación
+                {pageInfo.title}
               </h1>
               <p className="text-sm text-corfoGray-60">
-                Gestiona y ejecuta validaciones automáticas
+                {pageInfo.description}
               </p>
             </div>
           </div>
 
           {/* Lado derecho */}
           <div className="flex items-center space-x-4">
+            {/* Botón Guía rápida - visible en todos los módulos */}
+            {showTourButton && tourSteps.length > 0 && (
+              <button
+                onClick={startTour}
+                className="btn-primary flex items-center space-x-2"
+                aria-label="Iniciar guía rápida"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Guía rápida</span>
+              </button>
+            )}
+
             {/* Barra de búsqueda (oculta en móvil) */}
             <div className="hidden md:block">
               <form onSubmit={handleSearch}>
