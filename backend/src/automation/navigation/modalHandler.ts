@@ -1,5 +1,6 @@
 import { Page } from 'playwright';
 import type { ResultadoModal, ResultadoErroresValidacion } from '../core/types';
+import { WaitUtils } from '../utils/waitUtils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -48,14 +49,16 @@ export class ModalHandler {
      */
     async cerrarModalConfirmacion(textoBotones: string[]): Promise<void> {
         try {
-            await this.page.waitForTimeout(1000);
+            await WaitUtils.esperarModal(this.page, true, 5000);
             
             const boton = await this.buscarBotonPorTexto(textoBotones);
             if (boton) {
                 await boton.click();
-                // OPTIMIZADO: Espera reducida después de cerrar modal
-                await this.page.waitForTimeout(800);
-                console.log('   ✅ Modal confirmado');
+                // Espera adaptativa más larga después de cerrar modal para asegurar que desaparezca completamente
+                await WaitUtils.esperarModal(this.page, false, 5000);
+                // Verificar adicionalmente que no haya modales interceptando
+                await WaitUtils.esperarQueNoHayaModalesInterceptando(this.page, 8000);
+                console.log('   ✅ Modal confirmado y cerrado completamente');
             }
         } catch (error) {
             console.log('   ⚠️ Error cerrando modal:', (error as Error).message);
@@ -69,7 +72,7 @@ export class ModalHandler {
      */
     async confirmarModalParaAvanzar(): Promise<boolean> {
         try {
-            await this.page.waitForTimeout(1000);
+            await WaitUtils.esperarModal(this.page, true, 3000);
             
             const selectoresSi = [
                 'button:has-text("Sí, estoy seguro")',
@@ -89,7 +92,7 @@ export class ModalHandler {
                         const texto = await botonSi.textContent() || '';
                         console.log(`   ✅ Confirmando modal para avanzar: "${texto}"`);
                         await botonSi.click();
-                        await this.page.waitForTimeout(1500);
+                        await WaitUtils.esperarModal(this.page, false, 3000);
                         return true;
                     }
                 } catch (err) {
@@ -113,7 +116,7 @@ export class ModalHandler {
      */
     async manejarModalConfirmacion(): Promise<ResultadoModal> {
         try {
-            await this.page.waitForTimeout(1000);
+            await WaitUtils.esperarModal(this.page, true, 3000);
             
             //  NUEVO: Primero buscar el botón "No" para identificar campos faltantes
             const selectoresNo = [
@@ -136,7 +139,7 @@ export class ModalHandler {
                         console.log(`   🔄 Haciendo clic en "No" para procesar campos faltantes: "${texto}"`);
                         
                         await botonNo.click();
-                        await this.page.waitForTimeout(2000);
+                        await WaitUtils.esperarDespuesDeClick(this.page, 3000);
                         
                         return {
                             aparecio: true,
@@ -164,7 +167,7 @@ export class ModalHandler {
                     if (botonSi && await botonSi.isVisible()) {
                         console.log(`   ✅ Modal de confirmación - Todos los campos completos, avanzando...`);
                         await botonSi.click();
-                        await this.page.waitForTimeout(2000);
+                        await WaitUtils.esperarDespuesDeClick(this.page, 3000);
                         
                         return {
                             aparecio: true,
@@ -210,7 +213,7 @@ export class ModalHandler {
      */
     async detectarModalExito(): Promise<boolean> {
         try {
-            await this.page.waitForTimeout(2000);
+            await WaitUtils.esperarModal(this.page, true, 5000);
             
             const modalExito = await this.page.evaluate(() => {
                 // Buscar modales visibles
@@ -249,8 +252,8 @@ export class ModalHandler {
      */
     async detectarModalErroresValidacion(headless: boolean = false): Promise<ResultadoErroresValidacion> {
         try {
-            // Esperar un poco para que el modal aparezca
-            await this.page.waitForTimeout(3000);
+            // Espera adaptativa para que el modal aparezca
+            await WaitUtils.esperarModal(this.page, true, 5000);
             
             // Buscar el modal con el título "Postulación con errores de validación"
             // IMPORTANTE: Distinguir entre modal de éxito y modal de errores

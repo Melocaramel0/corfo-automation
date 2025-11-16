@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 import { CAMPOS_CORFO_MAPPING } from '../constants';
 import { FieldValueGenerator } from './fieldValueGenerator';
+import { WaitUtils } from '../utils/waitUtils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -112,7 +113,7 @@ export class FieldCompleter {
                             });
                         });
                         
-                        await this.page.waitForTimeout(300);
+                        await WaitUtils.esperarAdaptativa(this.page, 200, 500);
                         
                         //  NUEVO: Intentar hacer click en el label asociado primero (más confiable)
                         const labelClickExitoso = await elemento.evaluate((el: HTMLInputElement) => {
@@ -149,7 +150,7 @@ export class FieldCompleter {
                     }
                     
                     //  CRÍTICO: Verificar que el clic fue exitoso
-                    await this.page.waitForTimeout(500);
+                    await WaitUtils.esperarDespuesDeClick(this.page, 1000);
                     let quedoSeleccionado = await elemento.isChecked();
                     
                     //  NUEVO: Si aún no está seleccionado, intentar seleccionar el primer radio del grupo
@@ -164,7 +165,7 @@ export class FieldCompleter {
                                     const esVisible = await primerRadio.isVisible();
                                     if (esVisible) {
                                         await primerRadio.click({ timeout: 3000 });
-                                        await this.page.waitForTimeout(500);
+                                        await WaitUtils.esperarDespuesDeClick(this.page, 1000);
                                         quedoSeleccionado = await primerRadio.isChecked();
                                         if (quedoSeleccionado) {
                                             console.log(`     ✅ Primer radio del grupo seleccionado exitosamente`);
@@ -192,7 +193,7 @@ export class FieldCompleter {
                     
                     if (tieneCondicional) {
                         console.log(`     ⏳ Radio con campos condicionales, esperando campos dinámicos...`);
-                        await this.page.waitForTimeout(1500); // Esperar a que aparezcan campos condicionales
+                        await WaitUtils.esperarDespuesDeCompletarCampo(this.page, 3000, true);
                     }
                 }
                 return 'seleccionado';
@@ -245,18 +246,18 @@ export class FieldCompleter {
                     // Estrategia para campos con inputmask:
                     // 1. Click para activar el campo
                     await elemento.click();
-                    await this.page.waitForTimeout(100);
+                    await WaitUtils.esperarAdaptativa(this.page, 100, 300);
                     
                     // 2. Limpiar con selectAll + delete
                     await elemento.press('Control+A');
                     await elemento.press('Backspace');
-                    await this.page.waitForTimeout(100);
+                    await WaitUtils.esperarAdaptativa(this.page, 100, 300);
                     
                     // 3. Escribir carácter por carácter con type() para que inputmask lo procese
                     // Para decimales, agregar coma y decimales
                     const valorFinal = esDecimal ? `${numeroFinal},00` : numeroFinal;
                     await elemento.type(valorFinal, { delay: 50 });
-                    await this.page.waitForTimeout(200);
+                    await WaitUtils.esperarDespuesDeCompletarCampo(this.page, 500, false);
                     
                     console.log(`     🔢 Campo inputmask ${esDecimal ? 'decimal' : 'integer'} completado: ${valorFinal}`);
                 } else {
@@ -279,17 +280,17 @@ export class FieldCompleter {
                     // Estrategia para campos datepicker con inputmask:
                     // 1. Click para activar el campo
                     await elemento.click();
-                    await this.page.waitForTimeout(100);
+                    await WaitUtils.esperarAdaptativa(this.page, 100, 300);
                     
                     // 2. Limpiar con selectAll + delete
                     await elemento.press('Control+A');
                     await elemento.press('Backspace');
-                    await this.page.waitForTimeout(100);
+                    await WaitUtils.esperarAdaptativa(this.page, 100, 300);
                     
                     // 3. Escribir en formato dd/mm/yyyy carácter por carácter para que inputmask lo procese
                     const fechaFormato = CAMPOS_CORFO_MAPPING.FECHA_FORMATO_DDMMYYYY;
                     await elemento.type(fechaFormato, { delay: 50 });
-                    await this.page.waitForTimeout(200);
+                    await WaitUtils.esperarDespuesDeCompletarCampo(this.page, 500, false);
                     
                     console.log(`     📅 Campo datepicker completado: ${fechaFormato}`);
                     return fechaFormato;
@@ -500,7 +501,7 @@ export class FieldCompleter {
             
             // Subir el archivo PDF
             await elemento.setInputFiles(rutaArchivo);
-            await this.page.waitForTimeout(1000);
+            await WaitUtils.esperarDespuesDeCompletarCampo(this.page, 2000, false);
             
             // Marcar como subido en esta sesión
             this.archivosSubidosEnSesion.add(campoId);

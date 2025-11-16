@@ -1,5 +1,6 @@
 import { Page, Frame } from 'playwright';
 import * as dotenv from 'dotenv';
+import { WaitUtils } from '../utils/waitUtils';
 
 dotenv.config();
 
@@ -11,98 +12,172 @@ export class LoginService {
     }
 
     async realizarLogin(): Promise<void> {
-        // 1) Intentar interfaz nueva en la página actual
+        console.log('   🔍 Buscando interfaz de login...');
+        
+        // MÉTODO 1: Interfaz nueva con enlace "¿Tienes clave Corfo?"
+        // Esperar adaptativamente a que el enlace aparezca y esté visible
         try {
-            const mostrarLink = await this.page.$('#mostrarCorfoLoginLink');
-            const bloqueVisible = await this.page.$('#bloqueCorfoLogin');
-
+            console.log('   🔍 Intentando método 1: Enlace "¿Tienes clave Corfo?"...');
+            const mostrarLink = await this.page.waitForSelector('#mostrarCorfoLoginLink', { 
+                state: 'visible', 
+                timeout: 10000 
+            }).catch(() => null);
+            
             if (mostrarLink) {
+                console.log('   ✅ Enlace encontrado, haciendo clic...');
                 await mostrarLink.click();
-                await this.page.waitForSelector('#bloqueCorfoLogin', { state: 'visible', timeout: 10000 });
-            } else if (!bloqueVisible) {
-                // nada visible aún, continuar a verificar iframe
-            }
-
-            const hayBloque = await this.page.$('#bloqueCorfoLogin');
-            if (hayBloque) {
-                await this.page.waitForSelector('#rut', { state: 'visible' });
-                await this.page.waitForSelector('#pass', { state: 'visible' });
+                
+                // Espera adaptativa después del clic
+                await WaitUtils.esperarDespuesDeClick(this.page, 3000);
+                
+                // Esperar a que aparezca el bloque de login
+                console.log('   ⏳ Esperando que aparezca el bloque de login...');
+                await this.page.waitForSelector('#bloqueCorfoLogin', { state: 'visible', timeout: 15000 });
+                console.log('   ✅ Bloque de login visible');
+                
+                // Esperar a que los campos estén visibles
+                await this.page.waitForSelector('#rut', { state: 'visible', timeout: 10000 });
+                await this.page.waitForSelector('#pass', { state: 'visible', timeout: 10000 });
+                
+                console.log('   📝 Completando campos de login...');
                 await this.page.fill('#rut', process.env.CORFO_USER!);
                 await this.page.fill('#pass', process.env.CORFO_PASS!);
+                
                 await this.page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
                 await Promise.all([
                     this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
                     this.page.click('#ingresa_')
                 ]);
-                // Esperar a que se estabilice la red
-                await this.page.waitForLoadState('networkidle').catch(() => {});
-                console.log('Login con interfaz nueva completado');
+                
+                await WaitUtils.esperarPaginaListaPostLogin(this.page, 30000);
+                console.log('✅ Login con interfaz nueva completado');
                 return;
             }
-        } catch {}
-
-        // 2) Intentar interfaz antigua via iframe en la página actual
-        const frames = this.page.frames();
-        const loginFrame = frames.find((frame: Frame) => frame.url().includes('login.corfo.cl'));
-        if (loginFrame) {
-            await loginFrame.waitForLoadState('networkidle');
-            await this.page.waitForTimeout(2000);
-            await loginFrame.fill('#rut', process.env.CORFO_USER!);
-            await loginFrame.fill('#pass', process.env.CORFO_PASS!);
-            await Promise.all([
-                this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
-                loginFrame.click('#ingresa_')
-            ]);
-            await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 }).catch(() => {});
-            await this.page.waitForLoadState('networkidle').catch(() => {});
-            console.log('Login con iframe completado');
-            return;
+        } catch (error) {
+            console.log(`   ⚠️ Método 1 falló: ${(error as Error).message}`);
         }
 
-        // 3) Si existe un enlace textual a login en la misma página, usarlo (sin ir al home)
+        // MÉTODO 2: Bloque de login ya visible (sin necesidad de hacer clic)
         try {
-            const enlaceLogin = await this.page.$('a:has-text("¿Tienes clave Corfo?"), a:has-text("Inicia sesión"), a:has-text("Ingreso usuario")');
-            if (enlaceLogin) {
+            console.log('   🔍 Intentando método 2: Bloque de login ya visible...');
+            const bloqueVisible = await this.page.waitForSelector('#bloqueCorfoLogin', { 
+                state: 'visible', 
+                timeout: 5000 
+            }).catch(() => null);
+            
+            if (bloqueVisible) {
+                console.log('   ✅ Bloque de login ya está visible');
+                
+                await this.page.waitForSelector('#rut', { state: 'visible', timeout: 10000 });
+                await this.page.waitForSelector('#pass', { state: 'visible', timeout: 10000 });
+                
+                console.log('   📝 Completando campos de login...');
+                await this.page.fill('#rut', process.env.CORFO_USER!);
+                await this.page.fill('#pass', process.env.CORFO_PASS!);
+                
+                await this.page.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
                 await Promise.all([
-                    this.page.waitForNavigation({ waitUntil: 'networkidle' }).catch(() => {}),
-                    enlaceLogin.click()
+                    this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+                    this.page.click('#ingresa_')
                 ]);
+                
+                await WaitUtils.esperarPaginaListaPostLogin(this.page, 30000);
+                console.log('✅ Login con bloque visible completado');
+                return;
+            }
+        } catch (error) {
+            console.log(`   ⚠️ Método 2 falló: ${(error as Error).message}`);
+        }
 
-                // Reintentar interfaz nueva o iframe tras navegar
-                const mostrarLink2 = await this.page.$('#mostrarCorfoLoginLink');
-                if (mostrarLink2) {
-                    await mostrarLink2.click();
-                    await this.page.waitForSelector('#bloqueCorfoLogin', { state: 'visible', timeout: 10000 });
-                    await this.page.fill('#rut', process.env.CORFO_USER!);
-                    await this.page.fill('#pass', process.env.CORFO_PASS!);
-                    await Promise.all([
-                        this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
-                        this.page.click('#ingresa_')
-                    ]);
-                    await this.page.waitForLoadState('networkidle').catch(() => {});
-                    console.log('Login completado tras navegar al enlace de login');
-                    return;
-                }
-
+        // MÉTODO 3: Interfaz antigua via iframe
+        try {
+            console.log('   🔍 Intentando método 3: Iframe de login...');
+            
+            // Esperar a que los frames se carguen
+            await WaitUtils.esperarEstabilidadPagina(this.page, 5000);
+            
+            // Buscar el iframe de login
+            const frames = this.page.frames();
+            const loginFrame = frames.find((frame: Frame) => frame.url().includes('login.corfo.cl'));
+            
+            if (!loginFrame) {
+                // Si no encontramos el iframe inmediatamente, esperar adaptativamente
+                await WaitUtils.esperarEstabilidadPagina(this.page, 3000);
                 const frames2 = this.page.frames();
                 const loginFrame2 = frames2.find((frame: Frame) => frame.url().includes('login.corfo.cl'));
-                if (loginFrame2) {
-                    await loginFrame2.waitForLoadState('networkidle');
-                    await loginFrame2.fill('#rut', process.env.CORFO_USER!);
-                    await loginFrame2.fill('#pass', process.env.CORFO_PASS!);
-                    await Promise.all([
-                        this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
-                        loginFrame2.click('#ingresa_')
-                    ]);
-                    await loginFrame2.waitForSelector('#rut', { state: 'detached', timeout: 15000 }).catch(() => {});
-                    await this.page.waitForLoadState('networkidle').catch(() => {});
-                    console.log('Login con iframe tras navegar al enlace de login');
-                    return;
+                
+                if (!loginFrame2) {
+                    throw new Error('Iframe de login no encontrado');
                 }
+                
+                // Usar el iframe encontrado después de esperar
+                await this.intentarLoginConIframe(loginFrame2);
+                return;
             }
-        } catch {}
+            
+            await this.intentarLoginConIframe(loginFrame);
+            return;
+        } catch (error) {
+            console.log(`   ⚠️ Método 3 falló: ${(error as Error).message}`);
+        }
 
         throw new Error('No se encontró interfaz de login en la página actual');
+    }
+
+    /**
+     * Intenta realizar login usando un iframe de login
+     * @param loginFrame Frame del iframe de login
+     */
+    private async intentarLoginConIframe(loginFrame: Frame): Promise<void> {
+        console.log('   🔍 Iframe de login detectado, esperando que esté listo...');
+        
+        // Espera adaptativa para el iframe
+        try {
+            await loginFrame.waitForLoadState('networkidle', { timeout: 10000 });
+        } catch {
+            await loginFrame.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+        }
+        
+        // Esperar adaptativamente a que los campos estén visibles
+        // Usar una espera adaptativa personalizada en lugar de waitForSelector directo
+        console.log('   ⏳ Esperando que los campos del iframe estén visibles (adaptativo)...');
+        
+        const camposVisibles = await WaitUtils.waitForCondition(
+            this.page,
+            async () => {
+                try {
+                    const rut = await loginFrame.$('#rut');
+                    const pass = await loginFrame.$('#pass');
+                    if (!rut || !pass) return false;
+                    
+                    const rutVisible = await rut.isVisible().catch(() => false);
+                    const passVisible = await pass.isVisible().catch(() => false);
+                    return rutVisible && passVisible;
+                } catch {
+                    return false;
+                }
+            },
+            20000
+        );
+        
+        if (!camposVisibles) {
+            throw new Error('Los campos del iframe no se volvieron visibles después de esperar');
+        }
+        
+        console.log('   ✅ Campos del iframe visibles, completando login...');
+        
+        await loginFrame.fill('#rut', process.env.CORFO_USER!);
+        await loginFrame.fill('#pass', process.env.CORFO_PASS!);
+        
+        await loginFrame.waitForSelector('#ingresa_', { state: 'visible', timeout: 10000 });
+        await Promise.all([
+            this.page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => {}),
+            loginFrame.click('#ingresa_')
+        ]);
+        
+        await loginFrame.waitForSelector('#rut', { state: 'detached', timeout: 15000 }).catch(() => {});
+        await WaitUtils.esperarPaginaListaPostLogin(this.page, 30000);
+        console.log('✅ Login con iframe completado');
     }
 }
 

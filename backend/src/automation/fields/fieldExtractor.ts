@@ -1,4 +1,5 @@
 import { Page } from 'playwright';
+import { WaitUtils } from '../utils/waitUtils';
 
 export interface FieldInfo {
     tipo: string;
@@ -144,8 +145,8 @@ export class FieldExtractor {
             posicionActual += distanciaPorScroll;
             contadorScrolls++;
             
-            // Esperar a que se active contenido dinámico
-            await this.page.waitForTimeout(delayEntreScrolls);
+            // Espera adaptativa después de scroll
+            await WaitUtils.esperarDespuesDeScroll(this.page, delayEntreScrolls);
             
             // Recalcular altura por si se activó contenido nuevo
             const nuevaAltura = await this.page.evaluate(() => document.body.scrollHeight);
@@ -162,16 +163,16 @@ export class FieldExtractor {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
         
-        // Esperar a que termine el scroll
-        await this.page.waitForTimeout(500);
+        // Espera adaptativa después de scroll
+        await WaitUtils.esperarDespuesDeScroll(this.page, 1000);
     }
 
     /**
      * Espera y captura campos dinámicos que aparecen después de completar selects
      */
     async esperarYCapturarCamposDinamicos(): Promise<void> {
-        console.log(`     ⏳ Esperando campos dinámicos (2 segundos)...`);
-        await this.page.waitForTimeout(2000);
+        console.log(`     ⏳ Esperando campos dinámicos (adaptativo)...`);
+        await WaitUtils.esperarDespuesDeCompletarCampo(this.page, 3000, true);
         
         // Verificar si hay nuevos campos habilitados
         const nuevosCampos = await this.page.evaluate(() => {

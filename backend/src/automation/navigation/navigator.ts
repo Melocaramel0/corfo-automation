@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 import type { ResultadoNavegacion } from '../core/types';
 import { ModalHandler } from './modalHandler';
+import { WaitUtils } from '../utils/waitUtils';
 
 export class Navigator {
     private page: Page;
@@ -27,7 +28,7 @@ export class Navigator {
                 timeout: 30000
             });
             
-            await this.page.waitForTimeout(3000);
+            await WaitUtils.esperarEstabilidadPagina(this.page, 10000);
             
             // Verificar si necesitamos hacer clic en "Inicia tu postulación"
             const botonIniciar = await this.page.$('a:has-text("Inicia tu postulación"), button:has-text("Inicia tu postulación")');
@@ -37,7 +38,7 @@ export class Navigator {
                     this.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
                     botonIniciar.click()
                 ]);
-                await this.page.waitForTimeout(5000);
+                await WaitUtils.esperarEstabilidadPagina(this.page, 10000);
                 
                 // Verificar si estamos en la página de borradores
                 const urlDespuesClic = this.page.url();
@@ -101,7 +102,7 @@ export class Navigator {
                 botonNuevaPostulacion.click()
             ]);
             
-            await this.page.waitForTimeout(5000);
+            await WaitUtils.esperarEstabilidadPagina(this.page, 10000);
             
             const urlFinal = this.page.url();
             console.log(`📍 URL final del formulario: ${urlFinal}`);
@@ -121,7 +122,7 @@ export class Navigator {
     async navegarAlPrimerPasoReal(): Promise<void> {
         console.log('🎯 Navegando al primer paso real del formulario...');
         
-        await this.page.waitForTimeout(3000); // Esperar que cargue completamente
+        await WaitUtils.esperarEstabilidadPagina(this.page, 10000);
         
         // Buscar botones que podrían llevarnos al primer paso
         const selectoresPrimerPaso = [
@@ -149,11 +150,11 @@ export class Navigator {
                     console.log(`🔄 Haciendo clic en botón: ${selector}`);
                     
                     await boton.scrollIntoViewIfNeeded();
-                    await this.page.waitForTimeout(500);
+                    await WaitUtils.esperarAdaptativa(this.page, 200, 1000);
                     
                     const urlAntes = this.page.url();
                     await boton.click();
-                    await this.page.waitForTimeout(3000);
+                    await WaitUtils.esperarDespuesDeClick(this.page, 5000, true);
                     
                     const urlDespues = this.page.url();
                     
@@ -191,7 +192,7 @@ export class Navigator {
                 await this.page.evaluate(() => {
                     window.scrollTo(0, document.body.scrollHeight);
                 });
-                await this.page.waitForTimeout(3000);
+                await WaitUtils.esperarDespuesDeScroll(this.page, 3000);
                 
                 const camposPostScroll = await this.page.$$('input[type="radio"]:not([style*="display: none"]), input[type="text"]:not([style*="display: none"]), input[type="email"]:not([style*="display: none"]), select:not([style*="display: none"]), textarea:not([style*="display: none"])');
                 console.log(`📝 Campos encontrados después del scroll: ${camposPostScroll.length}`);
@@ -247,15 +248,15 @@ export class Navigator {
                     console.log(`   🖱️ Haciendo clic en: "${texto || value}"`);
                     
                     await boton.scrollIntoViewIfNeeded();
-                    await this.page.waitForTimeout(500);
+                    await WaitUtils.esperarAdaptativa(this.page, 200, 1000);
                     
                     await boton.click();
-                    await this.page.waitForTimeout(2000);
+                    await WaitUtils.esperarDespuesDeClick(this.page, 5000, true);
                     
                     //  NUEVO: Si aparece modal, presionar "Sí, estoy seguro" para forzar avance
                     const modalConfirmado = await this.modalHandler.confirmarModalParaAvanzar();
                     if (modalConfirmado) {
-                        await this.page.waitForTimeout(2000);
+                        await WaitUtils.esperarDespuesDeClick(this.page, 3000);
                     }
                     
                     console.log('   ✅ Navegación final exitosa');
@@ -310,16 +311,16 @@ export class Navigator {
                     
                     // Hacer scroll al botón si es necesario
                     await boton.scrollIntoViewIfNeeded();
-                    await this.page.waitForTimeout(300);
+                    await WaitUtils.esperarAdaptativa(this.page, 150, 500);
                     
                     await boton.click();
-                    // OPTIMIZADO: Espera reducida después de click de navegación
-                    await this.page.waitForTimeout(1200);
+                    // Espera adaptativa después de click de navegación
+                    await WaitUtils.esperarDespuesDeClick(this.page, 5000, true);
                     
                     //  NUEVO: Capturar resultado del modal
                     const resultadoModal = await this.modalHandler.manejarModalConfirmacion();
                     if (resultadoModal.aparecio) {
-                        await this.page.waitForTimeout(2000);
+                        await WaitUtils.esperarDespuesDeClick(this.page, 3000);
                     }
                     
                     console.log('   ✅ Navegación exitosa');
