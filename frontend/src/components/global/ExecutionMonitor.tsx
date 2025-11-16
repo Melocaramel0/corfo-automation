@@ -99,7 +99,19 @@ export const ExecutionMonitor: React.FC = () => {
   const triggerNotification = async (processId: string, status: ExecutionStatus) => {
     try {
       const process = await processService.getProcess(processId)
-      const processName = process?.nombreConcurso || 'Proceso desconocido'
+      // Intentar obtener el nombre del proceso desde diferentes fuentes
+      const processName = process?.nombreConcurso?.trim() || 
+                         process?.descripcion?.replace('Proceso de validación para ', '')?.trim() || 
+                         `Proceso ${processId}` ||
+                         'Proceso desconocido'
+      
+      console.log('[ExecutionMonitor] Obteniendo nombre del proceso:', {
+        processId,
+        process: process ? 'encontrado' : 'no encontrado',
+        nombreConcurso: process?.nombreConcurso,
+        descripcion: process?.descripcion,
+        processNameFinal: processName
+      })
 
       if (status.error) {
         addNotification({

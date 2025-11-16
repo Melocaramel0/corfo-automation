@@ -172,6 +172,12 @@ export class AgenteOrquestador {
             console.error('❌ Error en Agente Orquestador:', error);
         } finally {
             await this.limpiarRecursos();
+            // Imprimir métricas de waits dinámicos al final de la ejecución
+            try {
+                WaitUtils.imprimirMetricas();
+            } catch (error) {
+                // Silenciosamente ignorar errores al imprimir métricas para no romper el flujo
+            }
         }
 
         // Verificar si fue cancelado antes de generar reportes
@@ -290,6 +296,28 @@ export class AgenteOrquestador {
         try {
             console.log('🔍 Extrayendo información del proyecto...');
             
+            // Esperar adaptativamente a que los elementos estén disponibles y tengan contenido
+            // Los elementos pueden tardar en aparecer debido a contenido dinámico
+            await WaitUtils.waitForCondition(
+                this.page!,
+                async () => {
+                    const tieneContenido = await this.page!.evaluate(() => {
+                        const tituloElement = document.getElementById('Titulo');
+                        const codigoElement = document.getElementById('SubTitulo');
+                        
+                        const titulo = tituloElement ? tituloElement.textContent?.trim() || '' : '';
+                        const codigo = codigoElement ? codigoElement.textContent?.trim() || '' : '';
+                        
+                        // Retornar true solo si al menos uno tiene contenido
+                        return titulo.length > 0 || codigo.length > 0;
+                    });
+                    
+                    return tieneContenido;
+                },
+                15000 // Esperar hasta 15 segundos para que aparezcan y tengan contenido
+            );
+            
+            // Después de esperar, extraer la información
             const informacion = await this.page!.evaluate(() => {
                 const tituloElement = document.getElementById('Titulo');
                 const codigoElement = document.getElementById('SubTitulo');
@@ -303,8 +331,8 @@ export class AgenteOrquestador {
             this.resultado.tituloProyecto = informacion.tituloProyecto;
             this.resultado.codigoProyecto = informacion.codigoProyecto;
             
-            console.log(`📝 Título del proyecto: ${this.resultado.tituloProyecto}`);
-            console.log(`🔢 Código del proyecto: ${this.resultado.codigoProyecto}`);
+            console.log(`📝 Título del proyecto: ${this.resultado.tituloProyecto || '(no encontrado)'}`);
+            console.log(`🔢 Código del proyecto: ${this.resultado.codigoProyecto || '(no encontrado)'}`);
             
         } catch (error) {
             console.warn('⚠️ No se pudo extraer la información del proyecto:', error);
@@ -1463,6 +1491,7 @@ export async function ejecutarAgenteOrquestador(): Promise<ResultadoAgente> {
     
     const resultado = await agente.ejecutar();
     
+    // Las métricas ya se imprimieron en el finally de ejecutar(), pero las mostramos aquí también si es necesario
     console.log('\n📈 RESUMEN FINAL AGENTE ORQUESTADOR');
     console.log('===============================');
     console.log(`⏱️ Tiempo total: ${resultado.tiempoTotal} segundos (${(resultado.tiempoTotal / 60).toFixed(1)} minutos)`);

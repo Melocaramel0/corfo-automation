@@ -201,7 +201,10 @@ export const processService = {
   async getProcess(id: string): Promise<ValidationProcess | null> {
     try {
       const response = await apiService.get<ValidationProcess>(`/processes/${id}`)
-      return response.data
+      // El backend puede devolver directamente el proceso o envuelto en ApiResponse
+      // Manejar ambos casos
+      const process = (response as any).data || response
+      return process || null
     } catch (error) {
       console.error('Error obteniendo proceso desde API, usando mock:', error)
       await new Promise(resolve => setTimeout(resolve, 300))

@@ -1,6 +1,178 @@
 import { Page } from 'playwright';
 
 /**
+ * Sistema interno de métricas para monitorear el rendimiento de los waits
+ * Implementado de forma segura para no romper el flujo si falla
+ */
+class WaitMetrics {
+    private static metrics: Map<string, number[]> = new Map();
+    private static errors: Map<string, number> = new Map();
+
+    static recordWaitTime(operation: string, timeMs: number): void {
+        try {
+            if (!this.metrics.has(operation)) {
+                this.metrics.set(operation, []);
+            }
+            this.metrics.get(operation)!.push(timeMs);
+        } catch {
+            // Silenciosamente ignorar errores de métricas para no romper el flujo
+        }
+    }
+
+    static recordError(operation: string): void {
+        try {
+            const current = this.errors.get(operation) || 0;
+            this.errors.set(operation, current + 1);
+        } catch {
+            // Silenciosamente ignorar errores de métricas
+        }
+    }
+
+    static getStats(operation: string): {
+        count: number;
+        average: number;
+        min: number;
+        max: number;
+        total: number;
+        errors: number;
+    } | null {
+        try {
+            const times = this.metrics.get(operation) || [];
+            const errors = this.errors.get(operation) || 0;
+            
+            if (times.length === 0) return null;
+
+            const avg = times.reduce((a, b) => a + b, 0) / times.length;
+            const min = Math.min(...times);
+            const max = Math.max(...times);
+            const total = times.reduce((a, b) => a + b, 0);
+
+            return {
+                count: times.length,
+                average: Math.round(avg),
+                min,
+                max,
+                total,
+                errors
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    static printAllStats(): void {
+        try {
+            if (this.metrics.size === 0) {
+                return;
+            }
+
+            console.log('\n📊 ESTADÍSTICAS DE WAITS DINÁMICOS:');
+            console.log('='.repeat(60));
+            
+            this.metrics.forEach((times, operation) => {
+                const stats = this.getStats(operation);
+                if (stats) {
+                    console.log(`\n  🔹 ${operation}:`);
+                    console.log(`     - Ejecuciones: ${stats.count}`);
+                    console.log(`     - Tiempo promedio: ${stats.average}ms`);
+                    console.log(`     - Tiempo mínimo: ${stats.min}ms`);
+                    console.log(`     - Tiempo máximo: ${stats.max}ms`);
+                    console.log(`     - Tiempo total: ${stats.total}ms (${(stats.total / 1000).toFixed(1)}s)`);
+                    if (stats.errors > 0) {
+                        console.log(`     - Errores: ${stats.errors}`);
+                    }
+                    
+                    // Calcular ahorro estimado vs wait fijo (asumiendo 3s fijo)
+                    const tiempoFijoEstimado = stats.count * 3000;
+                    const ahorro = tiempoFijoEstimado - stats.total;
+                    const porcentajeAhorro = (ahorro / tiempoFijoEstimado) * 100;
+                    if (porcentajeAhorro > 0) {
+                        console.log(`     - 💰 Ahorro estimado vs wait fijo: ${(ahorro / 1000).toFixed(1)}s (${porcentajeAhorro.toFixed(1)}%)`);
+                    }
+                }
+            });
+            
+            console.log('\n' + '='.repeat(60));
+        } catch {
+            // Silenciosamente ignorar errores al imprimir métricas
+        }
+    }
+
+    static reset(): void {
+        try {
+            this.metrics.clear();
+            this.errors.clear();
+        } catch {
+            // Ignorar errores
+        }
+    }
+}
+
+/**
+ * Circuit Breaker interno para monitorear problemas (SOLO REGISTRO, NUNCA BLOQUEA)
+ * IMPORTANTE: Este circuit breaker SOLO registra problemas para métricas.
+ * NUNCA detiene el proceso - el proceso siempre continúa hasta el final para
+ * permitir capturar screenshots y generar informes completos.
+ * Implementado de forma segura para no romper el flujo si falla
+ */
+class CircuitBreaker {
+    private static failures: Map<string, number> = new Map();
+    private static successes: Map<string, number> = new Map();
+    private static readonly MAX_FAILURES = 10; // Máximo de fallos consecutivos para registro
+    private static readonly RESET_THRESHOLD = 3; // Éxitos necesarios para resetear
+
+    /**
+     * @deprecated Este método ya no se usa - los circuit breakers nunca bloquean
+     * Solo se mantiene por compatibilidad
+     */
+    static shouldBreak(operation: string): boolean {
+        // NUNCA retornar true - los circuit breakers nunca bloquean el proceso
+        return false;
+    }
+
+    static recordFailure(operation: string): void {
+        try {
+            const current = this.failures.get(operation) || 0;
+            this.failures.set(operation, current + 1);
+            this.successes.set(operation, 0);
+            
+            const totalFailures = current + 1;
+            if (totalFailures >= this.MAX_FAILURES) {
+                console.log(`   🔴 Circuit breaker ACTIVADO para "${operation}" (${totalFailures} fallos consecutivos)`);
+            }
+        } catch {
+            // Ignorar errores
+        }
+    }
+
+    static recordSuccess(operation: string): void {
+        try {
+            const currentSuccesses = (this.successes.get(operation) || 0) + 1;
+            this.successes.set(operation, currentSuccesses);
+            
+            if (currentSuccesses >= this.RESET_THRESHOLD) {
+                const previousFailures = this.failures.get(operation) || 0;
+                if (previousFailures > 0) {
+                    this.failures.set(operation, 0);
+                    this.successes.set(operation, 0);
+                }
+            }
+        } catch {
+            // Ignorar errores
+        }
+    }
+
+    static reset(operation: string): void {
+        try {
+            this.failures.delete(operation);
+            this.successes.delete(operation);
+        } catch {
+            // Ignorar errores
+        }
+    }
+}
+
+/**
  * Utilidades para esperar condiciones en Playwright
  */
 export class WaitUtils {
@@ -16,25 +188,58 @@ export class WaitUtils {
         condition: () => Promise<boolean>,
         timeoutMs: number
     ): Promise<boolean> {
+        const operation = 'waitForCondition';
         const inicio = Date.now();
         const intervalo = 100; // Verificar cada 100ms
+        let erroresConsecutivos = 0; // Solo contar errores reales, no condiciones que aún no se cumplen
+        const MAX_ERRORES_CONSECUTIVOS = 50; // Solo activar circuit breaker con muchos errores reales
         
         while (Date.now() - inicio < timeoutMs) {
             try {
                 if (await condition()) {
                     const tiempoEspera = Date.now() - inicio;
+                    
+                    // Registrar éxito en circuit breaker
+                    try {
+                        CircuitBreaker.recordSuccess(operation);
+                    } catch {}
+                    
+                    // Registrar métrica
+                    try {
+                        WaitMetrics.recordWaitTime(operation, tiempoEspera);
+                    } catch {}
+                    
                     if (tiempoEspera < timeoutMs * 0.5) {
                         console.log(`   ⚡ Condición cumplida en ${tiempoEspera}ms (ahorro: ${timeoutMs - tiempoEspera}ms)`);
                     }
                     return true;
                 }
+                // Si la condición retorna false, es normal, no es un error - continuar esperando
             } catch (error) {
-                // Si falla la verificación, continuar esperando
+                // Solo aquí contamos como error real (excepción)
+                erroresConsecutivos++;
+                if (erroresConsecutivos >= MAX_ERRORES_CONSECUTIVOS) {
+                    try {
+                        CircuitBreaker.recordFailure(operation);
+                        WaitMetrics.recordError(operation);
+                    } catch {}
+                    console.log(`   ⚠️ Circuit breaker: ${erroresConsecutivos} errores consecutivos detectados (continuando de todas formas)`);
+                    // NO retornar false - solo registrar el problema pero continuar
+                }
             }
             await page.waitForTimeout(intervalo);
         }
         
         // Timeout alcanzado, continuar de todas formas (comportamiento actual)
+        const tiempoEspera = Date.now() - inicio;
+        try {
+            WaitMetrics.recordWaitTime(operation, tiempoEspera);
+            // Solo registrar como error si hubo errores reales durante la espera
+            if (erroresConsecutivos > 0) {
+                WaitMetrics.recordError(operation);
+            }
+        } catch {}
+        
         return false;
     }
 
@@ -49,11 +254,14 @@ export class WaitUtils {
         page: Page,
         timeoutMs: number = 30000
     ): Promise<boolean> {
+        const operation = 'esperarPaginaListaPostLogin';
         const inicio = Date.now();
         const intervalo = 200; // Verificar cada 200ms
         let ultimaUrl = page.url();
         let contadorUrlEstable = 0;
         const REQUIERE_URL_ESTABLE = 3; // URL debe estar estable por 3 verificaciones consecutivas (600ms)
+        let erroresConsecutivos = 0; // Solo contar errores reales (excepciones)
+        const MAX_ERRORES_CONSECUTIVOS = 50; // Solo activar circuit breaker con muchos errores reales
         
         console.log('⏳ Esperando carga completa de página post-login (adaptativo)...');
         
@@ -65,6 +273,7 @@ export class WaitUtils {
                 });
                 
                 if (!domReady) {
+                    // No es un error, simplemente aún no está listo - continuar esperando
                     await page.waitForTimeout(intervalo);
                     continue;
                 }
@@ -122,18 +331,45 @@ export class WaitUtils {
                     tieneContenido) {
                     
                     const tiempoEspera = Date.now() - inicio;
+                    
+                    // Registrar éxito y métrica
+                    try {
+                        CircuitBreaker.recordSuccess(operation);
+                        WaitMetrics.recordWaitTime(operation, tiempoEspera);
+                    } catch {}
+                    
                     console.log(`✅ Página lista post-login en ${tiempoEspera}ms${networkIdle ? ' (networkidle OK)' : ' (networkidle timeout, pero página estable)'}`);
                     return true;
                 }
+                // Si las condiciones no se cumplen aún, es normal - continuar esperando
                 
             } catch (error) {
-                // Si falla alguna verificación, continuar esperando
+                // Solo aquí contamos como error real (excepción)
+                erroresConsecutivos++;
+                if (erroresConsecutivos >= MAX_ERRORES_CONSECUTIVOS) {
+                    try {
+                        CircuitBreaker.recordFailure(operation);
+                        WaitMetrics.recordError(operation);
+                    } catch {}
+                    console.log(`   ⚠️ Circuit breaker: ${erroresConsecutivos} errores consecutivos detectados (continuando de todas formas)`);
+                    // NO retornar false - solo registrar el problema pero continuar
+                }
             }
             
             await page.waitForTimeout(intervalo);
         }
         
         const tiempoEspera = Date.now() - inicio;
+        
+        // Registrar métricas
+        try {
+            WaitMetrics.recordWaitTime(operation, tiempoEspera);
+            // Solo registrar como error si hubo errores reales durante la espera
+            if (erroresConsecutivos > 0) {
+                WaitMetrics.recordError(operation);
+            }
+        } catch {}
+        
         console.log(`⚠️ Timeout alcanzado después de ${tiempoEspera}ms, continuando de todas formas...`);
         return false;
     }
@@ -151,11 +387,14 @@ export class WaitUtils {
         timeoutMs: number = 15000,
         minCamposRequeridos: number = 1
     ): Promise<boolean> {
+        const operation = 'esperarFormularioListo';
         const inicio = Date.now();
         const intervalo = 200; // Verificar cada 200ms
         let ultimaUrl = page.url();
         let contadorUrlEstable = 0;
         const REQUIERE_URL_ESTABLE = 3; // URL debe estar estable por 3 verificaciones consecutivas
+        let erroresConsecutivos = 0; // Solo contar errores reales (excepciones)
+        const MAX_ERRORES_CONSECUTIVOS = 50;
         
         console.log(`⏳ Esperando carga completa del formulario (adaptativo, mínimo ${minCamposRequeridos} campo(s))...`);
         
@@ -167,6 +406,7 @@ export class WaitUtils {
                 });
                 
                 if (!domReady) {
+                    // No es un error, simplemente aún no está listo - continuar esperando
                     await page.waitForTimeout(intervalo);
                     continue;
                 }
@@ -237,18 +477,39 @@ export class WaitUtils {
                     tieneContenido) {
                     
                     const tiempoEspera = Date.now() - inicio;
+                    try {
+                        CircuitBreaker.recordSuccess(operation);
+                        WaitMetrics.recordWaitTime(operation, tiempoEspera);
+                    } catch {}
                     console.log(`✅ Formulario listo en ${tiempoEspera}ms (${camposDisponibles} campos disponibles)`);
                     return true;
                 }
+                // Si las condiciones no se cumplen aún, es normal - continuar esperando
                 
             } catch (error) {
-                // Si falla alguna verificación, continuar esperando
+                // Solo aquí contamos como error real (excepción)
+                erroresConsecutivos++;
+                if (erroresConsecutivos >= MAX_ERRORES_CONSECUTIVOS) {
+                    try {
+                        CircuitBreaker.recordFailure(operation);
+                        WaitMetrics.recordError(operation);
+                    } catch {}
+                    console.log(`   ⚠️ Circuit breaker: ${erroresConsecutivos} errores consecutivos detectados (continuando de todas formas)`);
+                    // NO retornar false - solo registrar el problema pero continuar
+                }
             }
             
             await page.waitForTimeout(intervalo);
         }
         
         const tiempoEspera = Date.now() - inicio;
+        try {
+            WaitMetrics.recordWaitTime(operation, tiempoEspera);
+            // Solo registrar como error si hubo errores reales durante la espera
+            if (erroresConsecutivos > 0) {
+                WaitMetrics.recordError(operation);
+            }
+        } catch {}
         console.log(`⚠️ Timeout alcanzado después de ${tiempoEspera}ms, continuando de todas formas...`);
         return false;
     }
@@ -591,8 +852,11 @@ export class WaitUtils {
         page: Page,
         timeoutMs: number = 10000
     ): Promise<boolean> {
+        const operation = 'esperarQueNoHayaModalesInterceptando';
         const inicio = Date.now();
         const intervalo = 200;
+        let erroresConsecutivos = 0; // Solo contar errores reales (excepciones)
+        const MAX_ERRORES_CONSECUTIVOS = 50;
         
         console.log('   ⏳ Verificando que no haya modales interceptando...');
         
@@ -632,19 +896,73 @@ export class WaitUtils {
                 
                 if (!hayModalesInterceptando) {
                     const tiempoEspera = Date.now() - inicio;
+                    try {
+                        CircuitBreaker.recordSuccess(operation);
+                        WaitMetrics.recordWaitTime(operation, tiempoEspera);
+                    } catch {}
                     if (tiempoEspera > 500) {
                         console.log(`   ✅ No hay modales interceptando (verificado en ${tiempoEspera}ms)`);
                     }
                     return true;
                 }
+                // Si aún hay modales, es normal - continuar esperando
+                
             } catch (error) {
-                // Continuar esperando
+                // Solo aquí contamos como error real (excepción)
+                erroresConsecutivos++;
+                if (erroresConsecutivos >= MAX_ERRORES_CONSECUTIVOS) {
+                    try {
+                        CircuitBreaker.recordFailure(operation);
+                        WaitMetrics.recordError(operation);
+                    } catch {}
+                    console.log(`   ⚠️ Circuit breaker: ${erroresConsecutivos} errores consecutivos detectados (continuando de todas formas)`);
+                    // NO retornar false - solo registrar el problema pero continuar
+                }
             }
             await page.waitForTimeout(intervalo);
         }
         
+        const tiempoEspera = Date.now() - inicio;
+        try {
+            WaitMetrics.recordWaitTime(operation, tiempoEspera);
+            // Solo registrar como error si hubo errores reales durante la espera
+            if (erroresConsecutivos > 0) {
+                WaitMetrics.recordError(operation);
+            }
+        } catch {}
         console.log(`   ⚠️ Timeout esperando que desaparezcan modales (${timeoutMs}ms)`);
         return false;
+    }
+
+    /**
+     * Imprime todas las métricas acumuladas de los waits dinámicos
+     * Útil para llamar al final de la ejecución del agente
+     */
+    static imprimirMetricas(): void {
+        WaitMetrics.printAllStats();
+    }
+
+    /**
+     * Resetea todas las métricas y circuit breakers
+     * Útil para testing o reinicios
+     */
+    static resetearMetricas(): void {
+        try {
+            WaitMetrics.reset();
+            // Resetear circuit breakers también
+            CircuitBreaker.reset('waitForCondition');
+            CircuitBreaker.reset('esperarPaginaListaPostLogin');
+            CircuitBreaker.reset('esperarFormularioListo');
+            CircuitBreaker.reset('esperarEstabilidadPagina');
+            CircuitBreaker.reset('esperarDespuesDeClick');
+            CircuitBreaker.reset('esperarDespuesDeCompletarCampo');
+            CircuitBreaker.reset('esperarDespuesDeScroll');
+            CircuitBreaker.reset('esperarModal');
+            CircuitBreaker.reset('esperarQueNoHayaModalesInterceptando');
+            CircuitBreaker.reset('esperarAdaptativa');
+        } catch {
+            // Ignorar errores al resetear
+        }
     }
 }
 
