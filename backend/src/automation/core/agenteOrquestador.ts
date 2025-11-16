@@ -8,6 +8,7 @@ import { FieldCompleter } from '../fields/fieldCompleter';
 import { Navigator } from '../navigation/navigator';
 import { ModalHandler } from '../navigation/modalHandler';
 import { LoginService } from '../auth/loginService';
+import { WaitUtils } from '../utils/waitUtils';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -279,9 +280,8 @@ export class AgenteOrquestador {
             }
         }
         
-        // Esperar estado estable antes de leer título/URL para evitar "Execution context was destroyed"
-        await this.page!.waitForLoadState('domcontentloaded').catch(() => {});
-        await this.page!.waitForLoadState('networkidle').catch(() => {});
+        // Espera adaptativa: verificar que la página esté completamente lista después del login
+        await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
         
         // NO capturar título y URL aquí, se hará después de navegar al formulario real
     }
@@ -320,28 +320,15 @@ export class AgenteOrquestador {
         await this.page!.evaluate(() => {
             window.scrollTo(0, document.body.scrollHeight);
         });
-        await this.page!.waitForTimeout(1000);
+        await WaitUtils.esperarDespuesDeScroll(this.page!, 1000);
         
         await this.page!.evaluate(() => {
             window.scrollTo(0, 0);
         });
-        await this.page!.waitForTimeout(1000);
+        await WaitUtils.esperarDespuesDeScroll(this.page!, 1000);
         
-        // Verificar si hay campos disponibles
-        const camposDisponibles = await this.page!.evaluate(() => {
-            const inputs = document.querySelectorAll('input:not([type="hidden"]), select, textarea');
-            const desplegables = document.querySelectorAll('a[class*="collapsed"], a[class*="collapse"], a[data-toggle="collapse"]');
-            return {
-                inputs: inputs.length,
-                desplegables: desplegables.length
-            };
-        });
-        
-        // Si no hay campos, esperar un poco más
-        if (camposDisponibles.inputs === 0 && camposDisponibles.desplegables === 0) {
-            console.log('⏳ Esperando carga de campos...');
-            await this.page!.waitForTimeout(3000);
-        }
+        // Espera adaptativa: verificar que el formulario esté listo con campos disponibles
+        await WaitUtils.esperarFormularioListo(this.page!, 15000, 1);
     }
 
     private async procesarFormularioHibrido(): Promise<void> {
@@ -362,12 +349,8 @@ export class AgenteOrquestador {
             await this.navigator!.navegarDeBorradoresAFormulario();
         } else {
             console.log('✅ Ya estamos en el formulario real');
-            // Espera inteligente: detectar cuando hay campos cargados (máximo 7 segundos)
-            console.log('⏳ Esperando carga de campos dinámicos...');
-            await this.esperarCondicion(async () => {
-                const campos = await this.page!.$$('input:not([type="hidden"]), select, textarea');
-                return campos.length > 0;
-            }, 7000);
+            // Espera adaptativa: verificar que el formulario esté completamente cargado
+            await WaitUtils.esperarFormularioListo(this.page!, 15000, 1);
         }
         
         // Verificar cancelación después de navegación
@@ -455,8 +438,8 @@ export class AgenteOrquestador {
 
                 // Si procesarPasoActual completó exitosamente, avanzar al siguiente paso
                 pasoActual++;
-                // OPTIMIZADO: Espera reducida después de cambio de paso
-                await this.page!.waitForTimeout(1000);
+                // Espera adaptativa después de cambio de paso
+                await WaitUtils.esperarEstabilidadPagina(this.page!, 3000);
                 
                 // Verificar si llegamos a una página especial
                 const estructuraActual = await detector.detectarEstructuraCompleta();
@@ -588,12 +571,8 @@ export class AgenteOrquestador {
                         break;
                     }
                     
-                    // Espera inteligente: verificar que la página esté estable antes de procesar
-                    await this.esperarCondicion(async () => {
-                        const url = this.page!.url();
-                        await this.page!.waitForTimeout(500);
-                        return this.page!.url() === url; // URL estable = página lista
-                    }, 2000);
+                    // Espera adaptativa: verificar que la página esté estable antes de procesar
+                    await WaitUtils.esperarEstabilidadPagina(this.page!, 3000);
                     
                     //  CORRECCIÓN CRÍTICA: Procesar campos independientemente de si son "nuevos" o no
                     // El modal apareció = hay campos faltantes, debemos intentar completarlos
@@ -687,9 +666,9 @@ export class AgenteOrquestador {
             console.log('   📤 Haciendo clic en botón Enviar...');
             await botonEnviar.click();
             
-            // 2. Esperar un tiempo para que aparezca el modal (éxito o error)
+            // 2. Espera adaptativa para que aparezca el modal (éxito o error)
             console.log('   ⏳ Esperando respuesta del servidor...');
-            await this.page!.waitForTimeout(5000);
+            await WaitUtils.esperarModal(this.page!, true, 8000);
             
             // 3. NUEVO: Detectar si aparece el modal de errores de validación o modal de éxito
             const erroresValidacion = await this.modalHandler!.detectarModalErroresValidacion(this.headless);
@@ -715,7 +694,7 @@ export class AgenteOrquestador {
                 const botonOK = await this.modalHandler!.buscarBotonPorTextoPublico(['OK', 'Aceptar', 'ACEPTAR']);
                 if (botonOK) {
                     await botonOK.click();
-                    await this.page!.waitForTimeout(1000);
+                    await WaitUtils.esperarDespuesDeClick(this.page!, 2000);
                 }
                 
                 console.log('   ⚠️ Formulario NO se pudo enviar debido a errores de validación');
@@ -736,7 +715,7 @@ export class AgenteOrquestador {
                 if (botonAceptar) {
                     console.log('   ✅ Haciendo clic en botón Aceptar del modal de éxito...');
                     await botonAceptar.click();
-                    await this.page!.waitForTimeout(2000);
+                    await WaitUtils.esperarDespuesDeClick(this.page!, 3000);
                 }
             } else {
                 console.log('   ℹ️ No se detectó modal de éxito, continuando...');
@@ -744,7 +723,7 @@ export class AgenteOrquestador {
             
             // 5. Cerrar modal de encuesta si aparece (manejo dinámico)
             console.log('   🔍 Verificando si aparece modal de encuesta...');
-            await this.page!.waitForTimeout(1000);
+            await WaitUtils.esperarAdaptativa(this.page!, 500, 2000);
             
             try {
                 // Buscar el botón de cerrar con timeout corto
@@ -756,7 +735,7 @@ export class AgenteOrquestador {
                 if (botonCerrarEncuesta) {
                     console.log('   ❌ Modal de encuesta detectado, cerrando...');
                     await botonCerrarEncuesta.click();
-                    await this.page!.waitForTimeout(1000);
+                    await WaitUtils.esperarDespuesDeClick(this.page!, 2000);
                 }
             } catch (error) {
                 console.log('   ℹ️ No apareció modal de encuesta, continuando...');
@@ -765,7 +744,7 @@ export class AgenteOrquestador {
             // 6. Retroceder una vez en el navegador
             console.log('   ⬅️ Retrocediendo en el navegador...');
             await this.page!.goBack();
-            await this.page!.waitForTimeout(2000);
+            await WaitUtils.esperarEstabilidadPagina(this.page!, 5000);
             
             // 7. Extraer la URL actual del navegador
             const urlFormularioEnviado = this.page!.url();
@@ -825,7 +804,7 @@ export class AgenteOrquestador {
             const botonEnviar = await this.modalHandler!.buscarBotonPorTextoPublico(['Enviar', 'ENVIAR', 'Guardar']);
             if (botonEnviar) {
                 await botonEnviar.click();
-                await this.page!.waitForTimeout(2000);
+                await WaitUtils.esperarDespuesDeClick(this.page!, 3000);
                 console.log('   ✅ Formulario enviado');
                 
                 // 4. Manejar modal "Proceso Exitoso" (similar a modal confirmación)
@@ -833,7 +812,7 @@ export class AgenteOrquestador {
                 
                 // 5. ✅ NAVEGAR AL SIGUIENTE PASO después de cerrar el modal
                 console.log('   ➡️ Navegando al siguiente paso después de agregar actividad...');
-                await this.page!.waitForTimeout(1500); // Esperar que se actualice la tabla
+                await WaitUtils.esperarEstabilidadPagina(this.page!, 3000);
                 
                 const resultadoNavegacion = await this.navigator!.navegarAlSiguientePaso();
                 if (resultadoNavegacion.navegoExitosamente) {
@@ -923,9 +902,12 @@ export class AgenteOrquestador {
                 console.log(`\n   📂 Procesando tab ${i + 1}/${tabs.length}: "${tab.titulo}"`);
                 
                 try {
+                    // CRÍTICO: Verificar que no haya modales interceptando antes de hacer clic en el tab
+                    await WaitUtils.esperarQueNoHayaModalesInterceptando(this.page!, 10000);
+                    
                     // Hacer clic en el tab para activarlo
                     await this.activarTabPresupuesto(tab.dataCuenta);
-                    await this.page!.waitForTimeout(1000);
+                    await WaitUtils.esperarDespuesDeClick(this.page!, 3000);
                     
                     // Buscar y hacer clic en AGREGAR+
                     const botonAgregar = await this.page!.$('#btnAgregar_item');
@@ -971,12 +953,13 @@ export class AgenteOrquestador {
                     if (habilitadoInmediatamente) {
                         console.log('      ✅ Botón Guardar ya está habilitado');
                         await botonGuardar.click();
-                        await this.page!.waitForTimeout(2000);
+                        await WaitUtils.esperarDespuesDeClick(this.page!, 4000);
                         console.log('      ✅ Formulario guardado');
                         
-                        // Cerrar modal de confirmación
+                        // Cerrar modal de confirmación (ya incluye espera adaptativa para que desaparezca completamente)
                         await this.modalHandler!.cerrarModalConfirmacion(['Aceptar', 'ACEPTAR']);
-                        await this.page!.waitForTimeout(1000);
+                        // Espera adicional para asegurar estabilidad antes del siguiente tab
+                        await WaitUtils.esperarEstabilidadPagina(this.page!, 2000);
                     } else {
                         console.log('      ⚠️ Botón Guardar deshabilitado - Faltan campos obligatorios');
                         console.log('      📋 Campos completados: ', camposModal.map(c => `${c.etiqueta}: ${c.completado ? '✓' : '✗'}`).join(', '));
@@ -1149,7 +1132,7 @@ export class AgenteOrquestador {
                         await this.fieldExtractor!.esperarYCapturarCamposDinamicos();
                     }
                     
-                await this.page!.waitForTimeout(this.tiempoEsperaEntreCampos);
+                await WaitUtils.esperarDespuesDeCompletarCampo(this.page!, this.tiempoEsperaEntreCampos, false);
 
             } catch (error) {
                     console.log(`     ⚠️ Error procesando campo:`, (error as Error).message);
@@ -1165,9 +1148,9 @@ export class AgenteOrquestador {
                 break;
             }
             
-            // Esperar un poco antes de la siguiente iteración
+            // Espera adaptativa antes de la siguiente iteración
             if (intentos < maxIntentos) {
-                await this.page!.waitForTimeout(1000);
+                await WaitUtils.esperarEstabilidadPagina(this.page!, 2000);
             }
         }
 
@@ -1300,7 +1283,7 @@ export class AgenteOrquestador {
                         
                         if (valor) {
                             console.log(`     ✅ Campo completado: ${campo.etiqueta}`);
-                            await this.page!.waitForTimeout(100);
+                            await WaitUtils.esperarAdaptativa(this.page!, 100, 500);
                         }
                     }
                 } catch (error) {
