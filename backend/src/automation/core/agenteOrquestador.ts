@@ -133,6 +133,12 @@ export class AgenteOrquestador {
             this.log('⚡ Estrategia: Extracción + Completado simultáneo');
             this.log('');
 
+            // Verificar variables de entorno al inicio
+            console.log('🔍 Verificando variables de entorno...');
+            console.log(`   CORFO_USER: ${process.env.CORFO_USER ? '✅ Definida' : '❌ NO definida'}`);
+            console.log(`   CORFO_PASS: ${process.env.CORFO_PASS ? '✅ Definida' : '❌ NO definida'}`);
+            console.log(`   CORFO_URL: ${process.env.CORFO_URL ? '✅ Definida' : '⚠️ No definida (opcional)'}`);
+
             this.tiempoInicio = Date.now();
 
             // Verificar si se canceló antes de empezar
@@ -259,35 +265,77 @@ export class AgenteOrquestador {
         }
 
         // Ahora realizar login desde el contexto actual (sin ir al home por defecto)
-        await this.loginService!.realizarLogin();
-
-        // IMPORTANTE: Prevenir navegación de vuelta a URL de login después de autenticarse
-        // 
-        // PROBLEMA: Si this.formUrl es una URL de login (ej: login.corfo.cl o Login.aspx),
-        // el login exitoso nos redirige automáticamente al formulario o página intermedia.
-        // Si intentamos "reafirmar" la URL navegando de vuelta a la URL de login,
-        // se pierde la sesión y se desloguea automáticamente.
-        //
-        // SOLUCIÓN: Solo reafirmar URL si NO es una URL de login.
-        // Si es URL de login, confiar en que el flujo de login nos llevó al lugar correcto.
-        const esUrlLogin = this.formUrl && (this.formUrl.includes('login.corfo.cl') || this.formUrl.includes('Login.aspx'));
+        console.log('🔐 Iniciando proceso de login...');
         
-        if (esUrlLogin) {
-            console.log('ℹ️ URL objetivo es URL de login - confiando en redirección post-login (NO navegar de vuelta)');
-            const urlActual = this.page!.url();
-            console.log(`📍 URL después del login: ${urlActual}`);
-        } else if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
-            console.log(` Reafirmando URL objetivo autenticado: ${this.formUrl}`);
+        // Verificar que las variables de entorno estén disponibles
+        if (!process.env.CORFO_USER || !process.env.CORFO_PASS) {
+            const error = `❌ ERROR: Variables de entorno CORFO_USER o CORFO_PASS no están definidas. CORFO_USER=${!!process.env.CORFO_USER}, CORFO_PASS=${!!process.env.CORFO_PASS}`;
+            console.error(error);
+            throw new Error('Variables de entorno CORFO_USER o CORFO_PASS no están definidas. Verifica tu archivo .env');
+        }
+        
+        console.log(`✅ Variables de entorno disponibles. Usuario: ${process.env.CORFO_USER.substring(0, 3)}***`);
+        
+        try {
+            await this.loginService!.realizarLogin();
+            console.log('✅ Login completado exitosamente');
+        } catch (error) {
+            console.error('❌ ERROR durante el login:', error);
+            throw error;
+        }
+
+        // Espera adaptativa: verificar que la página esté completamente lista después del login
+        await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
+        
+        // CRÍTICO: Verificar si aún estamos en la página de login después de esperar
+        // Si es así, significa que la redirección automática no ocurrió (común en Docker)
+        const esUrlLogin = this.formUrl && (this.formUrl.includes('login.corfo.cl') || this.formUrl.includes('Login.aspx'));
+        const aunEnLogin = await WaitUtils.esPaginaLogin(this.page!);
+        
+        if (aunEnLogin) {
+            console.log('⚠️ Aún en página de login después de esperar - La redirección automática no ocurrió');
+            console.log('🔄 Intentando navegar manualmente para forzar redirección...');
+            
+            // Si la URL objetivo es de login, necesitamos FORZAR la navegación
+            // El Navigator normalmente no navega si ya estamos en la URL, pero aquí necesitamos forzarlo
+            // para que el servidor nos redirija al formulario ahora que estamos autenticados
+            if (esUrlLogin && this.formUrl) {
+                console.log(`📍 Forzando navegación a URL objetivo (ahora autenticado): ${this.formUrl}`);
+                // Forzar navegación directamente sin usar Navigator (que tiene la verificación que evita navegar)
+                await this.page!.goto(this.formUrl, {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 30000
+                });
+                await WaitUtils.esperarEstabilidadPagina(this.page!, 10000);
+                
+                // Esperar nuevamente después de navegar
+                await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
+                
+                // Verificar nuevamente si salimos de login
+                const sigueEnLogin = await WaitUtils.esPaginaLogin(this.page!);
+                if (sigueEnLogin) {
+                    throw new Error('No se pudo salir de la página de login después de navegar manualmente. Posible problema de autenticación.');
+                }
+                console.log('✅ Navegación manual exitosa - Ya no estamos en login');
+            } else if (this.formUrl && !this.page!.url().startsWith(this.formUrl)) {
+                // Si la URL objetivo NO es de login, navegar directamente
+                console.log(`📍 Navegando a URL objetivo: ${this.formUrl}`);
+                await this.navigator!.navegarAURLEspecifica(this.formUrl);
+                await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
+            }
+        } else if (this.formUrl && !esUrlLogin && !this.page!.url().startsWith(this.formUrl)) {
+            // Si NO estamos en login y la URL objetivo no es de login, verificar si necesitamos navegar
             const urlActual = this.page!.url();
             if (!urlActual.includes('Postulador.aspx') || urlActual.includes('Borradores')) {
+                console.log(`📍 Reafirmando URL objetivo: ${this.formUrl}`);
                 await this.navigator!.navegarAURLEspecifica(this.formUrl);
+                await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
             } else {
                 console.log('✅ Ya estamos en el formulario real, no es necesario navegar nuevamente');
             }
+        } else {
+            console.log('✅ Redirección automática exitosa - Ya no estamos en login');
         }
-        
-        // Espera adaptativa: verificar que la página esté completamente lista después del login
-        await WaitUtils.esperarPaginaListaPostLogin(this.page!, 30000);
         
         // NO capturar título y URL aquí, se hará después de navegar al formulario real
     }

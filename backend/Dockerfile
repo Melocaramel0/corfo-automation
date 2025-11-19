@@ -4,6 +4,11 @@ FROM node:18-slim
 # 2. Creamos la carpeta de trabajo DENTRO del contenedor
 WORKDIR /app
 
+#    (AUNQUE no usemos 'xvfb-run', Playwright las necesita para 'install --with-deps')
+RUN apt-get update && \
+    apt-get install -y xvfb xauth --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 # 3. Copiamos los archivos de dependencias
 COPY package.json package-lock.json ./
 

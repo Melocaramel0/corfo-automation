@@ -273,7 +273,6 @@ export class ProcessService {
         password: process.credencialesAcceso.password || ''
       } : undefined;
       
-      // Modo headless (navegador oculto == true) cuando se ejecuta desde interfaz
       const agente = new AgenteOrquestador(true, credenciales);
 
       // Guardar instancia activa para poder cancelarla después
@@ -457,17 +456,37 @@ export class ProcessService {
       if (tieneDatosValidos) {
         try {
           const informesDir = getDataSubPath('informes');
+          
+          // Asegurar que el directorio existe antes de generar el PDF
+          await fs.mkdir(informesDir, { recursive: true });
+          console.log(`📁 Directorio de informes verificado/creado: ${informesDir}`);
+          
           const pdfPath = path.join(informesDir, `exec_${nextId}.pdf`);
+          console.log(`📄 Iniciando generación de PDF: ${pdfPath}`);
+          console.log(`   JSON origen: ${resultFile}`);
           
           await generarInformePDF(resultFile, pdfPath);
-          console.log(`✅ Informe PDF generado: exec_${nextId}.pdf`);
+          
+          // Verificar que el PDF se generó correctamente
+          try {
+            await fs.access(pdfPath);
+            const stats = await fs.stat(pdfPath);
+            console.log(`✅ Informe PDF generado exitosamente: exec_${nextId}.pdf (${stats.size} bytes)`);
+          } catch (verifyError) {
+            console.error(`❌ El PDF no se generó correctamente. El archivo no existe: ${pdfPath}`);
+            throw new Error(`El PDF no se generó correctamente: ${pdfPath}`);
+          }
         } catch (pdfError: any) {
           console.error(`❌ Error generando PDF para exec_${nextId}:`, pdfError.message);
-          console.error(`   Nota: El reporte JSON está guardado, solo falló la generación del PDF`);
+          console.error(`   Stack trace:`, pdfError.stack);
+          console.error(`   Nota: El reporte JSON está guardado en ${resultFile}, solo falló la generación del PDF`);
           // No lanzar error para no interrumpir el flujo principal
         }
       } else {
         console.log(`⚠️ Resultado sin datos válidos. No se generará PDF para exec_${nextId}.`);
+        console.log(`   pasosCompletados: ${resultado.pasosCompletados?.length || 0}`);
+        console.log(`   totalCampos: ${resultado.estadisticas?.totalCampos || 0}`);
+        console.log(`   exito: ${resultado.exito}`);
       }
       
       return true;
@@ -673,7 +692,7 @@ export class ProcessService {
   async getProcessExecutionJson(processId: string): Promise<any> {
     // Obtener el JSON completo del archivo exec_*.json
     // Estrategia: filtrar por processId leyendo el contenido JSON y retornar el más reciente de ese proceso
-    const resultsDir = path.join(__dirname, '../../../../data/execution_results');
+    const resultsDir = getDataSubPath('execution_results');
     
     try {
       const files = await fs.readdir(resultsDir);

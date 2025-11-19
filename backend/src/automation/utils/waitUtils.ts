@@ -244,6 +244,59 @@ export class WaitUtils {
     }
 
     /**
+     * Verifica si estamos actualmente en la página de login
+     * @param page Página de Playwright
+     * @returns true si estamos en la página de login, false en caso contrario
+     */
+    static async esPaginaLogin(page: Page): Promise<boolean> {
+        try {
+            // Verificar elementos de login en el DOM principal
+            const tieneElementosLogin = await page.evaluate(() => {
+                const bloqueLogin = document.querySelector('#bloqueCorfoLogin');
+                const campoRut = document.querySelector('#rut');
+                const campoPass = document.querySelector('#pass');
+                const botonIngresar = document.querySelector('#ingresa_');
+                const mostrarLink = document.querySelector('#mostrarCorfoLoginLink');
+                
+                const elementosLogin = [bloqueLogin, campoRut, campoPass, botonIngresar, mostrarLink];
+                return elementosLogin.some(el => {
+                    if (!el) return false;
+                    const rect = el.getBoundingClientRect();
+                    const style = window.getComputedStyle(el);
+                    return rect.width > 0 && rect.height > 0 && 
+                           style.display !== 'none' && 
+                           style.visibility !== 'hidden';
+                });
+            });
+            
+            if (tieneElementosLogin) return true;
+            
+            // Verificar iframes de login
+            const hayIframeLogin = page.frames().some(frame => {
+                try {
+                    const frameUrl = frame.url();
+                    return frameUrl.includes('login.corfo.cl');
+                } catch {
+                    return false;
+                }
+            });
+            
+            if (hayIframeLogin) return true;
+            
+            // Verificar URL
+            const urlActual = page.url();
+            const urlContieneLogin = urlActual.includes('login.corfo.cl') || 
+                                    urlActual.includes('Login.aspx') ||
+                                    /\/login(\?|$|\/)/i.test(urlActual);
+            
+            return urlContieneLogin;
+        } catch {
+            // Si hay algún error, asumir que no estamos en login para no bloquear
+            return false;
+        }
+    }
+
+    /**
      * Espera adaptativa después del login: verifica múltiples condiciones para asegurar
      * que la página está completamente cargada y lista para continuar
      * @param page Página de Playwright
@@ -302,7 +355,20 @@ export class WaitUtils {
                     });
                 });
                 
-                // 4. Verificar que haya contenido visible en la página
+                // 4. CRÍTICO: Verificar que NO estamos en la página de login
+                // Esto es esencial para Docker donde la redirección puede ser más lenta
+                const esPaginaLogin = await this.esPaginaLogin(page);
+                
+                if (esPaginaLogin) {
+                    // Aún estamos en la página de login, continuar esperando
+                    if (contadorUrlEstable === 0) { // Solo loggear ocasionalmente para no saturar
+                        console.log(`   ⏳ Esperando redirección post-login... (URL: ${urlActual.substring(0, 80)})`);
+                    }
+                    await page.waitForTimeout(intervalo);
+                    continue;
+                }
+                
+                // 5. Verificar que haya contenido visible en la página
                 const tieneContenido = await page.evaluate(() => {
                     const body = document.body;
                     if (!body) return false;
@@ -314,7 +380,7 @@ export class WaitUtils {
                     return rect.width > 0 && rect.height > 0 && tieneTexto && tieneElementos;
                 });
                 
-                // 5. Intentar esperar networkidle (pero no bloquear si falla)
+                // 6. Intentar esperar networkidle (pero no bloquear si falla)
                 let networkIdle = false;
                 try {
                     await page.waitForLoadState('networkidle', { timeout: 1000 });
@@ -328,6 +394,7 @@ export class WaitUtils {
                 if (domReady && 
                     contadorUrlEstable >= REQUIERE_URL_ESTABLE && 
                     !elementosCarga && 
+                    !esPaginaLogin &&
                     tieneContenido) {
                     
                     const tiempoEspera = Date.now() - inicio;
@@ -339,6 +406,7 @@ export class WaitUtils {
                     } catch {}
                     
                     console.log(`✅ Página lista post-login en ${tiempoEspera}ms${networkIdle ? ' (networkidle OK)' : ' (networkidle timeout, pero página estable)'}`);
+                    console.log(`   📍 URL final: ${urlActual.substring(0, 100)}`);
                     return true;
                 }
                 // Si las condiciones no se cumplen aún, es normal - continuar esperando

@@ -912,6 +912,30 @@ export async function generarInformePDF(
     // 6. Convertir Markdown a PDF
     console.log('📑 Convirtiendo Markdown a PDF...');
     
+    // Detectar si estamos en Docker (ejecutándose como root o en /app/)
+    // process.getuid() solo existe en sistemas Unix/Linux, en Windows retorna undefined
+    const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+    const isInDockerPath = __dirname.startsWith('/app/');
+    const isDocker = isRoot || isInDockerPath;
+    
+    // Configurar opciones de Puppeteer para Docker
+    const puppeteerOptions: any = {};
+    if (isDocker) {
+      console.log('🐳 Detectado entorno Docker, configurando Puppeteer con --no-sandbox...');
+      puppeteerOptions.launch_options = {
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu'
+        ]
+      };
+    }
+    
     const pdf = await mdToPdf(
       { content: informeMarkdown },
       {
@@ -926,6 +950,7 @@ export async function generarInformePDF(
           },
           printBackground: true,
         },
+        ...puppeteerOptions,
       }
     );
 

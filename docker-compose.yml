@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- Servicio del Backend ---
   backend:
@@ -14,6 +12,7 @@ services:
     volumes:
       - ./data:/app/data  # Conecta tu carpeta 'data' local
       - ./archivos_prueba:/app/archivos_prueba # Conecta los archivos de prueba
+      - ./backend/.env:/app/.env:ro  # Mapear .env para lectura directa (solo lectura)
     restart: unless-stopped
 
   # --- Servicio del Frontend ---

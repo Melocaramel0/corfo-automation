@@ -1,0 +1,62 @@
+===================================================================
+   INSTRUCCIONES DE USO - SISTEMA DE AUTOMATIZACION CORFO
+===================================================================
+
+¡Bienvenido! Sigue estos pasos para instalar y usar el sistema.
+
+---
+## 1. REQUISITOS PREVIOS (OBLIGATORIO)
+---
+
+  1. Docker Desktop instalado en tu PC.
+     (Si no lo tienes, descárgalo desde: https://www.docker.com/products/docker-desktop/)
+
+  2. Asegurate de que Docker Desktop este abierto y funcionando.
+
+---
+## 2. INSTALACION (Se hace UNA SOLA VEZ)
+---
+
+Este paso instala y configura el sistema en tu computador.
+
+  1. Haz doble clic en el archivo:
+     "1-INSTALAR-POR-PRIMERA-VEZ.bat"
+     (Está en esta misma carpeta).
+
+  2. Se abrirá una terminal que te pedirá 5 credenciales.
+     Escríbelas una por una y presiona Enter.
+
+  3. El sistema comenzará a "construirse". Este proceso
+     puede tardar varios minutos. ¡Ten paciencia!
+
+  4. Cuando termine, te avisará que está "LISTO" y "CORRIENDO".
+
+     ¡Eso es todo! El sistema ya está instalado y funcionando.
+
+---
+## 3. COMO USARLO EN EL DIA A DIA
+---
+
+  PARA ARRANCAR (ENCENDER):
+  1. Haz doble clic en "2-ARRANCAR-SISTEMA.bat".
+  2. Espera a que la terminal diga "¡LISTO!".
+  3. Abre tu navegador web en esta dirección:
+     http://localhost:5173
+
+  PARA DETENER (APAGAR):
+  1. Haz doble clic en "3-DETENER-SISTEMA.bat".
+
+---
+## 4. COMO ACTUALIZAR EL SISTEMA
+---
+
+Cuando el equipo de desarrollo te avise que hay una nueva versión:
+
+  1. Asegúrate de que el sistema esté detenido
+     (puedes usar "3-DETENER-SISTEMA.bat").
+
+  2. Haz doble clic en el archivo:
+     "4-ACTUALIZAR-CAMBIOS.bat"
+
+  3. Esto descargará los cambios y "re-construirá" la aplicación.
+     Cuando termine, el sistema se iniciará automáticamente.

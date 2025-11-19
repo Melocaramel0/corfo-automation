@@ -637,8 +637,9 @@ export class FieldCompleter {
      */
     private async obtenerArchivoPrueba(): Promise<string | null> {
         try {
-            // Ir 4 niveles arriba hasta la raíz del proyecto
-            const directorioArchivos = path.join(__dirname, '..', '..', '..','..','archivos_prueba');
+            // Usar función centralizada para obtener la ruta correcta
+            const { getArchivosPruebaPath } = require('../../server/utils/dataPath');
+            const directorioArchivos = getArchivosPruebaPath();
             
             // Buscar archivos PDF disponibles
             const archivosDisponibles = [

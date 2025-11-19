@@ -132,50 +132,68 @@ router.get('/listar', async (req: Request, res: Response) => {
 /**
  * Función helper para encontrar el PDF relacionado con un processId
  * Estrategia multi-nivel:
- * 1. Intentar usar executions.json para relación directa processId -> executionId -> PDF
- * 2. Si no está, buscar por relación temporal (fecha de creación del proceso vs fecha de ejecución)
- * 3. Si solo hay un PDF, retornarlo como fallback
+ * 1. Buscar en execution_results/ los archivos JSON que tengan el processId en metadata
+ * 2. Usar el mismo ID del JSON para buscar el PDF correspondiente (exec_${id}.pdf)
+ * 3. Si no está, buscar por relación temporal (fecha de creación del proceso vs fecha de ejecución)
+ * 4. Si solo hay un PDF, retornarlo como fallback
  */
 async function encontrarPdfPorProcessId(processId: string): Promise<string | null> {
   try {
     // 1. Obtener el proceso
     const proceso = await processService.getProcess(processId);
     if (!proceso) {
+      console.log(`⚠️ Proceso ${processId} no encontrado`);
       return null;
     }
 
-    // 2. Intentar buscar ejecuciones relacionadas desde ExecutionService
+    // 2. ESTRATEGIA PRINCIPAL: Buscar en execution_results/ usando metadata del JSON
+    // Esta es la forma más confiable porque el JSON tiene el processId en metadata
     try {
-      const ejecuciones = await executionService.getExecutionsByProcess(processId);
+      const resultsDir = getDataSubPath('execution_results');
+      await fs.access(resultsDir);
       
-      if (ejecuciones.length > 0) {
-        // Ordenar por fecha de finalización (más reciente primero)
-        const ejecucionesCompletadas = ejecuciones
-          .filter(exec => exec.endTime && !exec.isRunning)
-          .sort((a, b) => {
-            const timeA = a.endTime?.getTime() || 0;
-            const timeB = b.endTime?.getTime() || 0;
-            return timeB - timeA;
-          });
-
-        if (ejecucionesCompletadas.length > 0) {
-          // Usar la ejecución más reciente y buscar PDF por fecha temporal
-          const ejecucionMasReciente = ejecucionesCompletadas[0];
-          const endTime = ejecucionMasReciente.endTime!.getTime();
+      const archivos = await fs.readdir(resultsDir);
+      const archivosJson = archivos.filter(archivo => /^exec_\d+\.json$/.test(archivo));
+      
+      // Buscar el JSON que tenga el processId en metadata
+      for (const archivoJson of archivosJson) {
+        try {
+          const jsonPath = path.join(resultsDir, archivoJson);
+          const contenido = await fs.readFile(jsonPath, 'utf-8');
+          const resultado = JSON.parse(contenido);
           
-          const pdfEncontrado = await buscarPdfPorFecha(endTime);
-          if (pdfEncontrado) {
-            return pdfEncontrado;
+          // Verificar si tiene metadata con el processId correcto
+          if (resultado.metadata && resultado.metadata.processId === processId) {
+            // Extraer el ID del nombre del archivo (ej: exec_1.json -> 1)
+            const match = archivoJson.match(/^exec_(\d+)\.json$/);
+            if (match) {
+              const id = match[1];
+              const nombrePdf = `exec_${id}.pdf`;
+              const informesDir = getDataSubPath('informes');
+              const pdfPath = path.join(informesDir, nombrePdf);
+              
+              // Verificar que el PDF existe
+              try {
+                await fs.access(pdfPath);
+                console.log(`✅ PDF encontrado por metadata para proceso ${processId}: ${nombrePdf}`);
+                return nombrePdf;
+              } catch {
+                console.warn(`⚠️ JSON encontrado (${archivoJson}) pero PDF no existe: ${nombrePdf}`);
+                // Continuar buscando otros JSONs o usar otras estrategias
+              }
+            }
           }
+        } catch (error) {
+          // Si hay error leyendo un JSON, continuar con el siguiente
+          console.warn(`⚠️ Error leyendo ${archivoJson}:`, error);
         }
       }
     } catch (error) {
-      console.warn('⚠️ Error buscando ejecuciones:', error);
+      console.warn('⚠️ Error buscando en execution_results:', error);
       // Continuar con otros métodos
     }
 
     // 3. Estrategia alternativa: Buscar por relación temporal usando fecha de creación del proceso
-    // La fecha de creación es más confiable porque es cuando se creó el proceso antes de ejecutarse
     if (proceso.fechaCreacion) {
       const fechaCreacionTime = new Date(proceso.fechaCreacion).getTime();
       const pdfEncontrado = await buscarPdfPorFecha(fechaCreacionTime);
@@ -226,6 +244,7 @@ async function encontrarPdfPorProcessId(processId: string): Promise<string | nul
       }
     }
 
+    console.log(`❌ No se encontró PDF para proceso ${processId} con ninguna estrategia`);
     return null; // No se encontró coincidencia
   } catch (error) {
     console.error(`❌ Error buscando PDF para processId ${processId}:`, error);
