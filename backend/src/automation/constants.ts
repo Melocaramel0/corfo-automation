@@ -32,10 +32,10 @@ export const CAMPOS_CORFO_MAPPING = {
     'TITULO_PROYECTO': 'Desarrollo de Sistema de Monitoreo Ambiental Inteligente',
     'OBJETIVO_GENERAL': 'Desarrollar una solución tecnológica innovadora para el monitoreo ambiental en tiempo real',
     'RESUMEN_PROYECTO': 'Este proyecto busca crear una plataforma integral de monitoreo ambiental que utilice sensores IoT y algoritmos de machine learning para proporcionar datos precisos sobre la calidad del aire, agua y suelo.',
-    'DURACION_PROYECTO': '24',
-    'COSTO_TOTAL': '50000000',
-    'MONTO_SOLICITADO': '30000000',
-    'APORTE_BENEFICIARIO': '20000000',
+    'DURACION_PROYECTO': '5',
+    'COSTO_TOTAL': '5000000',
+    'MONTO_SOLICITADO': '3000000',
+    'APORTE_BENEFICIARIO': '2000000',
     'SECTOR_ECONOMICO': 'Tecnología',
     'SECTOR_APLICACION': 'Medio Ambiente',
     
@@ -50,9 +50,9 @@ export const CAMPOS_CORFO_MAPPING = {
     'SELECT_DEFAULT': 'primera_opcion',
     
     // Valores específicos para campos financieros
-    'INVERSION': '50000000',
-    'COSTOS_OPERACION': '50000000',
-    'MONTO_GENERICO': '50000000',
+    'INVERSION': '5000000',
+    'COSTOS_OPERACION': '5000000',
+    'MONTO_GENERICO': '5000000',
     
     // Valores específicos para dirección
     'DIRECCION_NUMERO_CORTO': '100',
