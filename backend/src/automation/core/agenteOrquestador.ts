@@ -545,16 +545,25 @@ export class AgenteOrquestador {
                 }
 
             } catch (error) {
-                console.error(`❌ Error en paso ${pasoActual}:`, (error as Error).message);
+                const mensajeError = (error as Error).message;
+                console.error(`❌ Error en paso ${pasoActual}:`, mensajeError);
                 this.resultado.errores = this.resultado.errores || [];
-                this.resultado.errores.push(`Paso ${pasoActual}: ${(error as Error).message}`);
+                this.resultado.errores.push(`Paso ${pasoActual}: ${mensajeError}`);
                 
-                // Intentar avanzar al siguiente paso en caso de error
-                const resultadoNavegacion = await this.navigator!.navegarAlSiguientePaso();
-                if (resultadoNavegacion.navegoExitosamente) {
-                    pasoActual++;
-                } else {
+                // Si el error es porque no se encontró el botón AGREGAR+, no avanzar el paso
+                if (mensajeError.includes('AGREGAR+') || mensajeError.includes('No se pudo encontrar el botón')) {
+                    console.error(`   ⚠️ Error crítico: No se puede continuar sin el botón AGREGAR+. Deteniendo ejecución.`);
                     hayMasPasos = false;
+                    this.resultado.exito = false;
+                    this.resultado.mensaje = `Error crítico en paso ${pasoActual}: ${mensajeError}`;
+                } else {
+                    // Para otros errores, intentar avanzar al siguiente paso
+                    const resultadoNavegacion = await this.navigator!.navegarAlSiguientePaso();
+                    if (resultadoNavegacion.navegoExitosamente) {
+                        pasoActual++;
+                    } else {
+                        hayMasPasos = false;
+                    }
                 }
             }
             }
@@ -855,12 +864,101 @@ export class AgenteOrquestador {
         const detalles: DetallePaso[] = [];
         
         try {
-            // 1. Buscar y clic en AGREGAR+ (reutiliza selectores estándar)
-            const botonAgregar = await this.modalHandler!.buscarBotonPorTextoPublico(['AGREGAR +', 'Agregar +']);
+            // Esperar a que la página esté completamente cargada antes de buscar el botón
+            await WaitUtils.esperarEstabilidadPagina(this.page!, 2000);
+            
+            // 1. Buscar botón AGREGAR+ con múltiples estrategias
+            console.log('   🔍 Buscando botón AGREGAR+...');
+            let botonAgregar = null;
+            
+            // Estrategia 1: Buscar por texto con múltiples variaciones
+            const textosBuscar = [
+                'AGREGAR +',
+                'Agregar +',
+                'AGREGAR+',
+                'Agregar+',
+                'AGREGAR',
+                'Agregar'
+            ];
+            botonAgregar = await this.modalHandler!.buscarBotonPorTextoPublico(textosBuscar);
+            
+            // Estrategia 2: Si no se encontró, buscar directamente en el DOM
             if (!botonAgregar) {
-                console.log('   ⚠️ No se encontró botón AGREGAR+');
-                return detalles;
+                console.log('   🔍 Buscando botón AGREGAR+ directamente en el DOM...');
+                botonAgregar = await this.page!.evaluateHandle(() => {
+                    // Buscar todos los botones, enlaces e inputs
+                    const elementos = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+                    
+                    for (const elemento of elementos) {
+                        const texto = (elemento.textContent || '').trim().toUpperCase();
+                        const id = (elemento.id || '').toUpperCase();
+                        const value = ((elemento as HTMLInputElement).value || '').trim().toUpperCase();
+                        const className = (elemento.className || '').toUpperCase();
+                        
+                        // Verificar si contiene "AGREGAR"
+                        if (texto.includes('AGREGAR') || id.includes('AGREGAR') || 
+                            value.includes('AGREGAR') || className.includes('AGREGAR')) {
+                            const rect = elemento.getBoundingClientRect();
+                            // Verificar que sea visible
+                            if (rect.width > 0 && rect.height > 0 && 
+                                window.getComputedStyle(elemento).visibility !== 'hidden' &&
+                                window.getComputedStyle(elemento).display !== 'none') {
+                                return elemento;
+                            }
+                        }
+                    }
+                    return null;
+                });
+                
+                // Convertir el JSHandle a ElementHandle si se encontró
+                if (botonAgregar && (await botonAgregar.evaluate(el => el !== null))) {
+                    const elementHandle = botonAgregar.asElement();
+                    if (elementHandle) {
+                        botonAgregar = elementHandle;
+                    } else {
+                        botonAgregar = null;
+                    }
+                } else {
+                    botonAgregar = null;
+                }
             }
+            
+            if (!botonAgregar) {
+                console.log('   ❌ ERROR: No se encontró botón AGREGAR+ después de múltiples intentos');
+                console.log('   🔍 Intentando buscar todos los botones visibles en la página...');
+                
+                // Debug: Listar todos los botones visibles
+                const botonesVisibles = await this.page!.evaluate(() => {
+                    const botones = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+                    return botones
+                        .filter(btn => {
+                            const rect = btn.getBoundingClientRect();
+                            const style = window.getComputedStyle(btn);
+                            return rect.width > 0 && rect.height > 0 && 
+                                   style.visibility !== 'hidden' && 
+                                   style.display !== 'none';
+                        })
+                        .map(btn => ({
+                            tag: btn.tagName,
+                            texto: (btn.textContent || '').trim(),
+                            id: btn.id,
+                            className: btn.className
+                        }));
+                });
+                
+                console.log(`   📋 Botones visibles encontrados: ${botonesVisibles.length}`);
+                botonesVisibles.slice(0, 10).forEach((btn, idx) => {
+                    console.log(`      ${idx + 1}. ${btn.tag} - texto: "${btn.texto}" - id: "${btn.id}"`);
+                });
+                
+                throw new Error('No se pudo encontrar el botón AGREGAR+. El paso no se puede completar.');
+            }
+            
+            console.log('   ✅ Botón AGREGAR+ encontrado');
+            
+            // Hacer scroll al botón si es necesario
+            await botonAgregar.scrollIntoViewIfNeeded();
+            await WaitUtils.esperarDespuesDeClick(this.page!, 500);
             
             await botonAgregar.click();
             // OPTIMIZADO: Espera inteligente para apertura de modal
@@ -899,7 +997,9 @@ export class AgenteOrquestador {
             }
             
         } catch (error) {
-            console.error('   ❌ Error:', error);
+            console.error('   ❌ Error procesando paso con botón AGREGAR+:', (error as Error).message);
+            // Re-lanzar el error para que el código superior lo maneje
+            throw error;
         }
         
         return detalles;

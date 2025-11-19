@@ -320,72 +320,106 @@ export class DetectorEstructura {
     }
 
     //  NUEVO: Detectar si el paso requiere hacer clic en botón AGREGAR+
+    //  Estrategia: Detectar tabla Gantt con columnas específicas
     async esPasoConBotonAgregar(): Promise<boolean> {
-        console.log('   🔍 Verificando si es paso con botón AGREGAR+...');
+        console.log('   🔍 Verificando si es paso con botón AGREGAR+ (buscando tabla Gantt)...');
         
         try {
             const resultado = await this.page.evaluate(() => {
-            // Verificar label duración
-            const labels = Array.from(document.querySelectorAll('label'));
-            let labelEncontrado = '';
-            const tieneLabelDuracion = labels.some(label => {
-                const texto = label.textContent?.toLowerCase() || '';
-                if (texto.includes('duración') || texto.includes('duracion')) {
-                    labelEncontrado = label.textContent?.trim() || '';
-                    return true;
-                }
-                return false;
-            });
-            
-            // Verificar campo disabled visible
-            const camposDisabled = Array.from(document.querySelectorAll('input[disabled], select[disabled]'));
-            let campoDisabledEncontrado = '';
-            const tieneCampoDisabled = camposDisabled.some(campo => {
-                const rect = campo.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                    const el = campo as HTMLInputElement | HTMLSelectElement;
-                    campoDisabledEncontrado = `${el.tagName} id="${el.id}" value="${el.value}"`;
-                    return true;
-                }
-                return false;
-            });
-            
-            // Verificar botón AGREGAR+ visible
-            const botones = Array.from(document.querySelectorAll('button, a, input[type="button"]'));
-            let botonEncontrado = '';
-            const tieneBotonAgregar = botones.some(boton => {
-                const texto = (boton.textContent?.trim() || '').toLowerCase();
-                const id = boton.id?.toLowerCase() || '';
-                const rect = boton.getBoundingClientRect();
-                const esVisible = rect.width > 0 && rect.height > 0;
-                const contieneAgregar = texto.includes('agregar') || id.includes('agregar');
+                // Función para normalizar texto (sin acentos, minúsculas, sin espacios extra)
+                const normalizarTexto = (texto: string): string => {
+                    return texto
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+                        .trim()
+                        .replace(/\s+/g, ' '); // Normalizar espacios
+                };
                 
-                if (esVisible && contieneAgregar) {
-                    botonEncontrado = `texto="${boton.textContent?.trim()}" id="${boton.id}"`;
-                    return true;
+                // Buscar tablas con clase ganttTable o id que contenga ganttTable
+                const tablas = Array.from(document.querySelectorAll('table'));
+                let tablaEncontrada: HTMLTableElement | null = null;
+                let columnasEncontradas: string[] = [];
+                
+                for (const tabla of tablas) {
+                    const el = tabla as HTMLTableElement;
+                    const tieneClaseGantt = el.classList.contains('ganttTable');
+                    const idContieneGantt = el.id && el.id.toLowerCase().includes('gantttable');
+                    
+                    if (tieneClaseGantt || idContieneGantt) {
+                        // Extraer headers de la tabla
+                        const headers = Array.from(el.querySelectorAll('thead th, thead td, tr:first-child th, tr:first-child td'));
+                        const textosHeaders = headers.map(th => normalizarTexto(th.textContent || ''));
+                        
+                        // Verificar que tenga todas las columnas requeridas
+                        const columnasPresentes: string[] = [];
+                        let todasPresentes = true;
+                        
+                        // Verificar N° (puede ser n°, nº, o n)
+                        const tieneNumero = textosHeaders.some(h => 
+                            h.includes('n°') || h.includes('nº') || h === 'n' || h.startsWith('n ')
+                        );
+                        if (tieneNumero) columnasPresentes.push('N°');
+                        else todasPresentes = false;
+                        
+                        // Verificar Nombre
+                        const tieneNombre = textosHeaders.some(h => h.includes('nombre'));
+                        if (tieneNombre) columnasPresentes.push('Nombre');
+                        else todasPresentes = false;
+                        
+                        // Verificar Descripción
+                        const tieneDescripcion = textosHeaders.some(h => h.includes('descripcion'));
+                        if (tieneDescripcion) columnasPresentes.push('Descripción');
+                        else todasPresentes = false;
+                        
+                        // Verificar Mes inicio
+                        const tieneMesInicio = textosHeaders.some(h => 
+                            h.includes('mes inicio') || h.includes('inicio')
+                        );
+                        if (tieneMesInicio) columnasPresentes.push('Mes inicio');
+                        else todasPresentes = false;
+                        
+                        // Verificar Mes término (puede ser "mes termino", "mes fin", o "termino")
+                        const tieneMesTermino = textosHeaders.some(h => 
+                            h.includes('mes termino') || h.includes('mes fin') || 
+                            (h.includes('termino') && h.includes('mes'))
+                        );
+                        if (tieneMesTermino) columnasPresentes.push('Mes término');
+                        else todasPresentes = false;
+                        
+                        // Verificar Opciones
+                        const tieneOpciones = textosHeaders.some(h => h.includes('opciones'));
+                        if (tieneOpciones) columnasPresentes.push('Opciones');
+                        else todasPresentes = false;
+                        
+                        if (todasPresentes) {
+                            tablaEncontrada = el;
+                            columnasEncontradas = textosHeaders;
+                            break;
+                        }
+                    }
                 }
-                return false;
+                
+                return {
+                    cumple: tablaEncontrada !== null,
+                    tablaEncontrada: tablaEncontrada ? {
+                        id: tablaEncontrada.id,
+                        className: tablaEncontrada.className,
+                        columnas: columnasEncontradas
+                    } : null
+                };
             });
-            
-            // SIMPLIFICACIÓN: Solo verificar label duración + botón AGREGAR+
-            // El campo disabled puede tener readonly en lugar de disabled, así que no es confiable
-            return {
-                cumple: tieneLabelDuracion && tieneBotonAgregar,
-                tieneLabelDuracion,
-                tieneCampoDisabled,
-                tieneBotonAgregar,
-                labelEncontrado,
-                campoDisabledEncontrado,
-                botonEncontrado
-            };
-        });
         
             // Logging detallado para debugging
-            console.log(`   🔍 Verificando condiciones para botón AGREGAR+:`);
-            console.log(`      ✓ Label duración: ${resultado.tieneLabelDuracion} ${resultado.labelEncontrado ? `- "${resultado.labelEncontrado}"` : ''}`);
-            console.log(`      ✓ Campo disabled: ${resultado.tieneCampoDisabled} ${resultado.campoDisabledEncontrado ? `- ${resultado.campoDisabledEncontrado}` : ''}`);
-            console.log(`      ✓ Botón AGREGAR+: ${resultado.tieneBotonAgregar} ${resultado.botonEncontrado ? `- ${resultado.botonEncontrado}` : ''}`);
-            console.log(`      → Resultado final: ${resultado.cumple} (label duración + botón AGREGAR+)`);
+            console.log(`   🔍 Verificando tabla Gantt para botón AGREGAR+:`);
+            if (resultado.tablaEncontrada) {
+                console.log(`      ✓ Tabla encontrada: id="${resultado.tablaEncontrada.id}" class="${resultado.tablaEncontrada.className}"`);
+                console.log(`      ✓ Columnas detectadas: ${resultado.tablaEncontrada.columnas.join(', ')}`);
+                console.log(`      → Resultado final: ${resultado.cumple} (tabla Gantt con todas las columnas requeridas)`);
+            } else {
+                console.log(`      ✗ No se encontró tabla Gantt con las columnas requeridas`);
+                console.log(`      → Resultado final: ${resultado.cumple}`);
+            }
             
             return resultado.cumple;
         } catch (error) {
