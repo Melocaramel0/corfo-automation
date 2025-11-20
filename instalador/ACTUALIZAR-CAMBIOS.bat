@@ -5,7 +5,7 @@ echo ====================================================================
 echo    Actualizando el sistema con los ultimos cambios...
 echo ====================================================================
 echo.
-
+git pull
 echo.
 echo 1. Re-construyendo el sistema con los nuevos cambios (docker-compose build)...
 echo.
