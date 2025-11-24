@@ -296,7 +296,7 @@ ISC
 ---
 
 **Versión**: 2.2.0 (Arquitectura Modular + UI Completa)  
-**Última actualización**: Diciembre 2024
+**Última actualización**: Nov 2025
 
 ### Changelog v2.2.0
 - ✅ Módulo completo de Campos Fundamentales
