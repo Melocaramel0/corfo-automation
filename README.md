@@ -58,15 +58,22 @@ corfo-automation/
 │   └── ai_consumption.json # Consumo de recursos IA
 ├── archivos_prueba/      # Archivos para testing
 ├── documentacion/        # Documentación técnica
+├── instalador/          # Scripts de instalación (Windows)
+├── docker-compose.yml    # Configuración Docker
 ├── package.json          # Root (scripts monorepo)
 └── README.md
 ```
 
 ## 🚀 Instalación
 
-### Opción 1: Instalar todo (monorepo)
+### Opción 1: Instalar todo (monorepo) - Recomendado
 ```bash
 npm run install:all
+# Esto instala automáticamente:
+# - Dependencias de la raíz
+# - Dependencias del backend
+# - Playwright (para automatización)
+# - Dependencias del frontend
 ```
 
 ### Opción 2: Instalar por separado
@@ -74,10 +81,24 @@ npm run install:all
 # Backend
 cd backend
 npm install
+npx playwright install
 
 # Frontend
-cd frontend
+cd ../frontend
 npm install
+```
+
+### Opción 3: Docker (Producción)
+Si tienes Docker Desktop instalado, puedes usar los scripts de instalación en `instalador/`:
+
+**Windows:**
+```bash
+instalador\INSTALAR-POR-PRIMERA-VEZ.bat
+```
+
+**O manualmente:**
+```bash
+docker-compose up --build -d
 ```
 
 ## ⚙️ Configuración
@@ -123,16 +144,39 @@ cd backend
 npm run agente-orquestador
 ```
 
+### Docker (Producción)
+```bash
+# Iniciar servicios
+docker-compose up -d
+
+# Detener servicios
+docker-compose down
+
+# Ver logs
+docker-compose logs -f
+```
+
 ## 📊 Features Principales
 
+### Backend
 - ✅ **Agente Orquestador Inteligente** - Autocompletado automático de formularios
 - ✅ **Detección Automática** - Identifica estructura multi-paso
 - ✅ **Sistema de Reintentos** - Completa campos faltantes automáticamente
 - ✅ **Manejo de Modales** - Confirmaciones automáticas
 - ✅ **Pasos Especiales** - Soporta tabs, presupuesto, AGREGAR+
-- ✅ **Generación de Reportes** - JSON + PDF automáticos
+- ✅ **Generación de Reportes** - JSON + PDF automáticos con IA
+- ✅ **API REST Completa** - Endpoints para gestión de procesos, ejecuciones y resultados
+- ✅ **Gestión de Campos Fundamentales** - API para CRUD de campos fundamentales CORFO
+
+### Frontend
 - ✅ **UI React Moderna** - Dashboard con estado en tiempo real
-- ✅ **API REST** - Endpoints para gestión de procesos
+- ✅ **Sistema de Tours Guiados** - Tours interactivos con Driver.js
+- ✅ **Gestión de Procesos** - Crear, editar, ejecutar y monitorear validaciones
+- ✅ **Campos Fundamentales** - Interfaz completa para gestionar campos fundamentales
+- ✅ **Administración** - Panel de administración con consumo de recursos IA y logs
+- ✅ **Autenticación por Roles** - Admin, QA User, User con permisos diferenciados
+- ✅ **Notificaciones en Tiempo Real** - Sistema de notificaciones con React Hot Toast
+- ✅ **Exportación de Resultados** - CSV y JSON
 
 ## 🏗️ Arquitectura
 
@@ -145,7 +189,12 @@ npm run agente-orquestador
 - **React 18**: UI components
 - **Vite**: Build tool ultra-rápido
 - **Tailwind CSS**: Styling moderno
-- **Fetch API**: Comunicación con backend
+- **Axios**: Cliente HTTP para comunicación con backend
+- **React Query**: Estado del servidor y caché
+- **React Hook Form + Zod**: Formularios y validación
+- **Driver.js**: Sistema de tours guiados
+- **React Hot Toast**: Notificaciones en tiempo real
+- **Headless UI**: Componentes accesibles
 
 ### Modularización
 El código está organizado en módulos especializados siguiendo el principio de responsabilidad única:
@@ -211,8 +260,14 @@ El código está organizado en módulos especializados siguiendo el principio de
 Ver carpeta `/documentacion/` para guías detalladas:
 - `AGENTE_ORQUESTADOR.md` - Arquitectura del agente
 - `INTEGRACION_FRONTEND_BACKEND.md` - API y comunicación
-- `INICIO_RAPIDO.md` - Guía de inicio
+- `INICIO_RAPIDO.md` - Guía de inicio rápida
 - `CONTROL_COSTOS.md` - Optimización de recursos
+- `CAMPOS_FUNDAMENTALES.md` - Gestión de campos fundamentales
+- `GENERACION_INFORMES_PDF.md` - Generación de reportes PDF
+
+### Documentación Frontend
+- `frontend/README.md` - Documentación completa del frontend
+- `frontend/TOURS_GUIDE.md` - Guía de tours guiados
 
 
 ## 💾 Almacenamiento de Datos
@@ -240,8 +295,16 @@ ISC
 
 ---
 
-**Versión**: 2.1.0 (Refactorizada - Arquitectura Modular)  
-**Última actualización**: Nov 2025
+**Versión**: 2.2.0 (Arquitectura Modular + UI Completa)  
+**Última actualización**: Diciembre 2024
+
+### Changelog v2.2.0
+- ✅ Módulo completo de Campos Fundamentales
+- ✅ Sistema de tours guiados (Driver.js)
+- ✅ Soporte Docker con docker-compose
+- ✅ Scripts de instalación automatizados
+- ✅ Notificaciones en tiempo real
+- ✅ Integración completa frontend-backend
 
 
 

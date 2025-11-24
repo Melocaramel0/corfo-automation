@@ -35,7 +35,7 @@ cp .env.example .env
 # Iniciar servidor de desarrollo
 npm run dev
 
-# El servidor estará disponible en http://localhost:3000
+# El servidor estará disponible en http://localhost:5173
 ```
 
 ## 🏗️ Construcción
@@ -94,6 +94,9 @@ ui/
 - **React Hook Form** - Formularios
 - **Zod** - Validación de esquemas
 - **Headless UI** - Componentes accesibles
+- **Driver.js** - Sistema de tours guiados
+- **React Hot Toast** - Notificaciones
+- **Axios** - Cliente HTTP
 
 ## 🌐 Integración con Backend
 
@@ -101,14 +104,39 @@ La aplicación está configurada para integrarse con el backend existente:
 
 ```typescript
 // Proxy configurado en vite.config.ts
-'/api' -> 'http://localhost:8000'
+'/api' -> 'http://localhost:3001'
 ```
 
-Para conectar con Agente Orquestador existente:
+Para conectar con el backend:
 
-1. El backend debe exponer endpoints REST en puerto 8000
-2. Los servicios en `src/services/` están preparados para la integración
-3. Actualmente usa datos mock para desarrollo
+1. El backend expone endpoints REST en puerto 3001
+2. Los servicios en `src/services/` están completamente integrados
+3. La comunicación se realiza mediante Axios con manejo de errores
+
+## 🐳 Docker
+
+El frontend incluye soporte Docker con Nginx para producción:
+
+```bash
+# Construir imagen
+docker build -t corfo-frontend .
+
+# O usar docker-compose desde la raíz del proyecto
+docker-compose up --build
+```
+
+El frontend se sirve en el puerto 5173 (mapeado al puerto 80 de Nginx en el contenedor).
+
+## 🎓 Tours Guiados
+
+El sistema incluye tours interactivos implementados con Driver.js para guiar a los usuarios:
+
+- **Dashboard**: Tour del panel principal
+- **Procesos de Validación**: Tour de la página de procesos
+- **Campos Fundamentales**: Tour de gestión de campos
+- **Administración**: Tour del panel de administración (solo admins)
+
+Ver `TOURS_GUIDE.md` para más información sobre cómo crear nuevos tours.
 
 ## 📱 Funcionalidades
 
@@ -116,6 +144,7 @@ Para conectar con Agente Orquestador existente:
 - Estadísticas generales
 - Actividad reciente
 - Acceso rápido a módulos
+- Tour guiado interactivo
 
 ### Procesos de Validación
 - ✅ Lista de procesos con filtros y búsqueda
@@ -124,11 +153,22 @@ Para conectar con Agente Orquestador existente:
 - ✅ Ver resultados con filtros
 - ✅ Exportar resultados (CSV/JSON)
 - ✅ Eliminar procesos
+- ✅ Tour guiado interactivo
+
+### Campos Fundamentales
+- ✅ Gestión completa de campos fundamentales CORFO
+- ✅ Crear, editar y eliminar campos
+- ✅ Organización por categorías
+- ✅ Búsqueda y filtrado avanzado
+- ✅ Activar/desactivar campos
+- ✅ Gestión de etiquetas reales
+- ✅ Tour guiado interactivo
 
 ### Administración (Solo Admin)
-- ✅ Consumo de recursos
+- ✅ Consumo de recursos IA
 - ✅ Parámetros del sistema
 - ✅ Logs globales
+- ✅ Tour guiado interactivo
 
 ## 🔒 Seguridad
 
@@ -147,16 +187,19 @@ Para conectar con Agente Orquestador existente:
 - [x] Dashboard con estadísticas
 - [x] Servicios y tipos TypeScript
 - [x] Componentes UI base
+- [x] Módulo completo de Procesos de Validación
+- [x] Módulo de Campos Fundamentales
+- [x] Módulo de Administración
+- [x] Sistema de tours guiados (Driver.js)
+- [x] Notificaciones en tiempo real
+- [x] Integración completa con backend
+- [x] Soporte Docker
 
 ### 🔄 En Desarrollo
-- [ ] Módulo completo de Procesos
-- [ ] Builder de reglas de validación
-- [ ] Módulo de Administración
-- [ ] Integración con backend real
+- [ ] Builder de reglas de validación avanzado
+- [ ] Historial de ejecuciones mejorado
 
 ### 📅 Próximas Funcionalidades
-- [ ] Notificaciones en tiempo real
-- [ ] Historial de ejecuciones
 - [ ] Métricas avanzadas
 - [ ] Exportación de configuraciones
 - [ ] Temas personalizables

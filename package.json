@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm install && cd backend && npm install && npx playwright install && cd ../frontend && npm install",
+    "install:all": "npm install && cd backend && npm install && npx playwright install && cd ../frontend && npm install && cd .. && node -e \"console.log('\\n✅ Instalación completada exitosamente!\\n\\n📝 IMPORTANTE: Crea el archivo backend/.env con tus credenciales CORFO\\n   Ver INICIO_RAPIDO.md para más detalles\\n\\n🚀 Para iniciar el sistema: npm start\\n')\"",
+    "postinstall": "echo ✅ Dependencias instaladas",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run server:dev",
     "dev:frontend": "cd frontend && npm run dev",

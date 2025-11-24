@@ -80,6 +80,34 @@ cd frontend
 npm run dev
 ```
 
+### Opción 3: Docker (Producción)
+
+Si tienes Docker Desktop instalado, puedes usar los scripts de instalación:
+
+**Windows:**
+```bash
+# Primera vez
+instalador\INSTALAR-POR-PRIMERA-VEZ.bat
+
+# Arrancar sistema
+instalador\ARRANCAR-SISTEMA.bat
+
+# Detener sistema
+instalador\DETENER-SISTEMA.BAT
+
+# Actualizar cambios
+instalador\ACTUALIZAR-CAMBIOS.bat
+```
+
+**O manualmente con docker-compose:**
+```bash
+# Construir e iniciar
+docker-compose up --build -d
+
+# Detener
+docker-compose down
+```
+
 ### Mock users:
 
 1. Administrador
@@ -107,9 +135,17 @@ Permisos: Solo ver y ejecutar procesos
 
 1. Abre tu navegador en: **http://localhost:5173**
 2. Inicia sesión con tus credenciales
-3. Crea un nuevo proceso desde la interfaz
-4. Ingresa la URL del formulario CORFO
-5. Haz clic en ▶️ "Ejecutar" y observa el progreso en tiempo real
+3. **💡 Tip**: Usa los tours guiados (botón de ayuda) para conocer las funcionalidades
+4. Crea un nuevo proceso desde la interfaz
+5. Ingresa la URL del formulario CORFO
+6. Haz clic en ▶️ "Ejecutar" y observa el progreso en tiempo real
+
+### Funcionalidades Disponibles
+
+- **Dashboard**: Estadísticas y actividad reciente
+- **Procesos de Validación**: Crear, editar y ejecutar procesos
+- **Campos Fundamentales**: Gestionar campos fundamentales CORFO (crear, editar, activar/desactivar)
+- **Administración**: Consumo de recursos IA, parámetros del sistema y logs (solo Admin)
 
 ### Opción 2: Desde la Terminal (CLI)
 
@@ -145,6 +181,17 @@ Todos los archivos generados se guardan en la carpeta `data/` en la **raíz del 
 Para detalles técnicos completos, consulta:
 - `documentacion/INTEGRACION_FRONTEND_BACKEND.md` - API y comunicación
 - `README.md` - Documentación completa del proyecto
+- `frontend/README.md` - Documentación del frontend
+- `frontend/TOURS_GUIDE.md` - Guía de tours guiados
+- `documentacion/CAMPOS_FUNDAMENTALES.md` - Documentación de campos fundamentales
+
+## 🎓 Tours Guiados
+
+La aplicación incluye tours interactivos para ayudarte a conocer las funcionalidades:
+
+- Haz clic en el botón de ayuda (ícono de tour) en cualquier página
+- Los tours te guiarán paso a paso por cada funcionalidad
+- Disponible en: Dashboard, Procesos, Campos Fundamentales y Administración
 
 ## ❓ Problemas Comunes
 
@@ -163,4 +210,15 @@ Reinicia ambos servidores:
 # Ctrl+C en ambas terminales
 npm start
 ```
+
+### Error con Docker
+Asegúrate de que:
+- Docker Desktop esté instalado y ejecutándose
+- Los puertos 3001 y 5173 no estén en uso
+- El archivo `.env` esté en `backend/.env`
+
+### Problemas con Playwright en Docker
+Si el agente no funciona en Docker, verifica que:
+- El contenedor tenga permisos suficientes
+- Las credenciales CORFO estén correctamente configuradas en `.env`
 
